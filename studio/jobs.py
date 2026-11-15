@@ -4,6 +4,7 @@ import json
 import os
 import math
 import queue
+import re
 import shutil
 import threading
 import time
@@ -148,7 +149,7 @@ def public(job) -> dict:
     """What the browser may see: no server paths, no owner id."""
     out = {k: v for k, v in job.items() if k not in HIDDEN}
     out["source"] = {k: v for k, v in job["source"].items() if k != "path"}
-    out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for")} for c in job["clips"]]
+    out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for", "caption_words")} for c in job["clips"]]
     ai = job.get("ai") or {}
     out["ai"] = {"tokens": ai.get("tokens", 0), "note": ai.get("note", ""), "used": bool(ai.get("model"))}   # never the model, never raw errors
     if job.get("status") == "queued":
@@ -356,9 +357,45 @@ def request_render(jid, cid, changes: dict):
         new["style"] = DEFAULTS["style"]
     if new.get("layout") not in render.LAYOUTS:
         new["layout"] = DEFAULTS["layout"]
+    if "look" in changes:                     # the editor's caption look; null goes back to the clip's style
+        new["look"] = render.clean_look(changes["look"])
+    if "captions" in changes:                 # caption words typed in the editor; null goes back to what was heard
+        new["caption_words"] = clean_caption_words(changes["captions"])
     clip.update(new, status="queued")
     save(job)
     _q.put(("clip", jid, cid))
+
+
+def clean_caption_words(words) -> list | None:
+    """Caption words from the editor: [{"w": text, "s": start, "e": end}, ...] in seconds of the video, checked."""
+    if words is None:
+        return None
+    if not isinstance(words, list) or len(words) > 3000:
+        raise ValueError("Those captions can't be used.")
+    out = []
+    for w in words:
+        if not isinstance(w, dict):
+            raise ValueError("Those captions can't be used.")
+        text = re.sub(r"\s+", " ", str(w.get("w", ""))).strip()[:40]
+        s, e = float(w.get("s")), float(w.get("e"))
+        if not text or not (math.isfinite(s) and math.isfinite(e)) or s < 0 or e < s:
+            continue
+        out.append({"w": text, "s": round(s, 2), "e": round(e, 2)})
+    out.sort(key=lambda w: w["s"])
+    return out
+
+
+def caption_words(job, clip) -> tuple[list, bool]:
+    """The words a clip's captions are made from, and whether they were typed in the editor."""
+    if clip.get("caption_words") is not None:
+        return clip["caption_words"], True
+    if clip.get("fixed_words"):
+        return roman.words(clip["fixed_words"]), False
+    try:
+        words = json.loads((Path(job["dir"]) / "words.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        words = []
+    return roman.words([w for w in words if clip["start"] - 1 <= w["s"] <= clip["end"] + 1]), False
 
 
 def render_one(job, clip, words):
@@ -372,7 +409,9 @@ def render_one(job, clip, words):
             clip["end"] = min(clip["end"], job["duration"])
         local = dict(clip, start=clip["start"] - off, end=clip["end"] - off, hook=roman.to_roman(clip.get("hook") or ""))
         span = [round(clip["start"], 2), round(clip["end"], 2), "en2"]      # "en2": captions made always-English
-        if clip.get("fixed_for") == span and clip.get("fixed_words") and not any(
+        if clip.get("caption_words") is not None:
+            raw = clip["caption_words"]       # typed in the editor: drawn exactly as written
+        elif clip.get("fixed_for") == span and clip.get("fixed_words") and not any(
                 roman.needs_roman(w.get("w", "")) for w in clip["fixed_words"]):
             raw = clip["fixed_words"]          # already tidied for this exact span: no second AI call
         else:
@@ -385,7 +424,8 @@ def render_one(job, clip, words):
             except Exception:  # noqa: BLE001 - captions still render with the words as heard
                 pass
         # the last word on it: whatever was said, nothing is drawn in Hindi or Urdu script
-        near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in roman.words(raw)]
+        typed = clip.get("caption_words") is not None
+        near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in (raw if typed else roman.words(raw))]
         out = render.render_clip(src, d / "clips", clip["id"], local, near, job["width"], job["height"])
         clip.update(out, status="done", version=clip.get("version", 0) + 1, error=None)
         post = {k: clip[k] for k in ("title", "description", "hashtags", "hook", "start", "end", "score")}

@@ -11,10 +11,10 @@ import time
 from pathlib import Path
 
 NEEDED = ("ffmpeg", "ffprobe")
-HELP = ("PeakCut needs ffmpeg to work on video, and it isn't installed on this computer yet. "
+HELP = ("SocialShot needs ffmpeg to work on video, and it isn't installed on this computer yet. "
         + ("Open a terminal and run:  winget install Gyan.FFmpeg" if sys.platform == "win32" else
            "Run:  brew install ffmpeg" if sys.platform == "darwin" else "Run:  sudo apt install ffmpeg")
-        + "  Then close PeakCut and start it again.")
+        + "  Then close SocialShot and start it again.")
 _seen = {"at": 0.0, "missing": list(NEEDED)}
 
 

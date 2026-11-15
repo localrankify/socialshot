@@ -23,6 +23,111 @@ HOOK = {"font": "Poppins ExtraBold", "size": 96, "ink": "14100E", "box": "FFFFFF
         "max_w": 900}
 FONT_FILES = {"Poppins ExtraBold": "Poppins-ExtraBold.ttf", "Anton": "Anton-Regular.ttf", "Archivo Black": "ArchivoBlack-Regular.ttf"}
 CAP_MAX_W = 960   # captions never run wider than this, whatever is said
+_BUNDLED = Path(__file__).resolve().parent / "fonts"
+_PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer's font name -> the font file
+
+# Fonts people can pick in the clip editor. Three ship with SocialShot; the rest come from Google Fonts the first
+# time someone uses them and are kept in the fonts folder after that.
+FONTS = {
+    "Poppins": {"ass": "Poppins ExtraBold", "google": "Poppins", "weight": 800},
+    "Anton": {"ass": "Anton", "google": "Anton", "weight": 400},
+    "Archivo Black": {"ass": "Archivo Black", "google": "Archivo Black", "weight": 400},
+    "Montserrat": {"google": "Montserrat", "weight": 800},
+    "Bebas Neue": {"google": "Bebas Neue", "weight": 400},
+    "Oswald": {"google": "Oswald", "weight": 700},
+    "Bangers": {"google": "Bangers", "weight": 400},
+    "Luckiest Guy": {"google": "Luckiest Guy", "weight": 400},
+    "Lilita One": {"google": "Lilita One", "weight": 400},
+    "Titan One": {"google": "Titan One", "weight": 400},
+    "Fredoka": {"google": "Fredoka", "weight": 700},
+    "Rubik": {"google": "Rubik", "weight": 800},
+    "Inter": {"google": "Inter", "weight": 800},
+    "Barlow Condensed": {"google": "Barlow Condensed", "weight": 800},
+    "Russo One": {"google": "Russo One", "weight": 400},
+    "Bungee": {"google": "Bungee", "weight": 400},
+    "Permanent Marker": {"google": "Permanent Marker", "weight": 400},
+}
+
+# Ready-made caption looks for the editor. A look is everything about the captions a person can change.
+PRESETS = {
+    "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": True, "per": 3, "outline": 7},
+    "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 7},
+    "clean": {"label": "Clean", "font": "Poppins", "size": 100, "base": "#FFFFFF", "active": "#FFD76B", "upper": False, "per": 4, "outline": 5},
+    "boldpop": {"label": "Bold pop", "font": "Montserrat", "size": 122, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 3, "outline": 8},
+    "headline": {"label": "Headline", "font": "Bebas Neue", "size": 176, "base": "#FFFFFF", "active": "#22E06B", "upper": True, "per": 3, "outline": 6},
+    "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": True, "per": 2, "outline": 8},
+    "soft": {"label": "Soft", "font": "Fredoka", "size": 112, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 6},
+    "marker": {"label": "Marker", "font": "Permanent Marker", "size": 120, "base": "#FFFFFF", "active": "#FF8B33", "upper": False, "per": 3, "outline": 6},
+}
+_HEX = re.compile(r"#[0-9A-Fa-f]{6}")
+
+
+def clean_look(look) -> dict | None:
+    """A caption look from the editor, checked and limited. None means "use the clip's style as it is"."""
+    if not isinstance(look, dict):
+        return None
+    base = PRESETS["bounce"]
+    num = lambda k, lo, hi: max(lo, min(hi, int(float(look.get(k, base.get(k, lo))))))   # noqa: E731
+    colour = lambda k: look[k] if isinstance(look.get(k), str) and _HEX.fullmatch(look[k]) else base[k]   # noqa: E731
+    y = look.get("y")
+    return {"font": look["font"] if look.get("font") in FONTS else base["font"],
+            "size": num("size", 60, 220), "outline": num("outline", 0, 12), "per": num("per", 1, 5),
+            "base": colour("base").upper(), "active": colour("active").upper(), "upper": bool(look.get("upper", True)),
+            "y": None if y is None else max(8.0, min(92.0, float(y))), "hook": bool(look.get("hook", True))}
+
+
+def _family_name(path: Path) -> str:
+    """The family name stored inside a font file, which is the name the caption renderer looks fonts up by."""
+    import struct
+    d = path.read_bytes()
+    for i in range(struct.unpack(">H", d[4:6])[0]):
+        tag, _, off, _ = struct.unpack(">4sIII", d[12 + 16 * i: 28 + 16 * i])
+        if tag != b"name":
+            continue
+        _, count, strings = struct.unpack(">HHH", d[off: off + 6])
+        for r in range(count):
+            plat, enc, _, nid, ln, so = struct.unpack(">HHHHHH", d[off + 6 + 12 * r: off + 18 + 12 * r])
+            if nid == 1 and plat == 3 and enc in (0, 1):
+                return d[off + strings + so: off + strings + so + ln].decode("utf-16-be")
+    raise ValueError("That font file has no name.")
+
+
+_font_lock = __import__("threading").Lock()
+
+
+def ensure_font(key: str) -> str:
+    """Makes sure a font from FONTS is on this machine and returns its name for the caption renderer."""
+    f = FONTS.get(key) or FONTS["Poppins"]
+    if "ass" in f:
+        return f["ass"]
+    slug = re.sub(r"[^a-z0-9]+", "-", f["google"].lower()).strip("-")
+    path = config.FONTS_DIR / f"g-{slug}-{f['weight']}.ttf"
+    with _font_lock:
+        if not path.is_file():
+            import httpx
+            family = f["google"].replace(" ", "+")
+            css = httpx.get(f"https://fonts.googleapis.com/css2?family={family}:wght@{f['weight']}",
+                            headers={"User-Agent": "SocialShot-fonts"}, timeout=20).text
+            m = re.search(r"url\((https://fonts\.gstatic\.com/[^)\s]+\.ttf)\)", css)
+            if not m:
+                raise RuntimeError(f"Couldn't get the {key} font from Google Fonts.")
+            r = httpx.get(m.group(1), timeout=30)
+            r.raise_for_status()
+            if len(r.content) > 5_000_000:
+                raise RuntimeError(f"The {key} font is too large.")
+            tmp = path.with_suffix(".part")
+            tmp.write_bytes(r.content)
+            tmp.replace(path)
+        name = _family_name(path)
+        _PATHS[name] = path
+        return name
+
+
+def look_style(look: dict) -> dict:
+    """Turns an editor look into the style the caption builder draws with (ASS colours are BBGGRR)."""
+    bgr = lambda h: h[5:7] + h[3:5] + h[1:3]   # noqa: E731
+    return {"font": ensure_font(look["font"]), "size": look["size"], "base": bgr(look["base"]), "active": bgr(look["active"]),
+            "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"]}
 
 
 class _Font:
@@ -32,7 +137,7 @@ class _Font:
 
     def __init__(self, name):
         import struct
-        path = Path(__file__).resolve().parent / "fonts" / FONT_FILES.get(name, FONT_FILES["Poppins ExtraBold"])
+        path = _PATHS.get(name) or _PATHS["Poppins ExtraBold"]
         d = path.read_bytes()
         tables = {}
         for i in range(struct.unpack(">H", d[4:6])[0]):
@@ -156,7 +261,8 @@ def _hook_events(hook, dur, y):
 
 
 def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y) -> str:
-    st = STYLES.get(style_name, STYLES["bounce"])
+    """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style)."""
+    st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["bounce"])
     words = [dict(w, s=w["s"] - CAPTION_LEAD, e=w["e"] - CAPTION_LEAD) for w in words]
     strong = {_key(h) for h in highlight if _key(h)}
     head = f"""[Script Info]
@@ -246,8 +352,15 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     out_dir.mkdir(parents=True, exist_ok=True)
     start, end = clip["start"], clip["end"]
     layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"))
-    ass = build_ass(words, start, end, clip.get("hook", ""), clip.get("style", "bounce"),
-                    clip.get("highlight_words", []), hook_y, cap_y)
+    look = clean_look(clip.get("look"))
+    style, hook = clip.get("style", "bounce"), clip.get("hook", "")
+    if look:                                    # changed in the editor: its own font, colours, size and place
+        style = look_style(look)
+        if look["y"] is not None:
+            cap_y = round(H * look["y"] / 100)
+        if not look["hook"]:
+            hook = ""
+    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
     # folders easily reaches. Inside the work folder every name is short and relative (a drive colon would also

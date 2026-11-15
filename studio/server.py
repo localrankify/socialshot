@@ -1,4 +1,4 @@
-"""PeakCut web server. Run with:  python -m studio.server
+"""SocialShot web server. Run with:  python -m studio.server
 
 Public pages:  /  /login  /signup          The app:  /app  (signed-in users only)
 Everything under /api, /media and /oauth needs a session, except /api/auth/* and /api/public."""
@@ -34,7 +34,7 @@ def _quiet(fn):
         print(f"  {e}", flush=True)
 
 
-app = FastAPI(title="PeakCut", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="SocialShot", docs_url=None, redoc_url=None, openapi_url=None)
 WEB = config.ROOT / "web"
 OPEN = ("/api/auth/", "/pub/", "/api/public", "/auth/google/", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
 PAGES = {"/": "landing.html", "/login": "auth.html", "/signup": "auth.html", "/reset": "reset.html",
@@ -132,7 +132,7 @@ class Gate:
             # must have been asked for by its real address (a number, "localhost", or the address in settings),
             # so another website cannot reach it through a made-up name that points at this machine.
             if not _own_address(req.headers.get("host", "")):
-                return await deny(403, "Open PeakCut by its own address.")
+                return await deny(403, "Open SocialShot by its own address.")
             if path == "/" or path == "/reset" or path.startswith("/auth/"):
                 return await deny(303, "", redirect="/app")
             if path.startswith("/api/auth/") and path != "/api/auth/me":
@@ -264,7 +264,7 @@ def _ip(request: Request) -> str:
 
 
 def _own_address(host: str) -> bool:
-    """Is this the address PeakCut is really reached by? A number (127.0.0.1, 192.168.1.20), "localhost", or the
+    """Is this the address SocialShot is really reached by? A number (127.0.0.1, 192.168.1.20), "localhost", or the
     host in PEAKCUT_PUBLIC_URL."""
     import ipaddress
     name = host.strip().lower()
@@ -348,9 +348,9 @@ def reset_page():
 
 
 LEGAL = {
-    "privacy": ("Privacy Policy", "How PeakCut collects, uses and protects your data, including Google user data, cookies and your privacy rights."),
-    "terms": ("Terms of Service", "The terms for using PeakCut, the AI clipping tool for streams and videos: accounts, availability and liability."),
-    "acceptable-use": ("Acceptable Use Policy", "What you may and may not do with PeakCut, the AI stream clipping tool."),
+    "privacy": ("Privacy Policy", "How SocialShot collects, uses and protects your data, including Google user data, cookies and your privacy rights."),
+    "terms": ("Terms of Service", "The terms for using SocialShot, the AI clipping tool for streams and videos: accounts, availability and liability."),
+    "acceptable-use": ("Acceptable Use Policy", "What you may and may not do with SocialShot, the AI stream clipping tool."),
 }
 
 
@@ -365,9 +365,9 @@ def legal_page(request: Request):
     contact = config.CONTACT_EMAIL
     who = (f'<a href="mailto:{_h.escape(contact)}">{_h.escape(contact)}</a>' if contact
            else "the contact details on our website")
-    name = _h.escape(config.LEGAL_NAME or "PeakCut")
+    name = _h.escape(config.LEGAL_NAME or "SocialShot")
     law = (f"the laws of {_h.escape(config.LEGAL_COUNTRY)}" if config.LEGAL_COUNTRY
-           else "the laws of the country where PeakCut's operator is established")
+           else "the laws of the country where SocialShot's operator is established")
     out = (_LEGAL_HTML or (WEB / "legal.html").read_text(encoding="utf-8"))
     for k, v in {"{{CONTACT}}": who, "{{PAGE}}": page, "{{PAGE_PATH}}": page, "{{SITE}}": _h.escape(config.PUBLIC_URL),
                  "{{NAME}}": name, "{{LAW}}": law, "{{TITLE}}": title, "{{DESC}}": desc}.items():
@@ -401,9 +401,10 @@ def healthz():
 
 @app.get("/brand/{name}")
 def brand(name: str):
-    if not re.fullmatch(r"[\w\-]+\.(svg|png|ico|webp|jpg|mp4)", name) or not (WEB / "brand" / name).is_file():
+    if not re.fullmatch(r"[\w\-]+\.(svg|png|ico|webp|jpg|mp4|woff2|otf)", name) or not (WEB / "brand" / name).is_file():
         raise HTTPException(404)
-    return FileResponse(WEB / "brand" / name, headers={"Cache-Control": "public, max-age=604800, stale-while-revalidate=86400"})
+    kind = "font/otf" if name.endswith(".otf") else None      # the heading font (Mazzard H)
+    return FileResponse(WEB / "brand" / name, media_type=kind, headers={"Cache-Control": "public, max-age=604800, stale-while-revalidate=86400"})
 
 
 @app.get("/assets/{name}")
@@ -415,7 +416,7 @@ def asset(name: str):
 
 @app.get("/favicon.ico")
 def favicon():
-    return RedirectResponse("/brand/favicon.svg", 308)
+    return RedirectResponse("/brand/favicon.svg?v=3", 308)
 
 
 # ================================================================ sign up, sign in, sign out
@@ -561,7 +562,9 @@ def status(request: Request):
     return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
-            "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS}
+            "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
+            "fonts": {k: {"google": v["google"], "weight": v["weight"]} for k, v in render.FONTS.items()},
+            "presets": render.PRESETS}
 
 
 # ================================================================ videos
@@ -588,7 +591,7 @@ _disk: dict = {}
 def _quota():
     """Each account has a fixed amount of disk space. Measured at most once a minute."""
     if load.disk_full():
-        raise HTTPException(503, "PeakCut is out of space for new videos for the moment. Please try again shortly.")
+        raise HTTPException(503, "SocialShot is out of space for new videos for the moment. Please try again shortly.")
     uid = ctx.uid()
     got = _disk.get(uid)
     if not got or time.time() - got[0] > 60:
@@ -1015,6 +1018,64 @@ def media_file(jid: str, name: str, download: int = 0):
     return FileResponse(f, filename=name if download else None, headers={"Cache-Control": "private, max-age=300"})
 
 
+def _clip_or_404(jid: str, cid: str):
+    job = _job_or_404(jid)
+    clip = next((c for c in job["clips"] if c["id"] == cid), None)
+    if not clip:
+        raise HTTPException(404, "No such clip")
+    return job, clip
+
+
+@app.get("/media/{jid}/{cid}/source")
+def clip_source(jid: str, cid: str):
+    """The original footage around a clip, without captions, for the editor's live preview."""
+    job, clip = _clip_or_404(jid, cid)
+    home = Path(job["dir"]).resolve()
+    if clip.get("src"):                                 # by name, inside this video's own folder
+        f = home / "clips" / Path(str(clip["src"]).replace("\\", "/")).name
+    else:
+        f = Path(job.get("source_path") or "").resolve()
+    if not f.is_file() or home not in f.resolve().parents:
+        raise HTTPException(404, "The original video for this clip is no longer here.")
+    return FileResponse(f, media_type="video/mp4", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.get("/api/jobs/{jid}/clips/{cid}/captions")
+def clip_captions(jid: str, cid: str):
+    """Every caption word of a clip with its time in the video, for editing."""
+    job, clip = _clip_or_404(jid, cid)
+    words, edited = jobs.caption_words(job, clip)
+    return {"words": words, "edited": edited, "offset": clip.get("src_offset", 0.0),
+            "min": clip.get("src_offset", 0.0), "max": clip.get("src_end", job.get("duration") or clip["end"])}
+
+
+# ================================================================ brand kit: caption looks a person saved
+def _brand_file() -> Path:
+    return config.user_dir(ctx.uid()) / "brand.json"
+
+
+@app.get("/api/brand")
+def brand_get():
+    try:
+        return json.loads(_brand_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"styles": []}
+
+
+@app.put("/api/brand")
+def brand_put(body: dict = Body(...)):
+    styles = []
+    for s in (body.get("styles") if isinstance(body.get("styles"), list) else [])[:12]:
+        look = render.clean_look(s.get("look") if isinstance(s, dict) else None)
+        name = re.sub(r"\s+", " ", str(s.get("name", "") if isinstance(s, dict) else "")).strip()[:40]
+        if look and name:
+            styles.append({"name": name, "look": look})
+    f = _brand_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"styles": styles}), encoding="utf-8")
+    return {"styles": styles}
+
+
 # ================================================================ creators and live recording
 def _channel_ok(body: dict):
     links = [str(body.get("channel") or "").strip()]
@@ -1037,7 +1098,7 @@ def email_preview(request: Request, kind: str = "verify"):
     from . import mailer
     _admin(request)
     if kind == "reset":
-        page = mailer.preview("Reset your password", "Someone asked to reset the password for this PeakCut account. If that was you, choose a new one below.",
+        page = mailer.preview("Reset your password", "Someone asked to reset the password for this SocialShot account. If that was you, choose a new one below.",
                               "Choose a new password", config.PUBLIC_URL + "/reset?t=example",
                               "The link works for one hour. If you didn't ask for this, ignore this email and your password stays the same.")
     else:
@@ -1052,9 +1113,9 @@ def test_email(request: Request):
     me_ = _admin(request)
     if not mailer.ready():
         raise HTTPException(400, "No email service is set up yet. Add the PEAKCUT_SMTP settings to .env first.")
-    mailer.send(me_.email, "PeakCut test email", "Your emails are working",
-                "This is a test from your PeakCut server. Account emails like this one will now reach people.",
-                "Open PeakCut", config.PUBLIC_URL + "/app", "You can ignore this message.")
+    mailer.send(me_.email, "SocialShot test email", "Your emails are working",
+                "This is a test from your SocialShot server. Account emails like this one will now reach people.",
+                "Open SocialShot", config.PUBLIC_URL + "/app", "You can ignore this message.")
     return {"sent_to": me_.email}
 
 
@@ -1414,7 +1475,7 @@ def test_alert():
         auth_problem = str(e)
     if auth_problem:
         raise HTTPException(429, auth_problem)
-    problems = alerts.send("PeakCut: test message. Alerts are working.")
+    problems = alerts.send("SocialShot: test message. Alerts are working.")
     if problems:
         raise HTTPException(400, "; ".join(problems))
     return {"ok": True}
@@ -1472,9 +1533,9 @@ def admin_delete_user(request: Request, uid: str, body: dict = Body(...)):
 
 
 def main():
-    print(f"\n  PeakCut is running:  {config.PUBLIC_URL}\n")
+    print(f"\n  SocialShot is running:  {config.PUBLIC_URL}\n")
     if not config.ACCOUNTS and (config.HTTPS or config.HOST not in ("127.0.0.1", "localhost", "::1")):
-        print("  Sign-in is off, so anyone who can reach this address can use PeakCut and its AI key.\n"
+        print("  Sign-in is off, so anyone who can reach this address can use SocialShot and its AI key.\n"
               "  On a server other people can reach, set PEAKCUT_ACCOUNTS=1 in .env.\n", flush=True)
     if config.env("PEAKCUT_AUTO_RELOAD") == "1":
         # restart by itself whenever the server code changes (pages in web/ never need a restart)

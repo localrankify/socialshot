@@ -81,7 +81,7 @@ PORT = int(env("PEAKCUT_PORT") or "8765")
 PUBLIC_URL = (env("PEAKCUT_PUBLIC_URL") or f"http://127.0.0.1:{PORT}").rstrip("/")   # e.g. https://peakcut.com
 HTTPS = PUBLIC_URL.startswith("https://")
 SESSION_DAYS = int(env("PEAKCUT_SESSION_DAYS", "30"))
-# Accounts are off by default: PeakCut opens straight into the dashboard, with no sign-in, which is what you want
+# Accounts are off by default: SocialShot opens straight into the dashboard, with no sign-in, which is what you want
 # on your own computer. On a server that other people can reach, set PEAKCUT_ACCOUNTS=1: everyone then signs up
 # and signs in, and each person only sees their own videos.
 ACCOUNTS = env("PEAKCUT_ACCOUNTS", "0") == "1"
@@ -91,7 +91,7 @@ REPO_URL = env("PEAKCUT_REPO_URL", "https://github.com/haziqahmedqasmi/peakcut")
 FOLLOW_URL = env("PEAKCUT_FOLLOW_URL", "https://www.instagram.com/haziq.builds/").strip()
 
 # ---------------------------------------------------------------- limits (per user, and for the whole server)
-# Your own PeakCut has no limits unless you set them: 0 (the default) means "none" for every limit below. The
+# Your own SocialShot has no limits unless you set them: 0 (the default) means "none" for every limit below. The
 # machine still protects itself: new work waits while the processor, memory or disk are nearly full (load.py).
 _NONE = 10 ** 7                      # what "no limit" becomes: far beyond anything real, and still a plain number
 
@@ -139,7 +139,7 @@ SMTP_PORT = int(env("PEAKCUT_SMTP_PORT", "587"))
 SMTP_USER = env("PEAKCUT_SMTP_USER", "")
 MAIL_FROM = env("PEAKCUT_MAIL_FROM", "")
 CONTACT_EMAIL = env("PEAKCUT_CONTACT_EMAIL", "")
-LEGAL_NAME = env("PEAKCUT_LEGAL_NAME", "")            # the business that runs PeakCut, for the legal pages
+LEGAL_NAME = env("PEAKCUT_LEGAL_NAME", "")            # the business that runs SocialShot, for the legal pages
 LEGAL_COUNTRY = env("PEAKCUT_LEGAL_COUNTRY", "")      # whose law applies, for the terms
 # Set to 1 on a public site with email set up: password sign-ups must then confirm their address before clipping.
 VERIFY_EMAIL = env("PEAKCUT_VERIFY_EMAIL", "0") == "1"
