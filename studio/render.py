@@ -21,7 +21,8 @@ STYLES = {
 }
 HOOK = {"font": "Poppins ExtraBold", "size": 96, "ink": "14100E", "box": "FFFFFF", "pad_x": 36, "pad_y": 22, "radius": 26,
         "max_w": 900}
-FONT_FILES = {"Poppins ExtraBold": "Poppins-ExtraBold.ttf", "Anton": "Anton-Regular.ttf", "Archivo Black": "ArchivoBlack-Regular.ttf"}
+FONT_FILES = {"Poppins ExtraBold": "Poppins-ExtraBold.ttf", "Anton": "Anton-Regular.ttf", "Archivo Black": "ArchivoBlack-Regular.ttf",
+              "Mazzard H": "MazzardH-Bold.otf"}
 CAP_MAX_W = 960   # captions never run wider than this, whatever is said
 _BUNDLED = Path(__file__).resolve().parent / "fonts"
 _PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer's font name -> the font file
@@ -30,6 +31,7 @@ _PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer
 # time someone uses them and are kept in the fonts folder after that.
 FONTS = {
     "Poppins": {"ass": "Poppins ExtraBold", "google": "Poppins", "weight": 800},
+    "Mazzard H": {"ass": "Mazzard H", "google": "Mazzard H", "weight": 700, "local": True},   # SocialShot's own heading font, shipped here
     "Anton": {"ass": "Anton", "google": "Anton", "weight": 400},
     "Archivo Black": {"ass": "Archivo Black", "google": "Archivo Black", "weight": 400},
     "Montserrat": {"google": "Montserrat", "weight": 800},
@@ -61,6 +63,21 @@ PRESETS = {
 }
 _HEX = re.compile(r"#[0-9A-Fa-f]{6}")
 
+# Colour looks for the whole video, picked in the editor's Effects. Applied before the captions are drawn,
+# so the captions keep their own colours.
+EFFECTS = {
+    "none": "",
+    "vivid": "eq=saturation=1.35:contrast=1.08",
+    "bright": "eq=brightness=0.06:contrast=1.05:saturation=1.1",
+    "warm": "colorbalance=rs=0.08:gs=0.02:bs=-0.08:rm=0.06:bm=-0.06,eq=saturation=1.1",
+    "cool": "colorbalance=rs=-0.06:bs=0.1:rm=-0.04:bm=0.08",
+    "cinematic": "eq=contrast=1.12:saturation=0.85:brightness=-0.02,colorbalance=bs=0.05:rh=0.05",
+    "vintage": "curves=preset=vintage",
+    "bw": "hue=s=0,eq=contrast=1.1",
+}
+FADES = ("none", "black", "white")      # how a clip starts and ends: straight in, or a short fade from or to a colour
+FADE_SECONDS = 0.5
+
 
 def clean_look(look) -> dict | None:
     """A caption look from the editor, checked and limited. None means "use the clip's style as it is"."""
@@ -69,11 +86,37 @@ def clean_look(look) -> dict | None:
     base = PRESETS["bounce"]
     num = lambda k, lo, hi: max(lo, min(hi, int(float(look.get(k, base.get(k, lo))))))   # noqa: E731
     colour = lambda k: look[k] if isinstance(look.get(k), str) and _HEX.fullmatch(look[k]) else base[k]   # noqa: E731
-    y = look.get("y")
+    y, hy = look.get("y"), look.get("hook_y")
+    try:
+        hook_size = max(50, min(140, int(float(look.get("hook_size", HOOK["size"])))))
+    except (TypeError, ValueError):
+        hook_size = HOOK["size"]
     return {"font": look["font"] if look.get("font") in FONTS else base["font"],
             "size": num("size", 60, 220), "outline": num("outline", 0, 12), "per": num("per", 1, 5),
             "base": colour("base").upper(), "active": colour("active").upper(), "upper": bool(look.get("upper", True)),
-            "y": None if y is None else max(8.0, min(92.0, float(y))), "hook": bool(look.get("hook", True))}
+            "y": None if y is None else max(8.0, min(92.0, float(y))), "hook": bool(look.get("hook", True)),
+            # the heading at the top: its own font, size and height
+            "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Poppins", "hook_size": hook_size,
+            "hook_y": None if hy is None else max(5.0, min(95.0, float(hy))),
+            # effects: a colour look, and how the clip starts and ends
+            "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
+            "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
+            "fade_out": look["fade_out"] if look.get("fade_out") in FADES else "none"}
+
+
+def effect_filters(look, dur) -> tuple[str, str, str]:
+    """The ffmpeg pieces for a look's effects: (before the captions, after them, for the sound)."""
+    if not look:
+        return "", "", ""
+    pre = EFFECTS.get(look.get("effect", "none"), "")
+    post, audio, d = [], [], min(FADE_SECONDS, dur / 4)
+    if look.get("fade_in", "none") != "none":
+        post.append(f"fade=t=in:st=0:d={d:.2f}:color={look['fade_in']}")
+        audio.append(f"afade=t=in:st=0:d={d:.2f}")
+    if look.get("fade_out", "none") != "none":
+        post.append(f"fade=t=out:st={dur - d:.2f}:d={d:.2f}:color={look['fade_out']}")
+        audio.append(f"afade=t=out:st={dur - d:.2f}:d={d:.2f}")
+    return pre, ",".join(post), ",".join(audio)
 
 
 def _family_name(path: Path) -> str:
@@ -178,7 +221,7 @@ CAPTION_LEAD = 0.0  # measured: word stamps are within 0.15 s of the voice, so n
 def install_fonts():
     """Copy the bundled caption fonts next to the data, so captions look the same on every machine and server."""
     src = Path(__file__).resolve().parent / "fonts"
-    for f in src.glob("*.ttf"):
+    for f in [*src.glob("*.ttf"), *src.glob("*.otf")]:
         if not (config.FONTS_DIR / f.name).exists():
             shutil.copyfile(f, config.FONTS_DIR / f.name)
 
@@ -229,9 +272,9 @@ def geometry(src_w, src_h, layout):
     return layout, fg_h, max(230, top - 190), min(1640, top + fg_h + 180)
 
 
-def _hook_events(hook, dur, y):
+def _hook_events(hook, dur, y, font=None, size=None):
     """The heading: dark text in a white rounded box that fits it, on one line or two balanced ones."""
-    f, size = _Font.get(HOOK["font"]), HOOK["size"]
+    f, size = _Font.get(font or HOOK["font"]), size or HOOK["size"]
     words = hook.split()
     if not words:
         return []
@@ -260,9 +303,11 @@ def _hook_events(hook, dur, y):
     return ev
 
 
-def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y) -> str:
-    """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style)."""
+def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None) -> str:
+    """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style).
+    `hook_font` is the renderer's font name for the heading and `hook_size` its size; both default to HOOK."""
     st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["bounce"])
+    hook_font, hook_size = hook_font or HOOK["font"], hook_size or HOOK["size"]
     words = [dict(w, s=w["s"] - CAPTION_LEAD, e=w["e"] - CAPTION_LEAD) for w in words]
     strong = {_key(h) for h in highlight if _key(h)}
     head = f"""[Script Info]
@@ -275,13 +320,13 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,{st['outline']},0,5,0,0,0,1
-Style: Hook,{HOOK['font']},{HOOK['size']},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
+Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     dur = end - start
-    ev = _hook_events(_clean(hook), dur, hook_y)
+    ev = _hook_events(_clean(hook), dur, hook_y, hook_font, hook_size)
     f = _Font.get(st["font"])
     inside = [dict(w, w=_clean(w["w"])) for w in words if w["s"] >= start - 0.05 and w["s"] < end]
     inside = sorted((w for w in inside if w["w"]), key=lambda w: w["s"])
@@ -354,33 +399,39 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"))
     look = clean_look(clip.get("look"))
     style, hook = clip.get("style", "bounce"), clip.get("hook", "")
+    hook_font = hook_size = None
     if look:                                    # changed in the editor: its own font, colours, size and place
         style = look_style(look)
         if look["y"] is not None:
             cap_y = round(H * look["y"] / 100)
+        if look["hook_y"] is not None:
+            hook_y = round(H * look["hook_y"] / 100)
+        hook_font, hook_size = ensure_font(look["hook_font"]), look["hook_size"]
         if not look["hook"]:
             hook = ""
-    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y)
+    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
     # folders easily reaches. Inside the work folder every name is short and relative (a drive colon would also
     # break the filter syntax).
+    fx = effect_filters(look, end - start)
     work = Path(tempfile.mkdtemp(prefix="pk"))
     try:
-        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass)
+        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str) -> dict:
+def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", "")) -> dict:
     global _qsv_ok
     (work / f"{name}.ass").write_text(ass, encoding="utf-8")
     (work / "f").mkdir()
-    for f in config.FONTS_DIR.glob("*.ttf"):
+    for f in [*config.FONTS_DIR.glob("*.ttf"), *config.FONTS_DIR.glob("*.otf")]:
         shutil.copyfile(f, work / "f" / f.name)
-    fc = _filter(layout, fg_h) + f"[v0]ass={name}.ass:fontsdir=f[v]"
+    pre, post, audio = fx
+    fc = _filter(layout, fg_h) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
     base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src),
-            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else ""),
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
     if _qsv_ok is not False:
