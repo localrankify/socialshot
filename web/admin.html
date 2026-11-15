@@ -122,6 +122,11 @@ tr.u:hover>td{background:#FAFAFA}
 td .em{font-size:12px;color:var(--dim);overflow-wrap:anywhere}
 td b{color:var(--brand-ink);font-weight:600}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.price{display:flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:1px solid var(--line-2);border-radius:12px;background:#fff;flex:none}
+.price span{color:var(--dim);font-weight:600}
+.price input,.price input:focus{width:90px;height:38px;border:0;padding:0;background:transparent;font-variant-numeric:tabular-nums;outline:none}
+.price small{font-size:12px;color:var(--faint);white-space:nowrap}
+.price:focus-within{border-color:var(--brand)}
 .toolbar input{max-width:340px}
 .seg{display:flex;gap:2px;padding:3px;background:var(--muted);border-radius:11px}
 .seg button{height:32px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;transition:background-color .15s ease,color .15s ease}
@@ -264,6 +269,7 @@ function toast(msg, kind = "") {
 const S = {tab:"overview", data:null, me:null, q:"", filter:"all", sort:"created_at", fb:null, fbStatus:"new"};
 const TABS = {overview:["Overview", "home", "Sign-ups, videos and AI use across this SocialShot server."],
               users:["Users", "users", "Every account. Open one to see how much it uses the AI."],
+              costs:["Video costs", "bolt", "What it takes in AI to make one video, and one clip."],
               feedback:["Feedback", "chat", "Bug reports, feature ideas and other messages from users."],
               activity:["Activity", "clock", "Everything admins have done, newest first."]};
 const pathFor = t => "/admin" + (t === "overview" ? "" : "/" + t);
@@ -355,6 +361,46 @@ function drawActivity(a) {
       : `<div class="empty"><b>Nothing yet</b>Account changes made by admins are recorded here.</div>`}</div>`;
 }
 
+/* ---------- what each video cost in AI. The price is the admin's own AI price, kept in this browser only. */
+let price = 0; try { price = Number(localStorage.getItem("ss_ai_price")) || 0; } catch {}
+const fmtLen = s => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; };
+const money = tok => { if (!price) return ""; const v = tok / 1e6 * price; return "$" + (v && v < 0.01 ? v.toFixed(4) : v.toFixed(2)); };
+const PURPOSE = s => String(s || "").replace(/^\w/, c => c.toUpperCase());
+function drawCosts() {
+  const c = S.costs;
+  if (!c) return `<div class="empty"><b>Loading…</b></div>`;
+  const t = c.totals, withCost = (tok, l) => tile("bolt", kfmt(tok), l, price ? `About ${money(tok)} each` : "Add your AI price below to see it in dollars");
+  return `<div class="tiles">
+      ${withCost(t.per_video, "AI tokens for one video")}
+      ${withCost(t.per_clip, "AI tokens for one clip")}
+      ${tile("clock", kfmt(t.per_minute), "Tokens per minute of video", price ? `About ${money(t.per_minute)} a minute` : "Longer videos need more")}
+      ${tile("video", num(t.videos), "Videos counted", `${num(t.calls)} AI calls, ${kfmt(t.tokens)} tokens${price ? ", " + money(t.tokens) : ""}`)}
+    </div>
+    <div class="card"><div class="card-head"><div><h2>Your AI price</h2><p class="sub">What your AI service charges per 1 million tokens (input and output together, roughly). Saved in this browser only.</p></div>
+      <label class="price"><span>$</span><input id="price" type="number" min="0" step="0.01" value="${price || ""}" placeholder="0.00" aria-label="Price per 1 million tokens in dollars"><small>per 1M tokens</small></label></div></div>
+    <div class="card"><div class="card-head"><div><h2>Every video</h2><p class="sub">Newest first. Names are shown for your own videos only; for other accounts, just the account and the length.</p></div></div>
+      ${c.videos.length ? `<div class="scroll"><table><tr><th>Video</th><th>Account</th><th class="num">Length</th><th class="num">Clips</th><th class="num">AI calls</th><th class="num">Tokens</th><th class="num">Per clip</th>${price ? `<th class="num">Cost</th>` : ""}</tr>
+        ${c.videos.map(v => `<tr><td><b>${esc(v.title || (v.live ? "A live recording" : "A video"))}</b>${v.deleted ? ` <span class="pill">Deleted</span>` : ""}
+            ${v.by.length ? `<div class="em">${v.by.slice(0, 3).map(b => `${esc(PURPOSE(b[0]))} ${esc(kfmt(b[1]))}`).join(" · ")}</div>` : ""}</td>
+          <td class="sub">${esc(v.account || "Removed account")}</td>
+          <td class="num">${v.duration ? esc(fmtLen(v.duration)) : "–"}</td><td class="num">${num(v.clips)}</td>
+          <td class="num">${num(v.calls)}</td><td class="num">${esc(kfmt(v.tokens))}</td>
+          <td class="num">${v.clips && v.tokens ? esc(kfmt(Math.round(v.tokens / v.clips))) : "–"}</td>
+          ${price ? `<td class="num"><b>${esc(money(v.tokens))}</b></td>` : ""}</tr>`).join("")}</table></div>`
+        : `<div class="empty"><b>No videos yet</b>Once videos are made, what each one took in AI shows here.</div>`}</div>`;
+}
+async function loadCosts() {
+  try { S.costs = await api("/api/admin/videos"); } catch (e) { toast(e.message, "bad"); }
+  if (S.tab === "costs") draw();
+}
+document.addEventListener("input", e => {
+  if (e.target.id !== "price") return;
+  price = Math.max(0, Number(e.target.value) || 0);
+  try { price ? localStorage.setItem("ss_ai_price", String(price)) : localStorage.removeItem("ss_ai_price"); } catch {}
+  const at = e.target.selectionStart; draw(); const p = $("#price"); if (p) { p.focus(); try { p.setSelectionRange(at, at); } catch {} }
+});
+
 const FBK = {bug: ["Bug", "bad"], idea: ["Idea", "brand"], other: ["Message", ""]};
 function drawFeedback() {
   const f = S.fb;
@@ -384,6 +430,7 @@ function draw() {
   $("#title").textContent = title; $("#subtitle").textContent = sub;
   $("#actions").innerHTML = `<button class="btn sm" data-act="refresh">Refresh</button>`;
   if (S.tab === "feedback") { if (!S.fb && !S.fbLoading) { S.fbLoading = true; loadFeedback().finally(() => S.fbLoading = false); } $("#view").innerHTML = drawFeedback(); return; }
+  if (S.tab === "costs") { if (!S.costs && !S.costsLoading) { S.costsLoading = true; loadCosts().finally(() => S.costsLoading = false); } $("#view").innerHTML = drawCosts(); return; }
   if (!a) return;
   const keep = document.activeElement?.id === "q" ? $("#q").selectionStart : null;
   $("#view").innerHTML = {overview: drawOverview, users: drawUsers, activity: drawActivity}[S.tab](a);
@@ -437,7 +484,7 @@ document.addEventListener("click", async e => {
   const a = b.dataset.act, d = b.dataset;
   try {
     if (a === "tab") { e.preventDefault(); return go(d.k); }
-    if (a === "refresh") { await load(); await loadFeedback(); return toast("Up to date", "ok"); }
+    if (a === "refresh") { await load(); await loadFeedback(); if (S.tab === "costs") await loadCosts(); return toast("Up to date", "ok"); }
     if (a === "fbfilter") { S.fbStatus = d.k; return loadFeedback(); }
     if (a === "fbset") { await send(`/api/admin/feedback/${d.id}`, {status: d.s}); toast(d.s === "done" ? "Marked done" : d.s === "seen" ? "Marked seen" : "Reopened", "ok"); return loadFeedback(); }
     if (a === "filter") { S.filter = d.k; return draw(); }

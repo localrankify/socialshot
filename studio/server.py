@@ -929,6 +929,22 @@ def rerender(jid: str, cid: str, body: dict = Body(...)):
     return jobs.public(job)
 
 
+@app.post("/api/jobs/{jid}/clips/{cid}/save")
+def save_clip_edits(jid: str, cid: str, body: dict = Body(...)):
+    """The editor's Save: keeps the changes on the clip without making the video again."""
+    job = _job_or_404(jid)
+    clip = next((c for c in job["clips"] if c["id"] == cid), None)
+    if not clip:
+        raise HTTPException(404, "No such clip")
+    if job["status"] in ("queued", "running") or clip.get("status") in ("queued", "rendering"):
+        raise HTTPException(409, "This clip is still being made. Try again when it has finished.")
+    try:
+        jobs.request_render(jid, cid, body, render_now=False)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    return jobs.public(job)
+
+
 @app.delete("/api/jobs/{jid}")
 def delete_job(jid: str):
     job = _job_or_404(jid)
@@ -1493,6 +1509,12 @@ def _uid_ok(uid: str) -> str:
 def admin_overview(request: Request):
     _admin(request)
     return admins.overview()
+
+
+@app.get("/api/admin/videos")
+def admin_video_costs(request: Request):
+    """What each video took in AI calls and tokens."""
+    return admins.video_costs(_admin(request).id)
 
 
 @app.get("/api/admin/users/{uid}")

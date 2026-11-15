@@ -336,7 +336,9 @@ def delete(jid):
     return bool(job)
 
 
-def request_render(jid, cid, changes: dict):
+def request_render(jid, cid, changes: dict, render_now: bool = True):
+    """Keeps the editor's changes on the clip. With render_now the clip is made again with them; without, they are
+    only saved (the clip's video stays as it was, marked as having changes that are not in it yet)."""
     job = _jobs[jid]
     clip = next(c for c in job["clips"] if c["id"] == cid)
     new = dict(clip)
@@ -361,7 +363,11 @@ def request_render(jid, cid, changes: dict):
         new["look"] = render.clean_look(changes["look"])
     if "captions" in changes:                 # caption words typed in the editor; null goes back to what was heard
         new["caption_words"] = clean_caption_words(changes["captions"])
-    clip.update(new, status="queued")
+    if not render_now:
+        clip.update(new, unrendered=True)     # saved only: the video is made with these the next time it is rendered
+        save(job)
+        return
+    clip.update(new, status="queued", unrendered=False)
     save(job)
     _q.put(("clip", jid, cid))
 

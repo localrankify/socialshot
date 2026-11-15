@@ -33,6 +33,52 @@ def _log(c, admin_id: str, action: str, target_id: str = None, detail: str = "")
                                            detail=detail[:300]))
 
 
+# ---------------------------------------------------------------- what each video cost in AI
+def video_costs(admin_id: str) -> dict:
+    """AI calls and tokens per video: what it takes to make one video, and one clip.
+    Usage is recorded per user and video name, so it is matched to videos by that name. Following the rule above,
+    a video's name is shown only for the admin's own videos; for everyone else it is the account and the length."""
+    from . import jobs
+    g = db.usage.c
+    tok = g.tokens_in + g.tokens_out
+    with db.engine.connect() as c:
+        used = {}
+        for r in c.execute(sa.select(g.user_id, g.place, g.purpose, sa.func.count(), sa.func.sum(tok), sa.func.min(g.t), sa.func.max(g.t))
+                           .group_by(g.user_id, g.place, g.purpose)):
+            u = used.setdefault((r[0], r[1] or ""), {"calls": 0, "tokens": 0, "first": r[5], "last": r[6], "by": []})
+            u["calls"] += r[3]; u["tokens"] += int(r[4] or 0)                          # noqa: E702
+            u["first"], u["last"] = min(u["first"], r[5]), max(u["last"], r[6])
+            u["by"].append([r[2], int(r[4] or 0)])
+        emails = {r.id: r.email for r in c.execute(sa.select(db.users.c.id, db.users.c.email))}
+    rows, seen = [], set()
+    for j in jobs.all_jobs():
+        names = [n for n in (j.get("title"), (j.get("source") or {}).get("name"), "Live stream" if j.get("kind") == "live" else None) if n]
+        key = next(((j["user"], n) for n in names if (j["user"], n) in used and (j["user"], n) not in seen), None)
+        u = used.get(key) if key else None
+        if key:
+            seen.add(key)
+        mine = j["user"] == admin_id
+        rows.append({"title": (j.get("title") or (j.get("source") or {}).get("name") or "Untitled video") if mine else "",
+                     "mine": mine, "account": emails.get(j["user"], ""), "duration": j.get("duration") or 0,
+                     "clips": sum(1 for k in j["clips"] if k.get("status") == "done"), "live": j.get("kind") == "live",
+                     "calls": u["calls"] if u else 0, "tokens": u["tokens"] if u else 0,
+                     "by": sorted(u["by"], key=lambda x: -x[1]) if u else [], "t": (u["last"] if u else 0) or j.get("created", 0) or 0})
+    for (uid, place), u in used.items():       # AI used for videos that were deleted since
+        if (uid, place) in seen or not place:
+            continue
+        rows.append({"title": place if uid == admin_id else "", "mine": uid == admin_id, "account": emails.get(uid, ""), "duration": 0,
+                     "clips": 0, "live": False, "calls": u["calls"], "tokens": u["tokens"], "deleted": True,
+                     "by": sorted(u["by"], key=lambda x: -x[1]), "t": u["last"]})
+    rows.sort(key=lambda r: -r["t"])
+    made = [r for r in rows if r["tokens"] and not r.get("deleted")]
+    clips = sum(r["clips"] for r in made)
+    return {"videos": rows[:500],
+            "totals": {"videos": len(made), "tokens": sum(r["tokens"] for r in made), "calls": sum(r["calls"] for r in made),
+                       "per_video": round(sum(r["tokens"] for r in made) / len(made)) if made else 0,
+                       "per_clip": round(sum(r["tokens"] for r in made) / clips) if clips else 0,
+                       "per_minute": round(sum(r["tokens"] for r in made) / max(1, sum(r["duration"] for r in made) / 60)) if made else 0}}
+
+
 # ---------------------------------------------------------------- the dashboard
 def overview() -> dict:
     from . import ai, auth, jobs, live, load, mailer, transcribe

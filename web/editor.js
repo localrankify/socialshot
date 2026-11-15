@@ -17,7 +17,7 @@ const ts = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 
 const FONTS = () => S.status.fonts || {};
 const PRESETS = () => S.status.presets || {};
 const SWATCHES = ["#FFFFFF", "#FFE500", "#FFF000", "#22E06B", "#7CC8FF", "#8B7CF6", "#FF4FD8", "#FF3C3C", "#FF8B33", "#141416"];
-const HOOK_DEFAULT = {hook_font: "Poppins", hook_size: 96, hook_y: null,    // the heading at the top, as the server draws it
+const HOOK_DEFAULT = {hook_font: "Poppins", hook_size: 96, hook_y: null, hook_dur: 0,    // the heading at the top, as the server draws it (0 s = the whole clip)
   effect: "none", fade_in: "none", fade_out: "none"};                        // and the effects: a colour look, how it starts and ends
 const RATES = [1, 1.25, 1.5, 2, 0.5];
 const svg = d => `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -64,7 +64,8 @@ function lines() {
   return E.linesMemo;
 }
 const wordsChanged = () => { E.wv = (E.wv || 0) + 1; };
-const hookOf = L => ({hook_font: L.hook_font || "Poppins", hook_size: L.hook_size || 96, hook_y: L.hook_y ?? null});
+const hookOf = L => ({hook_font: L.hook_font || "Poppins", hook_size: L.hook_size || 96, hook_y: L.hook_y ?? null, hook_dur: +L.hook_dur || 0});
+const hookEnd = () => { const d = hookOf(E.look).hook_dur; return d > 0 ? Math.min(E.end, E.start + d) : E.end; };   // when the hook leaves the screen
 function lookFromStyle(style) {
   const p = PRESETS()[style] || PRESETS().bounce;
   const {label, ...look} = p;
@@ -122,8 +123,11 @@ window.drawClipDlg = function () {          // called on every refresh of the pa
   } else if (E.waiting && c.status === "error") { E.waiting = 0; toast(c.error || "Couldn't make this clip.", "bad"); drawStage(); }
   const st = $e("#edState");
   if (st) st.innerHTML = busy ? `<span class="ed-pill busy"><i></i>${c.status === "rendering" ? "Rendering" : "Waiting its turn"}</span>`
-    : dirty() ? `<span class="ed-pill">Unsaved changes</span>` : `<span class="ed-pill ok">${ic("check")}Saved</span>`;
+    : dirty() ? `<span class="ed-pill">Unsaved changes</span>`
+    : c.unrendered ? `<span class="ed-pill draft" title="Your changes are kept. Press Save and render to put them in the video.">${ic("check")}Saved, not rendered yet</span>`
+    : `<span class="ed-pill ok">${ic("check")}Saved</span>`;
   const sv = $e("#edSave"); if (sv) sv.disabled = busy;
+  const kp = $e("#edKeep"); if (kp) kp.disabled = busy || !dirty();
   const mk = $e(".ed-making"); if (mk) mk.hidden = !busy;
 };
 
@@ -144,6 +148,7 @@ function draw() {
             <button role="menuitem" data-ed="srt">${ic("down")}<span><b>Captions (.srt)</b><small>For any other editor</small></span></button>
             <button role="menuitem" data-ed="importsrt">${ic("up")}<span><b>Import captions (.srt)</b><small>Replace the caption text</small></span></button>
           </div></div>
+        <button class="ed-btn" id="edKeep" data-ed="keep" title="Keep your changes without making the video again">${svg('<path d="M6 4h10l4 4v12H4V4z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>')}Save</button>
         <button class="ed-btn primary" id="edSave" data-ed="save">${ic("check")}Save and render</button>
       </div>
     </header>
@@ -247,6 +252,12 @@ function drawPanel() {
         <label class="ed-f">Size <output>${H.hook_size}</output><input type="range" min="50" max="140" step="2" value="${H.hook_size}" data-look="hook_size"></label>
         <label class="ed-f">Height on screen <output>${H.hook_y == null ? "Auto" : Math.round(H.hook_y) + "%"}</output><input type="range" min="5" max="95" value="${H.hook_y == null ? autoY : H.hook_y}" data-look="hook_y"></label>
         <button class="ed-link" data-ed="hookreset">Back to the default look</button>
+      </div>
+      <div class="ed-card">
+        <div class="ed-f">Show for <output id="edHookDur">${H.hook_dur ? H.hook_dur + " s" : "Whole clip"}</output>
+          <div class="ed-seg">${[[0, "Whole clip"], [3, "3 s"], [5, "5 s"], [8, "8 s"]].map(([v, l]) => `<button data-ed="hookdur" data-v="${v}" aria-pressed="${H.hook_dur === v}">${l}</button>`).join("")}</div>
+          <input type="range" min="0" max="${Math.max(1, Math.min(60, Math.floor(E.end - E.start)))}" step="0.5" value="${H.hook_dur}" data-look="hook_dur" aria-label="Seconds the hook stays on screen"></div>
+        <p class="ed-help">The hook shows from the start of the clip, then fades away. Drag to the left end to keep it the whole time.</p>
       </div>`;
   } else if (E.tab === "fx") {
     const L = E.look, cover = `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`;
@@ -384,14 +395,18 @@ function paintOverlay(t = nowT()) {
   if (gi !== E.gi) markLine(gi);
   const wi = gi >= 0 && act >= 0 ? ls[gi][act] : -1;
   if (wi !== E.wi) markWord(wi);
-  const key = [gi, act, k.toFixed(3), E.lookKey, E.hook, E.layout, ls[gi] ? ls[gi].map(i => E.words[i].w).join(" ") : ""].join("|");
+  const hookNow = t < hookEnd();       // a hook with a set time leaves the screen after it
+  const typing = gi >= 0 && E.editG === gi && E.editText != null;    // the line being typed shows as it is typed
+  const shown = gi < 0 ? [] : typing ? E.editText.trim().split(/\s+/).filter(Boolean) : ls[gi].map(i => E.words[i].w);
+  if (typing) act = shown.length - 1;
+  const key = [gi, act, k.toFixed(3), E.lookKey, E.hook, E.layout, hookNow, shown.join(" ")].join("|");
   if (key === E.lastKey) return;
   E.lastKey = key;
   const fc = fontCss(L.font);
   const y = L.y == null ? g.cap / OUT_H * 100 : L.y;
   cap.style.cssText = `top:${y}%;font-family:${fc.family};font-weight:${fc.weight};font-size:${L.size * 0.78 * k}px;color:${L.base};` +
     `-webkit-text-stroke:${L.outline * 2 * k}px #000;`;
-  cap.innerHTML = gi < 0 ? "" : ls[gi].map((wi2, n) => { let w = E.words[wi2].w.replace(/[.,;:]+$/, ""); if (L.upper) w = w.toUpperCase();
+  cap.innerHTML = shown.map((w, n) => { w = w.replace(/[.,;:]+$/, ""); if (L.upper) w = w.toUpperCase();
     return `<span class="${n === act ? "on" : ""}" style="${n === act ? `color:${L.active}` : ""}">${esc(w)}</span>`; }).join(" ");
   cap.style.transform = "translate(-50%,-50%)";
   const maxW = phone.clientWidth * 960 / OUT_W;
@@ -401,7 +416,8 @@ function paintOverlay(t = nowT()) {
     hook.hidden = !L.hook || !E.hook.trim();
     hook.textContent = E.hook;
     hook.style.cssText = `top:${H.hook_y == null ? g.hook / OUT_H * 100 : H.hook_y}%;font-family:${hf.family};font-weight:${hf.weight};` +
-      `font-size:${H.hook_size * 0.73 * k}px;padding:${22 * k}px ${36 * k}px;border-radius:${26 * k}px;max-width:${972 * k}px`;
+      `font-size:${H.hook_size * 0.73 * k}px;padding:${22 * k}px ${36 * k}px;border-radius:${26 * k}px;max-width:${972 * k}px;` +
+      `opacity:${hookNow ? 1 : 0};pointer-events:${hookNow ? "auto" : "none"}`;
   }
 }
 
@@ -451,7 +467,7 @@ function drawTimeline() {
     <div class="ed-scroll" id="edScroll">
       <div class="ed-track" id="edTrack" style="width:${E.zoom * 100}%">
         <div class="ed-ruler">${ticks.join("")}</div>
-        <div class="ed-lane hook">${hookOn ? `<button class="ed-hchip" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${TEXT_IC}<span>${esc(E.hook)}</span></button>` : ""}</div>
+        <div class="ed-lane hook">${hookOn ? `<button class="ed-hchip" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%">${TEXT_IC}<span>${esc(E.hook)}</span></button>` : ""}</div>
         <div class="ed-lane caps">${chips}</div>
         <div class="ed-lane film" style="background-image:url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')"></div>
         <div class="ed-shade l" style="width:${pct(E.start)}%"></div><div class="ed-shade r" style="left:${pct(E.end)}%"></div>
@@ -515,15 +531,45 @@ function after(what) {          // redraw what a change affects
   if (what.includes("t")) drawTimeline();
   E.lastKey = ""; paintOverlay(); drawClipDlg();
 }
-async function save() {
+function changes() {
   const body = {start: E.start, end: E.end, hook: E.hook, title: E.title, description: E.description, layout: E.layout,
     captions: E.edited ? E.words : null};
   if (E.lookTouched) body.look = E.look;
+  return body;
+}
+async function save() {          // keep the changes and make the video again with them
   try {
-    await send(`/api/jobs/${E.jid}/clips/${E.cid}/render`, body);
+    await send(`/api/jobs/${E.jid}/clips/${E.cid}/render`, changes());
     E.saved = snap(); E.waiting = 1; E.version = clipNow()?.version || E.version;
     toast("Saved. Making your clip…", "ok"); await tick(); drawClipDlg();
   } catch (e) { toast(e.message, "bad"); }
+}
+async function keep() {          // keep the changes only; the video is made with them on the next render
+  try {
+    await send(`/api/jobs/${E.jid}/clips/${E.cid}/save`, changes());
+    E.saved = snap();
+    toast("Saved. Render when you're ready.", "ok"); await tick(); drawClipDlg();
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+/* ---------- the preview follows what is being edited */
+function showAt(t) {              // jump the preview there, in the live preview, without starting it
+  if (E.view !== "live") { E.view = "live"; drawStage(); }
+  const v = vid(); if (v && !v.paused) v.pause();
+  seek(t); E.lastKey = ""; paintOverlay(t);
+}
+function showLine(gi) {           // a subtitle line being edited: show it on screen
+  const g = lines()[gi]; if (!g) return;
+  const t = E.words[g[0]].s + 0.05, now = nowT();
+  if (E.gi !== gi || now < E.words[g[0]].s || now > E.words[g[g.length - 1]].e + 0.2) showAt(t);
+}
+function showHook() {             // the hook being edited: make sure it is on screen
+  const t = nowT();
+  if (t < E.start || t >= hookEnd() - 0.1) showAt(E.start + 0.1);
+}
+function showCaptions() {         // a caption style change: show a line if none is on screen
+  if (E.gi >= 0) return;
+  const g = lines()[0]; if (g) showAt(E.words[g[0]].s + 0.05);
 }
 
 /* ---------- events, all inside the editor */
@@ -545,6 +591,7 @@ dlg.addEventListener("click", async e => {
   if (a === "play") return togglePlay();
   if (a === "seek") { if (E.view !== "live") { E.view = "live"; drawStage(); } return seek(+d.at); }
   if (a === "save") return save();
+  if (a === "keep") return keep();
   if (a === "zoom") return setZoom(E.zoom + +d.d);
   if (a === "rate") { E.rate = RATES[(RATES.indexOf(E.rate) + 1) % RATES.length]; const v = vid(); if (v) v.playbackRate = E.rate; b.textContent = E.rate + "x"; return; }
   if (a === "copytx") { await navigator.clipboard.writeText(inClip().map(([w]) => w.w).join(" ")); return toast("The text is copied", "ok"); }
@@ -557,7 +604,7 @@ dlg.addEventListener("click", async e => {
   }
   if (a === "importsrt") { $e("#edExport").hidden = true; return $e("#edSrtFile").click(); }
   if (a === "resetcaps") { E.words = clone(E.auto.length ? E.auto : E.words); E.edited = false; wordsChanged(); return after("pt"); }
-  if (a === "preset") { E.look = {...lookFromStyle(d.k), y: E.look.y, hook: E.look.hook, ...keepOwn(E.look)}; E.lookTouched = true; return after("pt"); }
+  if (a === "preset") { E.look = {...lookFromStyle(d.k), y: E.look.y, hook: E.look.hook, ...keepOwn(E.look)}; E.lookTouched = true; after("pt"); return showCaptions(); }
   if (a === "brandpick") { if (e.target.closest("[data-ed=branddel]")) return; const s = E.brand[+d.k]; if (s) { E.look = {...keepOwn(E.look), ...clone(s.look)}; E.lookTouched = true; } return after("pt"); }
   if (a === "stab") { E.stab = d.t; return drawPanel(); }
   if (a === "effect") { E.look.effect = d.v; E.lookTouched = true; return after("p"); }
@@ -576,10 +623,11 @@ dlg.addEventListener("click", async e => {
       toast(`“${name}” is in your brand kit`, "ok"); } catch (er) { toast(er.message, "bad"); }
     return drawPanel();
   }
-  if (a === "hookreset") { Object.assign(E.look, {hook_font: "Poppins", hook_size: 96, hook_y: null}); E.lookTouched = true; return after("p"); }
-  if (a === "per") { E.look.per = +d.n; E.lookTouched = true; return after("pt"); }
-  if (a === "upper") { E.look.upper = d.v === "1"; E.lookTouched = true; return after("p"); }
-  if (a === "colour") { E.look[d.k] = d.v; E.lookTouched = true; return after("p"); }
+  if (a === "hookreset") { Object.assign(E.look, {hook_font: "Poppins", hook_size: 96, hook_y: null, hook_dur: 0}); E.lookTouched = true; return after("pt"); }
+  if (a === "hookdur") { E.look.hook_dur = +d.v; E.lookTouched = true; return after("pt"); }
+  if (a === "per") { E.look.per = +d.n; E.lookTouched = true; after("pt"); return showCaptions(); }
+  if (a === "upper") { E.look.upper = d.v === "1"; E.lookTouched = true; after("p"); return showCaptions(); }
+  if (a === "colour") { E.look[d.k] = d.v; E.lookTouched = true; after("p"); return showCaptions(); }
   if (a === "layout") { E.layout = d.v; drawPanel(); return drawStage(); }
   if (a === "nudge") { setTrim(d.k, E[d.k] + +d.d); return after("pt"); }
   if (a === "toplayhead") { setTrim(d.k, nowT()); return after("pt"); }
@@ -591,8 +639,19 @@ dlg.addEventListener("input", e => {
     if (k === "font" || k === "hook_font") E.look[k] = el.value;
     else if (k === "base" || k === "active") { E.look[k] = el.value.toUpperCase(); el.parentElement.style.background = el.value; }
     else if (k === "hook") { E.look.hook = el.checked; const h = $e("#edHook"); if (h) h.disabled = !el.checked; return after("t"); }
+    else if (k === "hook_dur") {
+      E.look.hook_dur = +el.value; const o = $e("#edHookDur"); if (o) o.textContent = +el.value ? el.value + " s" : "Whole clip";
+      $$e("[data-ed=hookdur]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === +el.value)));
+      after("t"); return showHook();
+    }
     else { E.look[k] = +el.value; const o = el.parentElement.querySelector("output"); if (o) o.textContent = k === "y" || k === "hook_y" ? el.value + "%" : el.value; }
-    return after("");
+    after("");
+    return k.startsWith("hook") ? showHook() : showCaptions();   // keep what is being changed on screen
+  }
+  if (el.dataset.line != null) {          // a subtitle line being typed: the preview shows it right away
+    E.editG = +el.dataset.line; E.editText = el.value; E.lastKey = ""; paintOverlay();
+    const chip = $e(`.ed-chip[data-g="${el.dataset.line}"] span`); if (chip) chip.textContent = el.value;
+    return;
   }
   if (el.id === "edZoom") return setZoom(+el.value);
   if (el.id === "edQ") {          // search: redraw the list, keep typing where it was
@@ -608,7 +667,7 @@ dlg.addEventListener("input", e => {
 });
 dlg.addEventListener("change", e => {
   const el = e.target;
-  if (el.dataset.line != null) { keepAuto(); editLine(+el.dataset.line, el.value); return after("pt"); }
+  if (el.dataset.line != null) { keepAuto(); editLine(+el.dataset.line, el.value); E.editG = -1; E.editText = null; return after("pt"); }
   if (el.id === "edHook") return drawTimeline();
   if (el.dataset.look === "base" || el.dataset.look === "active") return drawPanel();
   if (el.id === "edSrtFile" && el.files[0]) {
@@ -616,6 +675,14 @@ dlg.addEventListener("change", e => {
       if (!w.length) return toast("No captions found in that file.", "bad");
       keepAuto(); E.words = w; E.edited = true; wordsChanged(); E.tab = "subs"; after("pt"); toast(`Imported ${w.length} words`, "ok"); });
   }
+});
+dlg.addEventListener("focusin", e => {          // start editing a line or the hook: the preview jumps to where it shows
+  const el = e.target;
+  if (el.dataset?.line != null) { E.editG = +el.dataset.line; E.editText = el.value; return showLine(+el.dataset.line); }
+  if (el.id === "edHook") showHook();
+});
+dlg.addEventListener("focusout", e => {
+  if (e.target.dataset?.line != null && E.editG === +e.target.dataset.line) { E.editG = -1; E.editText = null; E.lastKey = ""; paintOverlay(); }
 });
 dlg.addEventListener("pointerdown", e => {      // drag the trim handles, or click the track to jump
   const track = e.target.closest("#edTrack"); if (!track) return;

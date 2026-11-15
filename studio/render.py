@@ -98,10 +98,18 @@ def clean_look(look) -> dict | None:
             # the heading at the top: its own font, size and height
             "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Poppins", "hook_size": hook_size,
             "hook_y": None if hy is None else max(5.0, min(95.0, float(hy))),
+            "hook_dur": _hook_dur(look.get("hook_dur")),     # seconds the hook stays on screen; 0 is the whole clip
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
             "fade_out": look["fade_out"] if look.get("fade_out") in FADES else "none"}
+
+
+def _hook_dur(v) -> float:
+    try:
+        return max(0.0, min(60.0, round(float(v or 0) * 2) / 2))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def effect_filters(look, dur) -> tuple[str, str, str]:
@@ -272,9 +280,13 @@ def geometry(src_w, src_h, layout):
     return layout, fg_h, max(230, top - 190), min(1640, top + fg_h + 180)
 
 
-def _hook_events(hook, dur, y, font=None, size=None):
-    """The heading: dark text in a white rounded box that fits it, on one line or two balanced ones."""
+def _hook_events(hook, dur, y, font=None, size=None, show=0.0):
+    """The heading: dark text in a white rounded box that fits it, on one line or two balanced ones.
+    `show` is how many seconds it stays (then it fades away); 0 keeps it for the whole clip."""
     f, size = _Font.get(font or HOOK["font"]), size or HOOK["size"]
+    out = 0
+    if show and show < dur:
+        dur, out = show, 250                      # gone after `show` seconds, with a short fade
     words = hook.split()
     if not words:
         return []
@@ -296,14 +308,14 @@ def _hook_events(hook, dur, y, font=None, size=None):
            f"l {n(x0 + r)} {n(y1)} b {n(x0)} {n(y1)} {n(x0)} {n(y1)} {n(x0)} {n(y1 - r)} "
            f"l {n(x0)} {n(y0 + r)} b {n(x0)} {n(y0)} {n(x0)} {n(y0)} {n(x0 + r)} {n(y0)}")
     span = f"{_ts(0)},{_ts(dur)}"
-    ev = [f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,0)\\c&H{HOOK['box']}&\\p1}}{box}{{\\p0}}"]
+    ev = [f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,{out})\\c&H{HOOK['box']}&\\p1}}{box}{{\\p0}}"]
     for i, line in enumerate(lines):
         cy = y - line_h * (len(lines) - 1) / 2 + i * line_h - f.cap_shift(size)
-        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({W // 2},{cy:.0f})\\fad(160,0)\\fs{size}}}{line}")
+        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({W // 2},{cy:.0f})\\fad(160,{out})\\fs{size}}}{line}")
     return ev
 
 
-def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None) -> str:
+def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None, hook_show=0.0) -> str:
     """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style).
     `hook_font` is the renderer's font name for the heading and `hook_size` its size; both default to HOOK."""
     st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["bounce"])
@@ -326,7 +338,7 @@ Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H000000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     dur = end - start
-    ev = _hook_events(_clean(hook), dur, hook_y, hook_font, hook_size)
+    ev = _hook_events(_clean(hook), dur, hook_y, hook_font, hook_size, hook_show)
     f = _Font.get(st["font"])
     inside = [dict(w, w=_clean(w["w"])) for w in words if w["s"] >= start - 0.05 and w["s"] < end]
     inside = sorted((w for w in inside if w["w"]), key=lambda w: w["s"])
@@ -400,16 +412,17 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     look = clean_look(clip.get("look"))
     style, hook = clip.get("style", "bounce"), clip.get("hook", "")
     hook_font = hook_size = None
+    hook_show = 0.0
     if look:                                    # changed in the editor: its own font, colours, size and place
         style = look_style(look)
         if look["y"] is not None:
             cap_y = round(H * look["y"] / 100)
         if look["hook_y"] is not None:
             hook_y = round(H * look["hook_y"] / 100)
-        hook_font, hook_size = ensure_font(look["hook_font"]), look["hook_size"]
+        hook_font, hook_size, hook_show = ensure_font(look["hook_font"]), look["hook_size"], look["hook_dur"]
         if not look["hook"]:
             hook = ""
-    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size)
+    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
     # folders easily reaches. Inside the work folder every name is short and relative (a drive colon would also

@@ -1505,6 +1505,7 @@ main{background:
 .ed-pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--ed-soft);color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
 .ed-pill svg{width:12px;height:12px}
 .ed-pill.ok{color:var(--good);background:var(--good-soft)}
+.ed-pill.draft{color:#9A5B00;background:#FFF4DC}
 .ed-pill.busy{color:var(--accent);background:var(--accent-soft)}.ed-pill.busy i{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite}
 .ed-menu{position:relative}
 .ed-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:260px;padding:6px;background:#fff;border:1px solid var(--ed-line);border-radius:14px;transform-origin:top right;animation:edpop .16s var(--ease-out);box-shadow:0 18px 40px -18px rgba(40,20,90,.3)}
@@ -1838,7 +1839,7 @@ function startTour() {
      sel: '#nav [data-v="library"]', side: 1, dock: "bottom", chips: [["film", "All videos", 1], ["play", "Preview"], ["sliders", "Edit"], ["down", "Download"]]},
     {t: "Add the creators you clip", x: "Give each creator a workspace with their channels. SocialShot can record them when they go live and clip the highlights as they happen.",
      sel: '#nav [data-v="creators"]', side: 1, dock: "bottom", chips: [["plusc", "New creator", 1], ["radio", "Record live"], ["bolt", "Clip highlights"]]},
-    {t: "The AI picks the moments", x: "Settings holds your profile, your AI key and what the AI has been used for, alerts on Discord or Telegram, and the accounts you post to.",
+    {t: "The AI picks the moments", x: "Settings holds your profile, your AI key, alerts on Discord or Telegram, and the accounts you post to. What each video costs in AI is on the admin panel.",
      sel: '#nav [data-v="settings"]', side: 1, dock: "top", chips: [["bolt", "AI", 1], ["chart", "Usage"], ["bell", "Alerts"]]},
     {t: "Your account and alerts", x: "The bell tells you when clips are ready or a recording ends. Your name opens Settings, where you connect the accounts you post to.",
      sel: "#foot .me", side: 1, dock: "top", chips: [["bell", "Notifications", 1], ["cog", "Settings"], ["plug", "Connect accounts"]]},
@@ -1958,7 +1959,7 @@ function aiCard() {
     <p class="ai-sub">${k.ready ? esc(k.model || "") : "Clips are picked by loudness until an AI key is added."}</p>
     <div class="ai-stats"><div><b>${(k.today_calls || 0).toLocaleString()}</b><span>AI calls today</span></div>
       <div><b>${fmtK(k.today_tokens)}</b><span>Tokens today</span></div></div>
-    <div class="row">${!k.ready && S.status.user?.is_admin ? `<button class="btn primary" data-act="go" data-v="settings" data-tab="ai">${ic("plus")}Add AI key</button>` : ""}<button class="btn" data-act="go" data-v="settings" data-tab="ai">View usage ${ic("arrowr")}</button></div></div>`;
+    <div class="row">${!k.ready && S.status.user?.is_admin ? `<button class="btn primary" data-act="go" data-v="settings" data-tab="ai">${ic("plus")}Add AI key</button>` : ""}<a class="btn" href="/admin/costs">Cost per video ${ic("arrowr")}</a></div></div>`;
 }
 const PLAT = {
   youtube: {name: "YouTube", bg: "#FF0000", fg: "#fff", hint: "https://www.youtube.com/@name",
@@ -3015,7 +3016,7 @@ const setTabs = () => {
     ["profile", "Profile", "user", "Your details and plan", "Account"],
     ...(signin ? [["security", "Security", "lock", "Password and signing out", "Account"]] : []),
     ["look", "Appearance", "palette", "Accent colour and sidebar", "Account"],
-    ...(admin ? [["ai", "AI", "bolt", "Service, key and usage", "Workspace"],
+    ...(admin ? [["ai", "AI", "bolt", "Service, model and key", "Workspace"],
                  ["notify", "Notifications", "bell", "Alerts on Discord or Telegram", "Workspace"]] : []),
     ["apps", "Connected apps", "plug", "Where your clips get posted", "Workspace"]];
 };
@@ -3052,10 +3053,8 @@ async function drawSettings() {
           ${row("Address", "Where the service answers. Only for a custom service.", `<input id="ai_base" value="${esc(k.base_url || "")}" spellcheck="false">`, "", "ai_basewrap")}
           ${row("Model", "A fast, inexpensive model is right. Add a second after a comma to fall back on.", `<span class="with"><input id="ai_model" list="ai_models" value="${esc(k.models.join(", "))}" spellcheck="false"><button class="btn" type="button" data-act="aimodels">Find models</button></span><datalist id="ai_models"></datalist>`)}
         </div>
-        ${foot(`${k.ready ? `<button class="btn" data-act="aitest">Test again</button>` : ""}<button class="btn primary" data-act="aisave">Save and test</button>`)}
-        ${head("Usage", "What the AI has done and how many tokens it used. Your AI service bills you for these directly.")}
-        <div id="usage"><div class="set-load">Loading…</div></div>`;
-      aiHints(); loadUsage();
+        ${foot(`${k.ready ? `<button class="btn" data-act="aitest">Test again</button>` : ""}<button class="btn primary" data-act="aisave">Save and test</button>`)}`;
+      aiHints();     // what the AI cost per video is on the admin panel, not here
     }
     if (tab === "notify") {
       const s = S.settings = await api("/api/settings");
@@ -3519,6 +3518,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=9"></script>
+<script src="/assets/editor.js?v=10"></script>
 </body>
 </html>
