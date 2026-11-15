@@ -1421,6 +1421,38 @@ main{background:
 .vfilters button[aria-selected=true]{background:#fff;color:var(--text);box-shadow:inset 0 0 0 1px var(--edge)}
 .vfilters button[aria-selected=true] .n{background:var(--accent-soft);color:var(--accent)}
 .vsearch{border-color:var(--edge)}
+/* ---------- Videos page: each video is a project card; the project page holds every clip */
+#jobs>section.job.pcard{padding:14px;border-radius:22px;margin-bottom:14px;transition:border-color .15s ease}
+#jobs>section.job.pcard:hover{border-color:#D9D0F5}
+.pc-head{display:flex;align-items:center;gap:14px}
+.pc-main{flex:1;min-width:0;display:flex;align-items:center;gap:14px;color:inherit;text-decoration:none;border-radius:14px}
+.pc-main .jthumb{width:112px;border-radius:12px;flex:none}
+.pc-tx{min-width:0;display:flex;flex-direction:column;gap:4px}
+.pc-tx h3{font-size:15px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;transition:color .15s ease}
+.pc-main:hover h3{color:var(--accent)}
+.pc-tx .mps{margin-top:0}
+.pc-acts{display:flex;align-items:center;gap:4px;flex:none}
+.pc-acts .selck{padding:0 4px}
+.pc-open{gap:4px}
+.pc-open svg{width:14px;height:14px}
+.pcard .bar{margin-top:12px}
+.pcard>.sub{margin-top:6px}
+.pc-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--edge)}
+.pc-clip{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:transparent;text-align:left;cursor:pointer;color:var(--text);font:inherit;position:relative}
+.pc-clip img{width:100%;aspect-ratio:9/16;max-height:190px;object-fit:cover;border-radius:12px;background:#111113;display:block;transition:opacity .15s ease}
+.pc-clip:hover img{opacity:.88}
+.pc-clip .du{position:absolute;right:6px;top:6px;background:rgba(15,15,20,.72);color:#fff;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px}
+.pc-clip b{font-size:12px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pc-more{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;max-height:190px;aspect-ratio:9/16;border-radius:12px;background:var(--page);color:var(--dim);text-decoration:none;transition:background-color .15s ease,color .15s ease}
+.pc-more b{font-size:20px;font-weight:600;color:var(--text);font-family:var(--font-head)}
+.pc-more span{font-size:12px}
+.pc-more:hover{background:var(--accent-soft);color:var(--accent)}
+.proj-back{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 8px;margin:0 0 14px;border:1px solid var(--edge);border-radius:999px;background:#fff;color:var(--dim);font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.proj-back svg{width:15px;height:15px;transform:rotate(180deg)}
+.proj-back:hover{background:var(--page);color:var(--text)}
+@media (max-width:900px){.pc-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.pc-strip>:nth-child(n+4):not(.pc-more){display:none}}
+@media (max-width:640px){.pc-head{flex-wrap:wrap}.pc-main .jthumb{width:84px}.pc-acts{width:100%;justify-content:flex-end}}
+
 /* ---------- accent: pick one colour, every shade is mixed from it */
 :root{--accent-hover:color-mix(in srgb,var(--accent) 86%,#000);--accent-press:color-mix(in srgb,var(--accent) 72%,#000);--accent-soft:color-mix(in srgb,var(--accent) 9%,#fff);
   --fill:linear-gradient(180deg,color-mix(in srgb,var(--accent) 78%,#fff) 0%,var(--accent) 100%);
@@ -2126,6 +2158,11 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
   if (S.view === "usage") sub = "What the AI has been used for.";
   if (S.view === "overview") sub = `${greeting()}. ${S.creators.length} creator${S.creators.length === 1 ? "" : "s"}${recording ? `, ${recording} recording now` : ""}.`;
   if (S.view === "library") sub = "Every video and recording, across all creators.";
+  if (S.view === "library" && S.proj) {          // one video open as a project
+    const pj = jobOf(S.proj), n = pj ? pj.clips.length : 0;
+    title = pj ? (pj.title || pj.source?.name || "Project") : "Project";
+    sub = `Project · ${n} clip${n === 1 ? "" : "s"}`;
+  }
   if (S.view === "creators") sub = "Everyone you clip. SocialShot records them when they go live.";
   if (S.view === "settings") sub = "Your profile, AI, notifications and connected apps.";
   let pic = "", subHtml = null, tabs = "";
@@ -2163,11 +2200,14 @@ const ROUTES = {overview: "", library: "videos", creators: "creators", settings:
 function pathFor(v, tab) {
   if (v.startsWith("c:")) return `/app/creators/${encodeURIComponent(v.slice(2))}${tab && tab !== "clips" ? "/" + tab : ""}`;
   if (v === "settings") return "/app/settings" + (tab ? "/" + tab : "");
+  if (v === "library" && tab && tab !== "clips") return "/app/videos/" + encodeURIComponent(tab);   // one video, as a project
   return "/app" + (ROUTES[v] ? "/" + ROUTES[v] : "");
 }
 function fromPath(path) {
   const m = path.match(/^\/app\/creators\/([^/]+)(?:\/(setup|activity|clips))?\/?$/);
   if (m) return ["c:" + decodeURIComponent(m[1]), m[2] || "clips"];
+  const pj = path.match(/^\/app\/videos\/([^/]+)\/?$/);
+  if (pj) return ["library", decodeURIComponent(pj[1])];
   const st = path.match(/^\/app\/settings(?:\/(ai|profile|security|apps|notify|look))?\/?$/);
   if (st) return ["settings", st[1] || null];
   const k = Object.keys(ROUTES).find(x => ROUTES[x] && path.replace(/\/$/, "") === "/app/" + ROUTES[x]);
@@ -2180,9 +2220,10 @@ function remember(v, tab, how = "push") {
 addEventListener("popstate", () => { const [v, tab] = fromPath(location.pathname); go(v, tab, true); });
 function go(v, tab, fromHistory) {
   if (v.startsWith("c:") && !S.creators.some(c => "c:" + c.id === v)) v = "overview";
-  S.view = v; if (tab) S.ctab = tab; else if (!v.startsWith("c:")) S.ctab = "clips";
+  S.proj = v === "library" && tab && tab !== "clips" ? tab : null;     // the one video open as a project, if any
+  S.view = v; if (tab && v !== "library") S.ctab = tab; else if (!v.startsWith("c:")) S.ctab = "clips";
   if (v === "settings") S.stab = setTabs().some(x => x[0] === tab) ? tab : setTabs()[0][0];
-  if (!fromHistory) remember(v, v.startsWith("c:") ? S.ctab : v === "settings" ? S.stab : null);
+  if (!fromHistory) remember(v, v.startsWith("c:") ? S.ctab : v === "settings" ? S.stab : v === "library" ? S.proj : null);
   localStorage.setItem("view", v);
   $("#main").dataset.view = v;          // lets each page pick its own backdrop
   $("#app").classList.remove("open");
@@ -2191,7 +2232,8 @@ function go(v, tab, fromHistory) {
   $("#heroSlot").innerHTML = v === "overview" ? `<section class="hero"><h2>What do you want to clip today?</h2>
       <p>Paste a link or drop in videos. You get captioned shorts back.</p><div id="add"></div></section>` : "";
   if (v === "overview") view.innerHTML = `<div id="ov"></div>`;
-  else if (v === "library") { view.innerHTML = `<div id="add"></div><div class="vbar" id="vbar"></div><div id="jobs"></div>`; drawVBar(); }
+  else if (v === "library" && S.proj) view.innerHTML = `<button class="proj-back" data-act="go" data-v="library">${ic("arrowr")}All videos</button><div id="jobs" class="proj"></div>`;
+  else if (v === "library") { view.innerHTML = `<div id="add"></div><div class="vbar" id="vbar"></div><div id="jobs" class="pgrid"></div>`; drawVBar(); }
   else if (v === "settings") view.innerHTML = `<div id="sform"></div>`;
   else if (v === "creators") view.innerHTML = `<div id="crs"></div>`;
   else if (v === "usage") { view.innerHTML = `<div id="usage"></div>`; loadUsage(); }
@@ -2598,6 +2640,34 @@ function jobHtml(j) {
     ${j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + (j.title || j.source.name || "") + " | " + j.error)}">Report this</button></div>` : ""}${j.ai?.note ? `<p class="sub">${esc(j.ai.note)}</p>` : ""}
     ${j.clips.length ? `<div class="grid">${j.clips.map(c => clipHtml(j, c)).join("")}</div>` : ""}`;
 }
+/* a video as a project card on the Videos page: its details and a peek at the first clips.
+   The card opens the project page, which has every clip; a clip in the peek opens straight in the editor. */
+function projHtml(j) {
+  if (j.status === "live") return liveHtml(j);
+  const busy = j.status === "queued" || j.status === "running";
+  const who = j.creator ? S.creators.find(c => c.id === j.creator)?.name : "";
+  const ready = j.clips.filter(c => c.status === "done");
+  const name = j.title || j.source?.name || "Untitled video";
+  const meta = [who && [ic("user"), who], j.uploader && [ic("radio"), j.uploader], j.duration && [ic("clock"), fmt(j.duration) + " long"],
+                j.clips.length && [ic("scissors"), `${ready.length}/${j.clips.length} clips ready`]].filter(Boolean).map(([i, t]) => `<span class="mp">${i}${esc(t)}</span>`).join("");
+  const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="" loading="lazy">` : ic(j.source?.type === "file" ? "film" : "link");
+  const peek = ready.slice(0, 4), more = j.clips.length - peek.length;
+  return `<div class="pc-head">
+      <a class="pc-main" href="/app/videos/${encodeURIComponent(j.id)}" data-act="openproj" data-j="${j.id}" aria-label="Open the project: ${esc(name)}">
+        <span class="jthumb">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</span>
+        <span class="pc-tx"><h3>${esc(name)}</h3><span class="mps">${meta}</span></span></a>
+      <div class="pc-acts">${busy ? "" : `
+        ${ready.length ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${j.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
+        <button class="btn sm icon ghost" data-act="deljob" data-j="${j.id}" aria-label="Delete this video and its clips">${ic("trash")}</button>
+        <label class="selck"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
+        <a class="btn sm pc-open" href="/app/videos/${encodeURIComponent(j.id)}" data-act="openproj" data-j="${j.id}">Open${ic("arrowr")}</a></div></div>
+    ${busy ? `<div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div><p class="sub">${esc(j.stage)} · ${Math.round(j.progress * 100)}%</p>` : ""}
+    ${j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + name + " | " + j.error)}">Report this</button></div>` : ""}
+    ${peek.length ? `<div class="pc-strip">${peek.map(c => `<button class="pc-clip" data-act="openclip" data-j="${j.id}" data-c="${esc(c.id)}" aria-label="Edit clip: ${esc(c.title || c.hook || "clip")}">
+        <img src="/media/${j.id}/${esc(c.cover)}?v=${c.version}" alt="" loading="lazy"><span class="du">${fmt(c.end - c.start)}</span>
+        <b>${esc(c.title || c.hook || "Untitled clip")}</b></button>`).join("")}
+      ${more > 0 ? `<a class="pc-more" href="/app/videos/${encodeURIComponent(j.id)}" data-act="openproj" data-j="${j.id}"><b>+${more}</b><span>more clip${more === 1 ? "" : "s"}</span></a>` : ""}</div>` : ""}`;
+}
 /* ---- selecting several videos and clips: delete or download them together */
 const sel = () => (S.sel = S.sel || new Set());
 function selParts() {
@@ -2672,8 +2742,11 @@ function drawJobs() {
   const root = $("#jobs"); if (!root) return;
   const cid = creatorId();
   let list = cid ? S.jobs.filter(j => j.creator === cid) : S.jobs;
-  const filtered = !cid && S.view === "library" && ((S.vfilter || "all") !== "all" || (S.vq || "").trim());
-  if (!cid && S.view === "library") {
+  const proj = !cid && S.view === "library" && S.proj;      // the project page: just this one video, with every clip
+  const cards = !cid && S.view === "library" && !proj;       // the Videos page: one card per video
+  if (proj) { const pj = jobOf(S.proj); if (!pj) return go("library"); list = [pj]; }
+  const filtered = cards && ((S.vfilter || "all") !== "all" || (S.vq || "").trim());
+  if (cards) {
     drawVStats();
     const q = (S.vq || "").trim().toLowerCase();
     list = list.filter(j => vMatch(j, S.vfilter || "all") && (!q || `${j.title || ""} ${j.source?.name || ""} ${j.uploader || ""}`.toLowerCase().includes(q)));
@@ -2693,9 +2766,10 @@ function drawJobs() {
   $$("section[data-job]", root).forEach(el => { if (!ids.has(el.dataset.job)) el.remove(); });
   list.forEach((j, i) => {
     let el = $(`section[data-job="${j.id}"]`, root);
-    if (!el) { el = document.createElement("section"); el.className = "job"; el.dataset.job = j.id; }
+    if (!el) { el = document.createElement("section"); el.dataset.job = j.id; }
+    el.className = cards && j.status !== "live" ? "job pcard" : "job";
     if (root.children[i] !== el) root.insertBefore(el, root.children[i] || null);
-    put(el, jobHtml(j));
+    put(el, cards ? projHtml(j) : jobHtml(j));
   });
 }
 
@@ -3220,6 +3294,7 @@ document.addEventListener("click", async e => {
     if (a === "addmore") { const u = $("#url"); return u && !u.value ? (u.focus(), toast("Paste another link, or drop a file anywhere on the box.")) : $("#file").click(); }
     if (a === "closedlg") return $("#clipdlg").close();
     if (a === "openclip") return openClip(d.j, d.c);
+    if (a === "openproj") { e.preventDefault(); return go("library", d.j); }
     if (a === "newclip") { closePops(); go("overview"); requestAnimationFrame(() => $("#url")?.focus()); return; }
     if (a === "newcreator") {
       const dlg = $("#formdlg");
@@ -3413,7 +3488,7 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   if (q.get("verify_error")) { history.replaceState(null, "", location.pathname); setTimeout(() => toast(q.get("verify_error"), "bad"), 300); }
   if (location.pathname.startsWith("/app/")) { const [v, tab] = fromPath(location.pathname); S.view = v; S.ctab = tab; }  // the address decides, before anything loads
   await tick();
-  { const [v, tab] = location.pathname.startsWith("/app/") ? fromPath(location.pathname) : ["overview", "clips"]; go(v, tab, true); remember(S.view, S.view === "settings" ? S.stab : S.ctab, "replace"); }
+  { const [v, tab] = location.pathname.startsWith("/app/") ? fromPath(location.pathname) : ["overview", "clips"]; go(v, tab, true); remember(S.view, S.view === "settings" ? S.stab : S.view === "library" ? S.proj : S.ctab, "replace"); }
   try {  // a link pasted on the home page before signing up
     const link = sessionStorage.getItem("peakcut_link");
     if (link) { sessionStorage.removeItem("peakcut_link"); go("overview"); $("#url").value = link; onLink($("#url")); $("#url").focus(); toast("Your link is ready. Press Make clips.", "ok"); }
