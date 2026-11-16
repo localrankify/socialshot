@@ -2546,6 +2546,65 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
   opacity:.75;animation:ga-spin 7s linear infinite;transition:opacity .2s ease}
 .app:not(.mini) .side .new-clip:hover::before,.ed-acts [data-ed=exdlg]:hover::before{opacity:1;animation-duration:2.6s}
+/* a video being made into clips: fanned cards dissolving into a wave of small squares */
+.pc-forge{grid-column:1/-1;position:relative;min-height:240px;height:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:radial-gradient(60% 70% at 50% 0%,#1E1E22,#141416 70%)}
+.fg-cards{position:absolute;left:50%;top:44px;width:0;height:0}
+.fg-cards span{position:absolute;top:0;width:96px;height:150px;margin-left:-48px;border:1px solid #34343A;border-radius:10px;background:#1C1C20;overflow:hidden}
+.fg-cards .l{transform:translateX(-80px) translateY(14px) rotate(-9deg);background:#232327;border-color:#3E3E45}
+.fg-cards .r{transform:translateX(80px) translateY(14px) rotate(9deg);background:#232327;border-color:#3E3E45}
+.fg-cards .l::before,.fg-cards .r::before{content:"";position:absolute;left:10px;right:22px;top:12px;height:5px;border-radius:3px;background:#3A3A40;box-shadow:0 10px 0 -1px #313136}
+.fg-cards .m{width:110px;height:172px;margin-left:-55px;top:-8px;border-color:#45454D;background:#202024}
+.fg-cards .m img{width:100%;height:100%;object-fit:cover;opacity:.5;filter:grayscale(.35)}
+/* the squares: a ragged wave from left to right, fading out towards the top so the cards show through */
+.fg-pix{position:absolute;left:0;right:0;bottom:22%;display:grid;grid-template-columns:repeat(72,1fr);gap:2px;padding:0 2px;
+  -webkit-mask:linear-gradient(to top,#000 35%,transparent);mask:linear-gradient(to top,#000 35%,transparent)}
+.fg-pix i{aspect-ratio:1;background:#E4E4E7;opacity:0;animation:fgpix 2.6s linear infinite}
+.fg-pix i.a{background:var(--accent)}
+@keyframes fgpix{0%{opacity:0}8%{opacity:.6}22%{opacity:.18}45%{opacity:.04}100%{opacity:0}}
+/* below the wave: a solid dark floor with the step and how far it is */
+.pc-forge::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22%;background:#121214}
+.fg-txt{position:absolute;left:0;right:0;bottom:0;z-index:1;height:22%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:12.5px;color:#A1A1AA}
+.fg-txt b{font-weight:600;color:#E4E4E7}
+.fg-txt span{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.fg-pix i{animation:none;opacity:.12}}
+/* sidebar head: a larger logo, then search and collapse as two small icons; the search box opens under it on demand */
+.sh-acts{display:flex;align-items:center;gap:2px}
+.side-head .sb-open{width:30px;height:30px;border-radius:8px;color:#8E8E96;display:grid;place-items:center}
+.side-head .sb-open:hover{color:#fff;background:var(--s2)}
+.side-head .sb-open svg{width:17px;height:17px}
+@media (min-width:901px){
+  .app:not(.mini) .side .side-head .logo{height:32px}
+  .app:not(.mini) .side-head{padding-bottom:14px}
+  .app:not(.mini) .side:not(.searching) #sbsearch{display:none}
+  .side.searching #sbsearch{animation:sb-in .18s var(--ease-out,ease)}
+  .app.mini .sb-open{display:none}
+}
+@keyframes sb-in{from{opacity:0;transform:translateY(-4px)}}
+@media (max-width:900px){.side-head .sb-open{display:none}}
+/* the main panel runs up to the top of the window: no gap above it, square top corners */
+@media (min-width:901px){main{margin-top:0;height:calc(100vh - 10px);border-top:0;border-top-left-radius:0;border-top-right-radius:0}}
+/* at rest the border is one plain colour like the other outlined buttons; the moving colour line only runs on hover */
+/* at rest: a grey outline with one soft white highlight drifting slowly around it; on hover the colour line takes over */
+.app:not(.mini) .side .new-clip:not(:hover)::before,.ed-acts [data-ed=exdlg]:not(:hover)::before{
+  background:conic-gradient(from var(--ga),rgba(255,255,255,.14) 0 70%,rgba(255,255,255,.55) 80%,rgba(255,255,255,.14) 90%);
+  animation:ga-spin 9s linear infinite;opacity:1}
+.side .new-clip svg{transition:transform .25s var(--ease-out,ease)}
+.side .new-clip:hover svg{transform:rotate(90deg)}
+@media (prefers-reduced-motion:reduce){.side .new-clip:not(:hover)::before,.ed-acts [data-ed=exdlg]:not(:hover)::before{animation:none}.side .new-clip:hover svg{transform:none}}
+/* Home: the same corner grain as the sidebar on the stat cards and the Recent clips card */
+#ov .hs-card,#ov>.hs+.card{position:relative;isolation:isolate}
+#ov .hs-card::after,#ov>.hs+.card::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;background:var(--grain);background-size:140px;opacity:.3;
+  -webkit-mask:radial-gradient(70% 70% at 100% 0,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%),radial-gradient(70% 70% at 0 100%,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%);
+  mask:radial-gradient(70% 70% at 100% 0,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%),radial-gradient(70% 70% at 0 100%,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%)}
+#ov>.hs+.card::after{-webkit-mask:radial-gradient(40% 50% at 100% 0,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%),radial-gradient(40% 50% at 0 100%,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%);
+  mask:radial-gradient(40% 50% at 100% 0,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%),radial-gradient(40% 50% at 0 100%,#000 0%,rgba(0,0,0,.45) 40%,transparent 80%)}
+/* sidebar: a fine grain that shows in its top and bottom corners and fades out towards the middle */
+@media (min-width:901px){
+  .side::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--grain);background-size:140px;opacity:.38;
+    -webkit-mask:radial-gradient(110% 30% at 100% 0,#000 0%,rgba(0,0,0,.5) 40%,transparent 80%),radial-gradient(110% 34% at 0 100%,#000 0%,rgba(0,0,0,.5) 40%,transparent 80%);
+    mask:radial-gradient(110% 30% at 100% 0,#000 0%,rgba(0,0,0,.5) 40%,transparent 80%),radial-gradient(110% 34% at 0 100%,#000 0%,rgba(0,0,0,.5) 40%,transparent 80%)}
+}
 .app:not(.mini) .side .new-clip:hover,.ed-acts [data-ed=exdlg]:hover{background:#18181B!important}
 @media (prefers-reduced-motion:reduce){.app:not(.mini) .side .new-clip::before,.ed-acts [data-ed=exdlg]::before{animation:none}}
 /* sidebar top: compact. The logo, then the collapse arrow, with little room under them */
@@ -3131,16 +3190,37 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
 .cs-rng input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:0}
 .cs-rng input::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:0}
 .cs-rng output{min-width:40px;height:30px;display:grid;place-items:center;border-radius:7px;background:#111113;border:1px solid #2E2E33;font-size:13px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+/* full width: the menu on the left, the blocks fill the rest */
+.cs{max-width:none;margin:0;grid-template-columns:200px minmax(0,1fr);gap:24px}
+#cform .savebar{max-width:none}
+.cs-main{gap:16px}
+.cs-nav{top:16px;padding:6px;border:1px solid var(--line-2);border-radius:12px;background:#161618}
+.cs-nav button{position:relative;height:38px;padding:0 12px}
+.cs-nav button.on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--accent)}
+/* each section is one block: its header on top with a line under it, then the rows */
+.cs-sec .cs-card{transition:border-color .2s ease}
+.cs-sec .cs-h{margin:0;padding:16px 20px 14px;border-bottom:1px solid var(--line-2)}
+.cs-sec .cs-h h2{font-size:15px}
+.cs-sec .cs-h p{margin-top:2px;font-size:12.5px}
+.cs-sec.on .cs-card{border-color:#45454D}
+.cs-sec.on .cs-h{background:#1C1C20}
+.cs-sec .cs-sum{margin:0;border:0;border-bottom:1px solid var(--line-2);border-radius:0;padding:12px 20px;background:transparent}
+.cs-sec .cs-chans{padding:6px 8px}
 #cs-danger .cs-card{border-color:rgba(248,113,113,.25)}
-@media (max-width:860px){.cs-row.wide{flex-wrap:wrap}.cs-row.wide .cs-text{width:100%}}
+#cs-danger.on .cs-card{border-color:rgba(248,113,113,.45)}
+#cs-danger.on .cs-h{background:rgba(248,113,113,.05)}
+@media (max-width:860px){.cs-row.wide{flex-wrap:wrap}.cs-row.wide .cs-text{width:100%}
+  .cs{grid-template-columns:1fr;gap:12px}.cs-nav{position:static;display:flex;overflow-x:auto;scrollbar-width:none;gap:2px}.cs-nav button{flex:none}
+  .cs-nav button.on::before{left:12px;right:12px;top:auto;bottom:3px;width:auto;height:2px}}
 @media (max-width:560px){.cs-seg{display:flex;width:100%}.cs-seg label{flex:1}.cs-seg span{padding:0 6px}.cs-rng{width:100%}.cs-rng input{flex:1;width:auto}}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <aside class="side" aria-label="Sidebar">
-    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=4" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=4" alt="SocialShot">
-      <button class="icon-btn collapse" data-act="collapse" id="collapseBtn" aria-label="Collapse sidebar"></button></div>
+    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=5" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=4" alt="SocialShot">
+      <span class="sh-acts"><button class="icon-btn sb-open" data-act="sbopen" aria-label="Search your videos" title="Search (Ctrl K)"></button>
+      <button class="icon-btn collapse" data-act="collapse" id="collapseBtn" aria-label="Collapse sidebar"></button></span></div>
     <div id="sbsearch"></div>
     <nav class="nav" id="nav" aria-label="Main"></nav>
     <div class="side-foot" id="foot"></div>
@@ -3285,7 +3365,7 @@ function startTour() {
      sel: '#nav [data-v="creators"]', side: 1, dock: "bottom", chips: [["plusc", "New creator", 1], ["radio", "Record live"], ["bolt", "Clip highlights"]]},
     {t: "The AI picks the moments", x: "Settings holds your profile, your AI key, alerts on Discord or Telegram, and the accounts you post to. What each video costs in AI is on the admin panel.",
      sel: '#nav [data-v="settings"]', side: 1, dock: "top", chips: [["bolt", "AI", 1], ["chart", "Usage"], ["bell", "Alerts"]]},
-    {t: "Your account and alerts", x: "The bell tells you when clips are ready or a recording ends. Your name opens Settings, where you connect the accounts you post to.",
+    {t: "Your account and alerts", x: "The bell tells you when clips are ready or a recording ends. Your name opens the accounts you post to, and this Help and tour.",
      sel: "#foot .me", side: 1, dock: "top", chips: [["bell", "Notifications", 1], ["cog", "Settings"], ["plug", "Connect accounts"]]},
     {t: "You're ready to clip", x: "Everything you make here is private to your account. Paste your first link and press Make clips.",
      chips: [["link", "Paste a link"], ["scissors", "Make clips", 1]]}];
@@ -3522,9 +3602,16 @@ const APP_MARK = {
     const g = (dx, dy, c) => `<path transform="translate(${7 + dx} ${6.5 + dy}) scale(.6)" fill="${c}" d="${d}"/>`;
     return `<svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#000"/>${g(-.45, -.35, "#25F4EE")}${g(.45, .35, "#FE2C55")}${g(0, 0, "#fff")}</svg>`; })()};
 APP_MARK.x = `<svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#000"/><path transform="translate(7.5 7.5) scale(.54)" fill="#fff" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>`;
+// search lives behind the magnifier in the logo row: it opens the box under the logo, which folds away again when left empty
+function openSbSearch() {
+  $(".side")?.classList.add("searching");
+  const s = $("#sbq"); s?.focus(); s?.select();
+}
+document.addEventListener("focusout", e => { if (e.target.id === "sbq" && !e.target.value.trim()) setTimeout(() => { if (document.activeElement?.id !== "sbq") $(".side")?.classList.remove("searching"); }, 150); });
 // the sidebar's own toggle says what it will do: collapse it, or bring it back
 function collapseLabel() {
   const b = $("#collapseBtn"); if (!b) return;
+  const so = $(".sb-open"); if (so && !so.firstChild) so.innerHTML = ic("search");      // the search button beside it
   const mini = $("#app").classList.contains("mini");
   b.setAttribute("aria-label", mini ? "Expand sidebar" : "Collapse sidebar"); b.title = mini ? "Expand sidebar" : "Collapse sidebar";
   // an arrow that points the way it will move: « folds the sidebar away, » brings it back
@@ -3550,6 +3637,7 @@ function openAcct(hover) {
   p.innerHTML = `<div class="acc-label">Posting accounts</div>${plat}
     <div class="acc-sep"></div>
     <button data-act="go" data-v="settings" data-tab="apps">${ic("plug")}Connected apps</button>
+    <button data-act="tour">${ic("help")}Help and tour</button>
     ${on ? `<button class="danger" data-act="logout">${ic("signout")}Sign out</button>` : ""}`;
   openPop(p, $("[data-act=acctmenu]"));
 }
@@ -3576,7 +3664,8 @@ document.addEventListener("input", e => {
   drawJobs(); e.target.focus();
 });
 document.addEventListener("keydown", e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !$("#clipdlg")?.open) { e.preventDefault(); const s = $("#sbq"); s?.focus(); s?.select(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !$("#clipdlg")?.open) { e.preventDefault(); openSbSearch(); }
+  if (e.key === "Escape" && e.target.id === "sbq") { e.target.value = ""; e.target.blur(); }
   else if (e.key === "Escape" && e.target.id === "sbq") e.target.blur();
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closePops(); });
@@ -3669,8 +3758,9 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
     (S.status.user?.role === "admin" && S.status.accounts !== false ? `<h4><span>Owner</span></h4><a class="nav-item" href="/admin" title="Admin dashboard" style="text-decoration:none">${ic("shield")}<span class="label">Admin dashboard</span></a>` : ""));
   const st = S.status;
   // the foot: Settings and Help, then the account; the plan and what has been made are in the account's popup
+  // Help and tour lives in the account's popup; it stays here only when there is no account to open
   put($("#foot"), `<div class="sb-links">${nav("settings", navIc("cog", "settings"), "Settings")}
-      <button class="nav-item" data-act="tour" title="A short tour of SocialShot">${ic("help")}<span class="label">Help and tour</span></button></div>` +
+      ${st.user ? "" : `<button class="nav-item" data-act="tour" title="A short tour of SocialShot">${ic("help")}<span class="label">Help and tour</span></button>`}</div>` +
     (st.user ? `<div class="me"><button class="me-btn" data-act="acctmenu" aria-haspopup="menu" aria-expanded="false">${meAvatar(st.user)}
       <span class="who"><b>${esc(st.user.name || "You")}</b><span>Free plan</span></span><span class="me-ud">${ic("updown")}</span></button></div>` : ""));
   const c = creator();
@@ -4254,6 +4344,25 @@ function jobHtml(j, bare = false) {        // bare: the project page, where the 
     ${j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + (j.title || j.source.name || "") + " | " + j.error)}">Report this</button></div>` : ""}${j.ai?.note ? `<p class="sub">${esc(j.ai.note)}</p>` : ""}
     ${j.clips.length ? `<div class="grid">${j.clips.map(c => clipHtml(j, c)).join("")}</div>` : ""}`;
 }
+/* While a video is being made into clips: three clip cards fanned out, the video itself on the middle one, and a band
+   of small squares washing across their lower half, as if the clips were being cut out of it. Each square's timing is
+   set from the clock, so when the card is redrawn (it is, every few seconds) the wave carries on instead of restarting. */
+const FG_COLS = 72, FG_ROWS = 8, FG_PERIOD = 2.6;
+function forgeHtml(j) {
+  const now = performance.now() / 1000, pct = Math.round((j.progress || 0) * 100);
+  const hash = n => { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); };
+  let cells = "";
+  for (let r = 0; r < FG_ROWS; r++) for (let c = 0; c < FG_COLS; c++) {
+    const k = r * FG_COLS + c, h = hash(k + 1);
+    const start = c * 0.034 + h * 0.7 + (FG_ROWS - r) * 0.04;           // the wave moves left to right, a little ragged
+    cells += `<i${h > 0.94 ? ' class="a"' : ""} style="animation-delay:-${((now + start) % FG_PERIOD).toFixed(2)}s"></i>`;
+  }
+  const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="">` : "";
+  return `<div class="pc-forge" role="status" aria-label="${esc(j.stage || "Working")}, ${pct}%">
+    <div class="fg-cards" aria-hidden="true"><span class="l"></span><span class="r"></span><span class="m">${pic}</span></div>
+    <div class="fg-pix" aria-hidden="true">${cells}</div>
+    <div class="fg-txt"><b>${esc(j.stage || "Getting ready")}</b><span>${pct}%</span></div></div>`;
+}
 /* a video as a project card on the Videos page: its details and a peek at the first clips.
    The card opens the project page, which has every clip; a clip in the peek opens straight in the editor. */
 function projHtml(j) {
@@ -4274,7 +4383,7 @@ function projHtml(j) {
       <button class="pc-clip" data-act="openclip" data-j="${j.id}" data-c="${esc(c.id)}" aria-label="Edit clip: ${esc(c.title || c.hook || "clip")}">
         <span class="pc-img"><img src="/media/${j.id}/${esc(c.cover)}?v=${c.version}" alt="" loading="lazy"><span class="du">${fmt(c.end - c.start)}</span><i class="pc-play">${ic("play")}</i></span>
         <b>${esc(c.title || c.hook || "Untitled clip")}</b></button>${plus(i, 6)}${plus(i, 4)}${plus(i, 2)}</div>`).join("");
-  const waiting = busy && !total ? Array.from({length: 6}, () => `<div class="pc-t"><span class="pc-img pc-skel"></span><b class="pc-skel-l"></b></div>`).join("") : "";
+  const waiting = busy && !total ? forgeHtml(j) : "";
   return `<div class="pc-info" data-act="openproj" data-j="${j.id}" title="Open the project">
       <a class="pc-cover" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project: ${esc(name)}">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</a>
       <a class="pc-name" href="${link}" data-act="openproj" data-j="${j.id}"><h3 title="${esc(name)}">${esc(name)}</h3></a>
@@ -4489,10 +4598,11 @@ function drawCreatorForm() {
     `<label><input type="radio" name="cs_${k}" data-k="${k}" value="${esc(val)}" ${String(v) === String(val) ? "checked" : ""}><span>${lab}</span></label>`).join("")}</div>`;
   // a score out of 100 as a slider with its number beside it
   const rng = (k, v) => `<span class="cs-rng"><input type="range" data-k="${k}" min="0" max="100" step="5" value="${Number(v) || 0}" aria-label="${k}" style="--p:${Number(v) || 0}%"><output>${Number(v) || 0}</output></span>`;
-  const sec = (id, title, sub, body, top = "") => `<section class="cs-sec" id="cs-${id}"><div class="cs-h"><h2>${title}</h2><p>${sub}</p></div>${top}<div class="cs-card">${body}</div></section>`;
+  // each section is one framed block: its name and note as the block's header, then its settings
+  const sec = (id, title, sub, body, top = "") => `<section class="cs-sec${id === (S.csOn || "stream") ? " on" : ""}" id="cs-${id}"><div class="cs-card"><div class="cs-h"><h2>${title}</h2><p>${sub}</p></div>${top}<div class="cs-body">${body}</div></div></section>`;
   const NAV = [["stream", "radio", "Stream"], ["ai", "sliders", "How clips are picked"], ["clips", "scissors", "Clips"], ["post", "send", "Posting"], ["danger", "trash", "Delete"]];
   box.innerHTML = `<div class="cs">
-    <nav class="cs-nav" aria-label="Creator settings">${NAV.map(([k, i, l], n) => `<button type="button" data-act="csjump" data-v="${k}" class="${n ? "" : "on"}">${ic(i)}${l}</button>`).join("")}</nav>
+    <nav class="cs-nav" aria-label="Creator settings">${NAV.map(([k, i, l], n) => `<button type="button" data-act="csjump" data-v="${k}" class="${(S.csOn || "stream") === k ? "on" : ""}">${ic(i)}${l}</button>`).join("")}</nav>
     <div class="cs-main">
     ${sec("stream", "Stream", "Where to record from, and whether to start by itself.", `
       <div class="cs-chans chans">${channelRows(c)}</div>
@@ -4530,6 +4640,22 @@ function drawCreatorForm() {
     </div></div>
     <div class="savebar" id="savebar"><span>${ic("warn")}You have unsaved changes</span><button class="btn ghost" data-act="cdiscard">Discard</button><button class="btn primary" data-act="csave">${ic("check")}Save changes</button></div>`;
 }
+// creator settings: the menu and the section you're reading are lit together, and follow the scroll
+function csMark(k) {
+  S.csOn = k;                              // kept so a redraw of the page doesn't jump the highlight back to the top
+  $$(".cs-nav button").forEach(x => x.classList.toggle("on", x.dataset.v === k));
+  $$(".cs-sec").forEach(s => s.classList.toggle("on", s.id === "cs-" + k));
+}
+document.addEventListener("scroll", e => {
+  const secs = $$(".cs-sec"); if (!secs.length) return;
+  // the section whose top has passed a line a third of the way down; at the very bottom, the last one
+  const line = innerHeight / 3, sc = e.target === document ? document.scrollingElement : e.target;
+  if (!sc.contains?.(secs[0])) return;
+  let cur = secs[0];
+  for (const s of secs) if (s.getBoundingClientRect().top <= line) cur = s;
+  if (sc && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4) cur = secs[secs.length - 1];
+  if (!cur.classList.contains("on")) csMark(cur.id.slice(3));
+}, true);
 const creatorForm = () => { const d = {}; $$("#cform [data-k]").forEach(i => { if (i.type === "radio") { if (i.checked) d[i.dataset.k] = i.value; } else d[i.dataset.k] = i.type === "checkbox" ? i.checked : i.value; }); d.accounts = $$("#cform [data-acc]:checked").map(i => i.value); return d; };
 const dirty = on => $("#savebar")?.classList.toggle("on", on);
 async function saveCreator(quiet) {
@@ -5055,6 +5181,7 @@ document.addEventListener("click", async e => {
       return;
     }
     if (a === "menu") return $("#app").classList.toggle("open");
+    if (a === "sbopen") { if ($(".side").classList.contains("searching") && !$("#sbq")?.value.trim()) { $(".side").classList.remove("searching"); return; } return openSbSearch(); }
     if (a === "collapse") { const m = $("#app").classList.toggle("mini"); try { localStorage.setItem("mini", m ? "1" : ""); } catch {} collapseLabel(); return; }
     if (a === "toggleopts") { const p = $(".composer-opts"), open = !p.classList.contains("open"); p.classList.toggle("open", open); p.inert = !open; b.classList.toggle("on", open); b.setAttribute("aria-expanded", String(open)); return; }
     if (a === "focusurl") return $("#url")?.focus();
@@ -5087,7 +5214,7 @@ document.addEventListener("click", async e => {
     }
     if (a === "csjump") {                  // creator settings: jump to a section
       document.getElementById("cs-" + d.v)?.scrollIntoView({behavior: "smooth", block: "start"});
-      $$(".cs-nav button").forEach(x => x.classList.toggle("on", x === b)); return;
+      csMark(d.v); return;
     }
     if (a === "optreset") {                // the add box's options back to the defaults, kept open
       const u = $("#url")?.value || "", big = $("#addform").classList.contains("big");
@@ -5188,7 +5315,7 @@ document.addEventListener("click", async e => {
       catch (e) { toast(e.message, "bad"); }
       b.disabled = false; return;
     }
-    if (a === "tour") return startTour();
+    if (a === "tour") { closePops(); return startTour(); }
     if (a === "settab") { e.preventDefault(); S.stab = d.k; remember("settings", d.k); return drawSettings(); }
     if (a === "accent") {           // update in place: no redraw, so nothing flashes
       setAccent(d.v);
