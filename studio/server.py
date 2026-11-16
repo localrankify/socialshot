@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 
 from . import admin as admins
 from . import account, load
-from . import (accounts, ai, alerts, auth, config, creators, ctx, db, jobs, live, media, posting,
+from . import (accounts, ai, alerts, auth, chat, config, creators, ctx, db, jobs, live, media, posting,
                profiles, render, safe, transcribe, usage)
 
 from . import tools as _tools  # noqa: E402
@@ -563,8 +563,14 @@ def status(request: Request):
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
             "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
-            "fonts": {k: {"google": v["google"], "weight": v["weight"], "local": bool(v.get("local"))} for k, v in render.FONTS.items()},
-            "presets": render.PRESETS}
+            "fonts": {k: {"google": v["google"], "weight": v["weight"], "local": bool(v.get("local")), "em": render.font_em(k)} for k, v in render.FONTS.items()},
+            "presets": render.PRESETS, "storage": _storage()}
+
+
+def _storage() -> dict:
+    """The space this account's videos and clips take, and its limit (None when there is none), for the sidebar."""
+    lim = config.MAX_USER_GB
+    return {"used_gb": round(_used_bytes(ctx.uid()) / 1e9, 2), "max_gb": None if lim >= config._NONE else lim}
 
 
 # ================================================================ videos
@@ -588,11 +594,8 @@ _lookups = threading.BoundedSemaphore(8)   # link and channel previews running a
 _disk: dict = {}
 
 
-def _quota():
-    """Each account has a fixed amount of disk space. Measured at most once a minute."""
-    if load.disk_full():
-        raise HTTPException(503, "SocialShot is out of space for new videos for the moment. Please try again shortly.")
-    uid = ctx.uid()
+def _used_bytes(uid) -> int:
+    """How much disk an account's folder takes. Measured at most once a minute."""
     got = _disk.get(uid)
     if not got or time.time() - got[0] > 60:
         total = 0
@@ -603,7 +606,14 @@ def _quota():
                 except OSError:
                     pass
         got = _disk[uid] = (time.time(), total)
-    if got[1] > config.MAX_USER_GB * 1e9:
+    return got[1]
+
+
+def _quota():
+    """Each account has a fixed amount of disk space."""
+    if load.disk_full():
+        raise HTTPException(503, "SocialShot is out of space for new videos for the moment. Please try again shortly.")
+    if _used_bytes(ctx.uid()) > config.MAX_USER_GB * 1e9:
         raise HTTPException(507, "Your storage is full. Delete some older videos to make room.")
 
 
@@ -929,6 +939,24 @@ def rerender(jid: str, cid: str, body: dict = Body(...)):
     return jobs.public(job)
 
 
+@app.post("/api/jobs/{jid}/chat")
+def add_chat(jid: str, body: dict = Body(...)):
+    """A video's chat, as messages per second (the page reads a TwitchDownloader chat.json and sends only these).
+    Clips are then found with the chat's spikes, and the editor shows them on the timeline."""
+    job = _job_or_404(jid)
+    try:
+        counts = chat.clean_counts(body.get("counts"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not sum(counts):
+        raise HTTPException(400, "That chat file has no messages in it.")
+    got = chat.save(jobs.job_dir(jid), counts, "file")
+    spk = chat.spikes(counts)
+    job["chat"] = {"from": "file", "messages": got["messages"], "spikes": len(spk), "top": sorted(spk, key=lambda x: -x[1])[:20]}
+    jobs.save(job)
+    return jobs.public(job)
+
+
 @app.post("/api/jobs/{jid}/clips/{cid}/save")
 def save_clip_edits(jid: str, cid: str, body: dict = Body(...)):
     """The editor's Save: keeps the changes on the clip without making the video again."""
@@ -1061,8 +1089,12 @@ def clip_captions(jid: str, cid: str):
     """Every caption word of a clip with its time in the video, for editing."""
     job, clip = _clip_or_404(jid, cid)
     words, edited = jobs.caption_words(job, clip)
-    return {"words": words, "edited": edited, "offset": clip.get("src_offset", 0.0),
-            "min": clip.get("src_offset", 0.0), "max": clip.get("src_end", job.get("duration") or clip["end"])}
+    lo, hi = clip.get("src_offset", 0.0), clip.get("src_end", job.get("duration") or clip["end"])
+    got = chat.load(jobs.job_dir(jid))        # the chat around this clip, for the editor's timeline
+    counts = got["counts"] if got else []
+    a, b = int(lo), int(hi) + 1
+    return {"words": words, "edited": edited, "offset": clip.get("src_offset", 0.0), "min": lo, "max": hi,
+            "chat": {"from": a, "counts": counts[a:b], "spikes": [t for t, _ in chat.spikes(counts) if a <= t < b]} if got else None}
 
 
 # ================================================================ brand kit: caption looks a person saved

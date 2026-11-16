@@ -43,6 +43,13 @@ Pick up to {n} moments that would work as standalone clips for someone who has n
 funny moments, fails, clutch plays, rage, shock, hot takes, or a short story with a payoff.
 """
 
+CHAT_NOTE = """
+This video's chat replay was read. (CHAT) marks the moments chat exploded: at least 3 times busier than usual.
+Chat reacts 5 to 15 seconds AFTER something happens, so the moment itself is just before the (CHAT) lines.
+Give these moments priority, and start the clip on the setup about 20 seconds before the chat reaction,
+never on the reaction itself.
+"""
+
 LIVE_NOTE = """
 This is a LIVE stream and the transcript is only the last few minutes, ending at {now:.0f} seconds.
 If a moment is still unfolding at the very end, leave it out; you will see it again in the next check.
@@ -57,7 +64,8 @@ Rules:
 - Do not pick intros, sponsor reads, "like and subscribe", or dead air.
 - Skip weak moments. Fewer strong clips beat many weak ones. Return [] if nothing is worth clipping.
 - score: 0-100, how likely a stranger keeps watching. Be honest; most clips are 50-80.
-- hook: at most 5 words, ALL CAPS, shown as big text on the video. Curiosity, but true to what happens.
+- hook: at most 5 words, shown as big text on the video. Curiosity, but true to what happens. Write it in normal
+  sentence case, not all capitals: a capital first letter, names and acronyms as usual ("GTA 6 will crash YouTube?").
 - title: at most 70 characters, for the post.
 - description: one or two sentences.
 - hashtags: 5 tags without the # sign.
@@ -107,6 +115,39 @@ def _fmt(lines):
                      for l in lines)
 
 
+KEEP_CAPS = {"GTA", "AI", "PS5", "PS4", "PC", "FPS", "BGMI", "PUBG", "CEO", "USA", "UK", "OMG", "LOL", "IRL", "NPC", "MVP",
+             "GG", "VR", "TV", "DM", "IPL", "WWE", "UFC", "NBA", "NFL", "FIFA", "OG", "1V1", "1V4", "XP"}
+NAMES = {"youtube": "YouTube", "tiktok": "TikTok", "twitch": "Twitch", "instagram": "Instagram", "minecraft": "Minecraft",
+         "fortnite": "Fortnite", "valorant": "Valorant", "iphone": "iPhone", "xbox": "Xbox", "playstation": "PlayStation"}
+
+
+def sentence_case(text: str) -> str:
+    """A hook in normal case: 'GTA 6 WILL CRASH YOUTUBE?' -> 'GTA 6 will crash YouTube?', 'chuna laga' -> 'Chuna laga'.
+    Text with small letters keeps its words as written and only gets a capital first letter; all-capitals text is
+    turned into normal case. Acronyms, numbers and known names keep their shape."""
+    if not text:
+        return text
+    if any(ch.islower() for ch in text):
+        return re.sub(r"[^\W\d_]", lambda m: m.group(0).upper(), text, count=1)
+    out, start = [], True
+    for tok in re.split(r"(\s+)", text):
+        if not tok.strip():
+            out.append(tok)
+            continue
+        core = re.sub(r"\W", "", tok)
+        if core.upper() in KEEP_CAPS or any(ch.isdigit() for ch in core):
+            word = tok
+        elif core.lower() in NAMES:
+            word = tok.lower().replace(core.lower(), NAMES[core.lower()])
+        else:
+            word = re.sub(r"^i(?=$|'|\W)", "I", tok.lower())          # the word "I" (and I'm, I'll) stays a capital
+            if start:
+                word = re.sub(r"[A-Za-z]", lambda m: m.group(0).upper(), word, count=1)
+        out.append(word)
+        start = bool(re.search(r"[.!?]$", tok))
+    return "".join(out)
+
+
 def _tidy(c, s, e):
     """Whatever the AI answered, only this shape ever leaves here: clamped numbers, short link-free text."""
     cat = str(c.get("category", "other")).lower()
@@ -116,7 +157,7 @@ def _tidy(c, s, e):
     return {
         "start": s, "end": e, "score": max(0, min(100, int(_num(c.get("score"))))),
         "category": cat if cat in CATEGORIES else "other",
-        "hook": roman.to_roman(_text(c.get("hook"), 60)).upper(), "title": roman.to_roman(_text(c.get("title"), 100)),
+        "hook": sentence_case(roman.to_roman(_text(c.get("hook"), 60))), "title": roman.to_roman(_text(c.get("title"), 100)),
         "description": roman.to_roman(_text(c.get("description"), 300)),
         "hashtags": [t for t in tags if t][:8],
         "highlight_words": [roman.to_roman(_text(h, 30)) for h in words][:8],
@@ -245,9 +286,30 @@ def fallback_by_loudness(db, words, n, max_len, duration):
     return picks
 
 
-def find_clips(words, db, duration, title="", uploader="", max_clips=6, min_len=15, max_len=60, log=print):
+def fallback_by_chat(spk, words, n, min_len, max_len, duration):
+    """No AI available, but the chat was read: a clip from 20 s before each of the biggest spikes."""
+    from . import chat
+    length = max(min_len, min(max_len, 40))
+    picks = []
+    for t, count in sorted(spk, key=lambda x: -x[1]):
+        s = max(0.0, t - chat.BEFORE)
+        e = min(duration, s + length)
+        if e - s < min(min_len, duration) - 1 or any(not (e <= p["start"] or s >= p["end"]) for p in picks):
+            continue
+        picks.append({"start": s, "end": e, "score": 60, "category": "other", "hook": "CHAT WENT CRAZY",
+                      "title": "Chat went crazy here", "description": "", "hashtags": [], "highlight_words": [],
+                      "reason": f"Chat spike: {count} messages in 10 seconds."})
+        if len(picks) >= n:
+            break
+    return picks
+
+
+def find_clips(words, db, duration, title="", uploader="", max_clips=6, min_len=15, max_len=60, log=print, chat_spikes=None):
+    """`chat_spikes`: [(second in this stretch, messages), ...] from chat.spikes, or None if there is no chat."""
+    from . import chat
     z = loud_zscore(db)
-    lines = make_lines(words, z)
+    spk = chat_spikes or []
+    lines = make_lines(words, z, chat.reacted(spk) if spk else None)
     if not lines:
         return [], {"model": None, "note": "No speech found."}
     found, used_model, tokens = [], None, 0
@@ -262,6 +324,7 @@ def find_clips(words, db, duration, title="", uploader="", max_clips=6, min_len=
         if len(chunk) < 3:
             continue
         prompt = (HEAD.format(title=_safe(title) or "unknown", uploader=_safe(uploader) or "unknown", n=per_window)
+                  + (CHAT_NOTE if any(l.get("chat") for l in chunk) else "")
                   + RULES.format(min_len=min_len, max_len=max_len, transcript=_fmt(chunk)))
         try:
             out, used_model, spent = ask_ai(prompt, purpose="Video: finding clips")
@@ -271,8 +334,12 @@ def find_clips(words, db, duration, title="", uploader="", max_clips=6, min_len=
             log(f"AI window {a:.0f}-{b:.0f}s failed: {e}")
     note = ""
     if not used_model:
-        found = fallback_by_loudness(db, words, max_clips, max_len, duration)
-        note = "The AI was unavailable, so clips were picked by loudness only."
+        found = fallback_by_chat(spk, words, max_clips, min_len, max_len, duration) if spk else []
+        if len(found) < max_clips:
+            found += [c for c in fallback_by_loudness(db, words, max_clips - len(found), max_len, duration)
+                      if not any(not (c["end"] <= p["start"] or c["start"] >= p["end"]) for p in found)]
+        note = ("The AI was unavailable, so clips were picked by chat spikes and loudness." if spk
+                else "The AI was unavailable, so clips were picked by loudness only.")
     clips = []
     for c in sorted(found, key=lambda c: -_num(c.get("score"))):
         s, e = _snap(c, lines, words, min_len, max_len, duration)

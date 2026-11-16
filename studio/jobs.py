@@ -12,7 +12,7 @@ import traceback
 import uuid
 from pathlib import Path
 
-from . import brain, config, creators, ctx, load, media, render, roman, safe, transcribe, usage
+from . import brain, chat, config, creators, ctx, load, media, render, roman, safe, transcribe, usage
 
 class _FairQueue:
     """Whose video is next. Each person has their own line and the lines take turns, so someone who adds ten
@@ -104,12 +104,13 @@ class _FairQueue:
 _q = _FairQueue()
 _live_q: "queue.Queue" = queue.Queue()   # live clips never wait behind a long video
 _jobs: dict = {}
+_CHATS: dict = {}       # job id -> its YouTube chat download while the job runs
 _by_user: dict = {}                       # user -> {job id: job}: listing one person's videos never scans everyone's
 _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
 
-DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "bounce", "layout": "blur", "quality": 720,
-            "range_start": None, "range_end": None}
+DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "studio", "layout": "blur", "quality": 720,
+            "range_start": None, "range_end": None, "use_chat": True}
 
 
 LIMITS = {"max_clips": (1, 20), "min_len": (5, 120), "max_len": (10, 180), "quality": (360, 1080)}
@@ -128,6 +129,8 @@ def clean_options(options) -> dict:
             v = v if v in render.STYLES else DEFAULTS["style"]
         elif k == "layout":
             v = v if v in render.LAYOUTS else DEFAULTS["layout"]
+        elif k == "use_chat":                    # read the chat for its spikes, when the video has one
+            v = v is True or v in (1, "1", "true", "on")
         else:                                    # range_start, range_end: seconds into the video
             v = float(v)
             if not math.isfinite(v) or v < 0:
@@ -363,6 +366,8 @@ def request_render(jid, cid, changes: dict, render_now: bool = True):
         new["look"] = render.clean_look(changes["look"])
     if "captions" in changes:                 # caption words typed in the editor; null goes back to what was heard
         new["caption_words"] = clean_caption_words(changes["captions"])
+    if "cuts" in changes:                     # parts taken out by Speech cleanup: filler words and long pauses
+        new["cuts"] = clean_cuts(changes["cuts"], new["start"], new["end"])
     if not render_now:
         clip.update(new, unrendered=True)     # saved only: the video is made with these the next time it is rendered
         save(job)
@@ -370,6 +375,32 @@ def request_render(jid, cid, changes: dict, render_now: bool = True):
     clip.update(new, status="queued", unrendered=False)
     save(job)
     _q.put(("clip", jid, cid))
+
+
+def clean_cuts(cuts, start, end) -> list:
+    """Stretches of the clip to leave out ([[from, to], ...] in seconds of the video): inside the clip, in order,
+    joined where they touch, each at least a twentieth of a second. At least 3 seconds of the clip always stay."""
+    if not cuts:
+        return []
+    if not isinstance(cuts, list) or len(cuts) > 500:
+        raise ValueError("Those cuts can't be used.")
+    out = []
+    for c in cuts:
+        if not isinstance(c, (list, tuple)) or len(c) != 2:
+            raise ValueError("Those cuts can't be used.")
+        a, b = max(float(c[0]), start), min(float(c[1]), end)
+        if math.isfinite(a) and math.isfinite(b) and b - a >= 0.05:
+            out.append([round(a, 2), round(b, 2)])
+    out.sort()
+    merged = []
+    for a, b in out:
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    if (end - start) - sum(b - a for a, b in merged) < 3:
+        raise ValueError("That would cut almost the whole clip. Keep at least 3 seconds.")
+    return merged
 
 
 def clean_caption_words(words) -> list | None:
@@ -413,7 +444,8 @@ def render_one(job, clip, words):
         src = Path(clip["src"]) if clip.get("src") else Path(job["source_path"])
         if not clip.get("src"):
             clip["end"] = min(clip["end"], job["duration"])
-        local = dict(clip, start=clip["start"] - off, end=clip["end"] - off, hook=roman.to_roman(clip.get("hook") or ""))
+        local = dict(clip, start=clip["start"] - off, end=clip["end"] - off, hook=roman.to_roman(clip.get("hook") or ""),
+                     cuts=[[a - off, b - off] for a, b in clip.get("cuts") or []])
         span = [round(clip["start"], 2), round(clip["end"], 2), "en2"]      # "en2": captions made always-English
         if clip.get("caption_words") is not None:
             raw = clip["caption_words"]       # typed in the editor: drawn exactly as written
@@ -554,6 +586,7 @@ def _run_job(job):
         _set(job, stage="Getting the audio")
     fetch = ThreadPoolExecutor(1)
     video = None
+    yt_chat = None
     if src["type"] == "url":
         meta = media.info(src["url"])
         if meta["kind"] != "video":
@@ -571,6 +604,8 @@ def _run_job(job):
         pieces = span > LONG_VIDEO or meta["duration"] <= 0
         if not pieces:  # shorter video: fetch all of it in the background while the audio is worked on
             video = fetch.submit(media.download, src["url"], d, int(o["quality"]))
+        if o.get("use_chat", True) and not chat.load(d) and chat.has_chat(src["url"]):
+            yt_chat = _CHATS[job["id"]] = chat.YouTubeChat(src["url"], d)   # a past live stream's chat, fetched alongside
         audio_file = media.download_audio(src["url"], d, lambda p: _set(job, progress=0.03 + 0.1 * p))
     else:
         pieces, audio_file = False, Path(src["path"])
@@ -684,6 +719,28 @@ def _run_job(job):
                     _set(job, progress=max(job["progress"], 0.14 + 0.78 * ((a_ - lo) + p * (b_ - a_)) / max(1, hi - lo)))
             heard[i] = ahead.submit(ctx.bind(transcribe.transcribe), audio[a_:b_], tp)
 
+    def chat_spikes(until):
+        """The chat's spikes so far ([(second in the video, messages)]), or None if there is no chat to read.
+        A YouTube chat still downloading is waited for (a little) to reach the part being looked at."""
+        if not o.get("use_chat", True):
+            return None
+        if yt_chat:
+            if not yt_chat.done:
+                _set(job, stage="Reading the chat")
+            counts, covered = yt_chat.now(need_until=until + chat.AROUND, wait=90)
+            src_name = "youtube"
+        else:
+            got = chat.load(d)            # a TwitchDownloader chat file, sent by the page right after the video
+            if not got:
+                return None
+            counts, covered, src_name = got["counts"], got["covered"], got["from"]
+        if not sum(counts):
+            return None
+        spk = chat.spikes(counts, covered)
+        job["chat"] = {"from": src_name, "messages": sum(counts[:covered]), "spikes": len(spk),
+                       "top": sorted(spk, key=lambda x: -x[1])[:20]}
+        return spk
+
     for bi, (a, b) in enumerate(blocks):
         if bi < done_blocks:
             continue                      # transcribed and checked by the AI before the restart
@@ -709,8 +766,11 @@ def _run_job(job):
             continue
         quota = max(1, math.ceil(left / (len(blocks) - bi)))
         s0 = int((a - lo) / 16000)
+        spk = chat_spikes(b / 16000)
+        a_s, b_s = a / 16000, b / 16000
+        here = [(t - a_s, c) for t, c in spk if a_s <= t < b_s] if spk else None
         found, ai = brain.find_clips(bw, db[s0: s0 + int((b - a) / 16000) + 1], (b - a) / 16000, job["title"],
-                                     job["uploader"], quota, int(o["min_len"]), int(o["max_len"]), notes.append)
+                                     job["uploader"], quota, int(o["min_len"]), int(o["max_len"]), notes.append, here)
         tokens += ai.get("tokens", 0)
         model = ai.get("model") or model
         if ai.get("note"):
@@ -734,6 +794,11 @@ def _run_job(job):
     renders.shutdown(wait=False)
     ahead.shutdown(wait=False)
     fetch.shutdown(wait=False)
+    if yt_chat:                 # keep the chat's counts (for the editor), drop the raw download
+        got = yt_chat.finish()
+        if got:
+            spk = chat.spikes(got["counts"])
+            job["chat"] = {"from": "youtube", "messages": got["messages"], "spikes": len(spk), "top": sorted(spk, key=lambda x: -x[1])[:20]}
     del audio
     clips = job["clips"]
     job["ai"] = {"model": model, "tokens": tokens, "log": notes[-5:],
@@ -782,6 +847,9 @@ def _worker(quick_only=False):
                 creators.log(job["creator"], f"Video failed: {safe.friendly(e)[:200]}")
         finally:
             ctx._uid.reset(token)
+            left = _CHATS.pop(a, None) if kind == "job" else None
+            if left:
+                left.stop()                # a video that stopped early does not leave its chat download running
             if kind == "job":
                 _q.done()
 

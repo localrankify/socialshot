@@ -12,18 +12,22 @@ W, H = config.OUT_W, config.OUT_H
 
 # ASS colours are &HBBGGRR. `size` is the ASS font size (line height); _Font turns it into real pixels.
 STYLES = {
+    # the default: SocialShot's own body font, white with a warm highlight, a thin edge and a soft shadow
+    "studio": {"label": "Studio", "font": "Apfel Grotezk", "size": 104, "base": "FFFFFF", "active": "3BD4FF",
+               "strong": "FFFFFF", "outline": 3, "pop": 106, "upper": False, "per": 3},
     "bounce": {"label": "Bounce", "font": "Poppins ExtraBold", "size": 132, "base": "FFFFFF", "active": "00F0FF",
-               "strong": "FFFFFF", "outline": 7, "pop": 112, "upper": True, "per": 3},
+               "strong": "FFFFFF", "outline": 7, "pop": 112, "upper": False, "per": 3},
     "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "FFFFFF", "active": "3C3CFF",
-             "strong": "00D7FF", "outline": 7, "pop": 114, "upper": True, "per": 2},
+             "strong": "00D7FF", "outline": 7, "pop": 114, "upper": False, "per": 2},
     "clean": {"label": "Clean", "font": "Poppins ExtraBold", "size": 100, "base": "FFFFFF", "active": "6BD7FF",
               "strong": "FFFFFF", "outline": 5, "pop": 106, "upper": False, "per": 4},
 }
-HOOK = {"font": "Poppins ExtraBold", "size": 96, "ink": "14100E", "box": "FFFFFF", "pad_x": 36, "pad_y": 22, "radius": 26,
-        "max_w": 900}
+HOOK = {"font": "Mazzard H", "size": 88, "ink": "14100E", "box": "FFFFFF", "pad_x": 40, "pad_y": 24, "radius": 20,
+        "max_w": 940}
 FONT_FILES = {"Poppins ExtraBold": "Poppins-ExtraBold.ttf", "Anton": "Anton-Regular.ttf", "Archivo Black": "ArchivoBlack-Regular.ttf",
-              "Mazzard H": "MazzardH-Bold.otf"}
+              "Mazzard H": "MazzardH-Bold.otf", "Apfel Grotezk": "ApfelGrotezk-Regular.otf"}
 CAP_MAX_W = 960   # captions never run wider than this, whatever is said
+CAP_SHADOW = 4    # a soft half-black drop under the captions, for depth on any footage
 _BUNDLED = Path(__file__).resolve().parent / "fonts"
 _PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer's font name -> the font file
 
@@ -32,6 +36,7 @@ _PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer
 FONTS = {
     "Poppins": {"ass": "Poppins ExtraBold", "google": "Poppins", "weight": 800},
     "Mazzard H": {"ass": "Mazzard H", "google": "Mazzard H", "weight": 700, "local": True},   # SocialShot's own heading font, shipped here
+    "Apfel Grotezk": {"ass": "Apfel Grotezk", "google": "Apfel Grotezk", "weight": 400, "local": True},   # SocialShot's body font, shipped here
     "Anton": {"ass": "Anton", "google": "Anton", "weight": 400},
     "Archivo Black": {"ass": "Archivo Black", "google": "Archivo Black", "weight": 400},
     "Montserrat": {"google": "Montserrat", "weight": 800},
@@ -52,12 +57,13 @@ FONTS = {
 
 # Ready-made caption looks for the editor. A look is everything about the captions a person can change.
 PRESETS = {
-    "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": True, "per": 3, "outline": 7},
-    "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 7},
+    "studio": {"label": "Studio", "font": "Apfel Grotezk", "size": 104, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 3},
+    "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": False, "per": 3, "outline": 7},
+    "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": False, "per": 2, "outline": 7},
     "clean": {"label": "Clean", "font": "Poppins", "size": 100, "base": "#FFFFFF", "active": "#FFD76B", "upper": False, "per": 4, "outline": 5},
-    "boldpop": {"label": "Bold pop", "font": "Montserrat", "size": 122, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 3, "outline": 8},
+    "boldpop": {"label": "Bold pop", "font": "Montserrat", "size": 122, "base": "#FFFFFF", "active": "#FFE500", "upper": False, "per": 3, "outline": 8},
     "headline": {"label": "Headline", "font": "Bebas Neue", "size": 176, "base": "#FFFFFF", "active": "#22E06B", "upper": True, "per": 3, "outline": 6},
-    "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": True, "per": 2, "outline": 8},
+    "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 2, "outline": 8},
     "soft": {"label": "Soft", "font": "Fredoka", "size": 112, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 6},
     "marker": {"label": "Marker", "font": "Permanent Marker", "size": 120, "base": "#FFFFFF", "active": "#FF8B33", "upper": False, "per": 3, "outline": 6},
 }
@@ -83,7 +89,7 @@ def clean_look(look) -> dict | None:
     """A caption look from the editor, checked and limited. None means "use the clip's style as it is"."""
     if not isinstance(look, dict):
         return None
-    base = PRESETS["bounce"]
+    base = PRESETS["studio"]
     num = lambda k, lo, hi: max(lo, min(hi, int(float(look.get(k, base.get(k, lo))))))   # noqa: E731
     colour = lambda k: look[k] if isinstance(look.get(k), str) and _HEX.fullmatch(look[k]) else base[k]   # noqa: E731
     y, hy = look.get("y"), look.get("hook_y")
@@ -96,13 +102,60 @@ def clean_look(look) -> dict | None:
             "base": colour("base").upper(), "active": colour("active").upper(), "upper": bool(look.get("upper", True)),
             "y": None if y is None else max(8.0, min(92.0, float(y))), "hook": bool(look.get("hook", True)),
             # the heading at the top: its own font, size and height
-            "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Poppins", "hook_size": hook_size,
+            "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Mazzard H", "hook_size": hook_size,
             "hook_y": None if hy is None else max(5.0, min(95.0, float(hy))),
             "hook_dur": _hook_dur(look.get("hook_dur")),     # seconds the hook stays on screen; 0 is the whole clip
+            # the hook's box and text: colours, how solid the box is (0 = no box, text with an outline), corners, letter gaps
+            "hook_box": _hex(look.get("hook_box"), "#FFFFFF"), "hook_ink": _hex(look.get("hook_ink"), "#14100E"),
+            "hook_op": _num(look.get("hook_op"), 0, 100, 100), "hook_round": _num(look.get("hook_round"), 0, 60, HOOK["radius"]),
+            "hook_sp": _num(look.get("hook_sp"), -4, 24, 0),
+            # the captions: extra room between letters and between words, and a box behind each line (0 = no box)
+            "sp": _num(look.get("sp"), -4, 24, 0), "wgap": _num(look.get("wgap"), 0, 80, 0),
+            "cap_box": _hex(look.get("cap_box"), "#000000"), "cap_op": _num(look.get("cap_op"), 0, 100, 0),
+            "cap_round": _num(look.get("cap_round"), 0, 60, 18),
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
-            "fade_out": look["fade_out"] if look.get("fade_out") in FADES else "none"}
+            "fade_out": look["fade_out"] if look.get("fade_out") in FADES else "none",
+            "volume": _volume(look.get("volume"))}       # the sound, in percent of the normal level: 0 is silent, 200 twice as loud
+
+
+def _hex(v, default) -> str:
+    return v.upper() if isinstance(v, str) and _HEX.fullmatch(v) else default
+
+
+def _num(v, lo, hi, default) -> int:
+    try:
+        return max(lo, min(hi, int(round(float(default if v is None else v)))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _bgr(h) -> str:
+    """#RRGGBB to the BBGGRR order ASS colours use."""
+    return h[5:7] + h[3:5] + h[1:3]
+
+
+def _alpha(op) -> str:
+    """Opacity in percent to an ASS alpha (00 is solid, FF is clear)."""
+    return f"{round(255 * (1 - op / 100)):02X}"
+
+
+def _rounded(x0, y0, x1, y1, r) -> str:
+    """A rounded box as ASS drawing commands."""
+    n = lambda v: f"{v:.0f}"                                                         # noqa: E731
+    r = max(0.0, min(r, (y1 - y0) / 2, (x1 - x0) / 2))
+    return (f"m {n(x0 + r)} {n(y0)} l {n(x1 - r)} {n(y0)} b {n(x1)} {n(y0)} {n(x1)} {n(y0)} {n(x1)} {n(y0 + r)} "
+            f"l {n(x1)} {n(y1 - r)} b {n(x1)} {n(y1)} {n(x1)} {n(y1)} {n(x1 - r)} {n(y1)} "
+            f"l {n(x0 + r)} {n(y1)} b {n(x0)} {n(y1)} {n(x0)} {n(y1)} {n(x0)} {n(y1 - r)} "
+            f"l {n(x0)} {n(y0 + r)} b {n(x0)} {n(y0)} {n(x0)} {n(y0)} {n(x0 + r)} {n(y0)}")
+
+
+def _volume(v) -> int:
+    try:
+        return max(0, min(200, int(round(float(100 if v is None else v)))))
+    except (TypeError, ValueError):
+        return 100
 
 
 def _hook_dur(v) -> float:
@@ -118,6 +171,9 @@ def effect_filters(look, dur) -> tuple[str, str, str]:
         return "", "", ""
     pre = EFFECTS.get(look.get("effect", "none"), "")
     post, audio, d = [], [], min(FADE_SECONDS, dur / 4)
+    vol = look.get("volume", 100)
+    if vol != 100:                     # after the level is evened out, so 100 is the normal loudness of every clip
+        audio.append(f"volume={vol / 100:.2f}")
     if look.get("fade_in", "none") != "none":
         post.append(f"fade=t=in:st=0:d={d:.2f}:color={look['fade_in']}")
         audio.append(f"afade=t=in:st=0:d={d:.2f}")
@@ -144,6 +200,26 @@ def _family_name(path: Path) -> str:
 
 
 _font_lock = __import__("threading").Lock()
+
+
+def font_em(key: str) -> float | None:
+    """How big a font's letters come out for each unit of caption size (the renderer sizes fonts by their full
+    height, so this differs per font). The editor's preview uses it to draw text at the size the video will have.
+    None for a Google font that has not been fetched yet."""
+    f = FONTS.get(key)
+    if not f:
+        return None
+    try:
+        if "ass" in f and f["ass"] in _PATHS:
+            return round(_Font.get(f["ass"]).em(1000) / 1000, 4)
+        slug = re.sub(r"[^a-z0-9]+", "-", f["google"].lower()).strip("-")
+        path = config.FONTS_DIR / f"g-{slug}-{f['weight']}.ttf"
+        if path.is_file():
+            name = _PATHS.setdefault(_family_name(path), path) and _family_name(path)
+            return round(_Font.get(name).em(1000) / 1000, 4)
+    except Exception:  # noqa: BLE001 - a font that cannot be read: the preview falls back to an estimate
+        return None
+    return None
 
 
 def ensure_font(key: str) -> str:
@@ -178,7 +254,8 @@ def look_style(look: dict) -> dict:
     """Turns an editor look into the style the caption builder draws with (ASS colours are BBGGRR)."""
     bgr = lambda h: h[5:7] + h[3:5] + h[1:3]   # noqa: E731
     return {"font": ensure_font(look["font"]), "size": look["size"], "base": bgr(look["base"]), "active": bgr(look["active"]),
-            "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"]}
+            "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"],
+            "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"]}
 
 
 class _Font:
@@ -280,45 +357,55 @@ def geometry(src_w, src_h, layout):
     return layout, fg_h, max(230, top - 190), min(1640, top + fg_h + 180)
 
 
-def _hook_events(hook, dur, y, font=None, size=None, show=0.0):
-    """The heading: dark text in a white rounded box that fits it, on one line or two balanced ones.
-    `show` is how many seconds it stays (then it fades away); 0 keeps it for the whole clip."""
+def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
+    """The heading: text in a rounded box that fits it, on one line or two balanced ones.
+    `show` is how many seconds it stays (then it fades away); 0 keeps it for the whole clip.
+    `hk` is the look from the editor: box and text colours, how solid the box is, its corners, the letter gaps.
+    With little or no box the text gets a dark outline, so it still reads on any picture."""
+    hk = hk or {}
     f, size = _Font.get(font or HOOK["font"]), size or HOOK["size"]
+    sp, op = hk.get("hook_sp", 0), hk.get("hook_op", 100)
     out = 0
     if show and show < dur:
         dur, out = show, 250                      # gone after `show` seconds, with a short fade
     words = hook.split()
     if not words:
         return []
+    wid = lambda t, z: f.width(t, z) + sp * max(0, len(t) - 1)                       # noqa: E731
     lines = [" ".join(words)]
-    if f.width(lines[0], size) > HOOK["max_w"] and len(words) > 1:      # two lines, split where they come out most even
-        cut = min(range(1, len(words)), key=lambda i: max(f.width(" ".join(words[:i]), size), f.width(" ".join(words[i:]), size)))
+    # one line, made a little smaller if it has to; only a hook too long to stay readable that way (under 60% of its
+    # size) goes onto two lines, split where they come out most even
+    if wid(lines[0], size) * 0.6 > HOOK["max_w"] and len(words) > 1:
+        worst = {i: max(wid(" ".join(words[:i]), size), wid(" ".join(words[i:]), size)) for i in range(1, len(words))}
+        best = min(worst.values())       # near ties (within 3%) go to the fuller top line, the same rule as the editor's preview
+        cut = max(i for i, m in worst.items() if m <= best * 1.03)
         lines = [" ".join(words[:cut]), " ".join(words[cut:])]
-    widest = max(f.width(l, size) for l in lines)
+    widest = max(wid(l, size) for l in lines)
     if widest > HOOK["max_w"]:
         size = max(40, int(size * HOOK["max_w"] / widest))
-        widest = max(f.width(l, size) for l in lines)
+        widest = max(wid(l, size) for l in lines)
     line_h = f.em(size) * 1.16
     bw, bh = widest + 2 * HOOK["pad_x"], line_h * len(lines) + 2 * HOOK["pad_y"]
-    x0, y0, r = (W - bw) / 2, y - bh / 2, min(HOOK["radius"], bh / 2)
-    x1, y1 = x0 + bw, y0 + bh
-    n = lambda v: f"{v:.0f}"                                                         # noqa: E731
-    box = (f"m {n(x0 + r)} {n(y0)} l {n(x1 - r)} {n(y0)} b {n(x1)} {n(y0)} {n(x1)} {n(y0)} {n(x1)} {n(y0 + r)} "
-           f"l {n(x1)} {n(y1 - r)} b {n(x1)} {n(y1)} {n(x1)} {n(y1)} {n(x1 - r)} {n(y1)} "
-           f"l {n(x0 + r)} {n(y1)} b {n(x0)} {n(y1)} {n(x0)} {n(y1)} {n(x0)} {n(y1 - r)} "
-           f"l {n(x0)} {n(y0 + r)} b {n(x0)} {n(y0)} {n(x0)} {n(y0)} {n(x0 + r)} {n(y0)}")
+    x0, y0 = (W - bw) / 2, y - bh / 2
     span = f"{_ts(0)},{_ts(dur)}"
-    ev = [f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,{out})\\c&H{HOOK['box']}&\\p1}}{box}{{\\p0}}"]
+    ink = _bgr(hk["hook_ink"]) if "hook_ink" in hk else HOOK["ink"]
+    ev = []
+    if op > 0:
+        box = _rounded(x0, y0, x0 + bw, y0 + bh, hk.get("hook_round", HOOK["radius"]))
+        fill = _bgr(hk["hook_box"]) if "hook_box" in hk else HOOK["box"]
+        ev.append(f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,{out})\\c&H{fill}&\\1a&H{_alpha(op)}&\\p1}}{box}{{\\p0}}")
+    edge = "" if op >= 35 else f"\\bord{max(3, size // 22)}\\3c&H000000&\\shad{CAP_SHADOW}\\4c&H000000&\\4a&H80&"
+    tag = (f"\\fsp{sp}" if sp else "") + (f"\\c&H{ink}&" if ink != HOOK["ink"] else "") + edge
     for i, line in enumerate(lines):
         cy = y - line_h * (len(lines) - 1) / 2 + i * line_h - f.cap_shift(size)
-        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({W // 2},{cy:.0f})\\fad(160,{out})\\fs{size}}}{line}")
+        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({W // 2},{cy:.0f})\\fad(160,{out})\\fs{size}{tag}}}{line}")
     return ev
 
 
-def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None, hook_show=0.0) -> str:
+def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None, hook_show=0.0, hk=None) -> str:
     """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style).
     `hook_font` is the renderer's font name for the heading and `hook_size` its size; both default to HOOK."""
-    st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["bounce"])
+    st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["studio"])
     hook_font, hook_size = hook_font or HOOK["font"], hook_size or HOOK["size"]
     words = [dict(w, s=w["s"] - CAPTION_LEAD, e=w["e"] - CAPTION_LEAD) for w in words]
     strong = {_key(h) for h in highlight if _key(h)}
@@ -331,14 +418,14 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,{st['outline']},0,5,0,0,0,1
+Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,{st['outline']},{CAP_SHADOW},5,0,0,0,1
 Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     dur = end - start
-    ev = _hook_events(_clean(hook), dur, hook_y, hook_font, hook_size, hook_show)
+    ev = _hook_events(_clean(hook), dur, hook_y, hook_font, hook_size, hook_show, hk)
     f = _Font.get(st["font"])
     inside = [dict(w, w=_clean(w["w"])) for w in words if w["s"] >= start - 0.05 and w["s"] < end]
     inside = sorted((w for w in inside if w["w"]), key=lambda w: w["s"])
@@ -354,6 +441,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for x in g:
             t = re.sub(r"[.,;:]+$", "", x["w"])
             texts.append(t.upper() if st["upper"] else t)
+        if not st["upper"] and texts and texts[0][:1].islower():    # normal case: each line starts with a capital
+            texts[0] = texts[0][0].upper() + texts[0][1:]
         if not all(roman.drawable(t) for t in texts):
             # A script the caption font cannot draw (Japanese, Thai, Chinese...): its words cannot be measured, so
             # they are not placed one by one. The line is drawn whole and centred, in a font the system has for it.
@@ -361,20 +450,27 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             fs = max(44, min(int(st["size"] * 0.7), int(1500 / max(1, len(line)) * 1.6)))
             ev.append(f"Dialogue: 1,{_ts(g_start)},{_ts(g_end)},Cap,,60,60,0,,{{\\an5\\pos({W // 2},{cap_y:.0f})\\q0\\fs{fs}}}{line}")
             continue
-        size = st["size"]
-        gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"]   # a space, plus room for both outlines
-        total = sum(f.width(t, size) for t in texts) + gap * (len(texts) - 1)
+        size, sp, wgap = st["size"], st.get("sp", 0), st.get("wgap", 0)     # extra room between letters and between words
+        wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)          # noqa: E731
+        gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"] + wgap   # a space, room for both outlines, and any extra
+        total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
         if total > CAP_MAX_W:                                  # a long phrase: shrink it to fit, never run off the frame
-            size = max(36, int(size * CAP_MAX_W / total))
-            gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"]   # a space, plus room for both outlines
-            total = sum(f.width(t, size) for t in texts) + gap * (len(texts) - 1)
+            k = CAP_MAX_W / total
+            size, sp, wgap = max(36, int(size * k)), sp * k, wgap * k
+            wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)      # noqa: E731
+            gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"] + wgap
+            total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
         cy = cap_y - f.cap_shift(size)
         x = (W - total) / 2
+        if st.get("box_op", 0) > 0:                            # a box behind the whole line, under the words
+            px, half = 0.3 * size, f.em(size) * 0.62
+            box = _rounded(x - px, cap_y - half, x + total + px, cap_y + half, st.get("box_r", 18))
+            ev.append(f"Dialogue: 0,{_ts(g_start)},{_ts(g_end)},Cap,,0,0,0,,{{\\an7\\pos(0,0)\\bord0\\shad0\\c&H{st['box']}&\\1a&H{_alpha(st['box_op'])}&\\p1}}{box}{{\\p0}}")
         p = st["pop"]
         for i, (w, t) in enumerate(zip(g, texts)):
-            wd = f.width(t, size)
+            wd = wid(t, size)
             p = max(104, min(st["pop"], 100 + int(2200 / max(wd, 1))))   # long words grow less, so they never touch their neighbours
-            pos = f"\\an5\\pos({x + wd / 2:.0f},{cy:.0f})\\fs{size}"
+            pos = f"\\an5\\pos({x + wd / 2:.0f},{cy:.0f})\\fs{size}" + (f"\\fsp{sp:.1f}" if sp else "")
             x += wd + gap
             a = max(g_start, w["s"] - start)
             b = (g[i + 1]["s"] - start) if i + 1 < len(g) else g_end
@@ -390,10 +486,46 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return head + "\n".join(ev) + "\n"
 
 
-def _filter(layout, fg_h):
+def _keeps(cuts, dur):
+    """The parts that stay, as (from, to) in seconds of the clip, when `cuts` (in seconds of the clip) are taken out."""
+    keep, t = [], 0.0
+    for a, b in sorted((max(0.0, a), min(dur, b)) for a, b in cuts):
+        if b - a < 0.05:
+            continue
+        if a > t:
+            keep.append((t, a))
+        t = max(t, b)
+    if t < dur:
+        keep.append((t, dur))
+    return keep
+
+
+def _cut_words(words, start, keeps):
+    """Words moved onto the shorter timeline once the cuts are gone; a word inside a cut is left out."""
+    out = []
+    for w in words:
+        rs = w["s"] - start
+        before, inside = 0.0, None
+        for a, b in keeps:
+            if a - 0.02 <= rs < b:
+                inside = (a, b)
+                break
+            if rs >= b:
+                before += b - a
+        if inside is None:
+            continue
+        a, b = inside
+        ns = before + (rs - a)
+        ne = before + (min(w["e"] - start, b) - a)
+        out.append(dict(w, s=round(start + ns, 3), e=round(start + max(ns, ne), 3)))
+    return out
+
+
+def _filter(layout, fg_h, sel=""):
+    """`sel`: a select step that keeps only some parts (Speech cleanup), put right after the frame rate is set."""
     if layout == "crop":
-        return f"[0:v]fps={config.OUT_FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
-    return (f"[0:v]fps={config.OUT_FPS},split=2[a][b];"
+        return f"[0:v]fps={config.OUT_FPS},{sel}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
+    return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];"
             f"[a]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=6:2,"
             f"scale={W}:{H},eq=brightness=-0.14:saturation=1.15[bg];"
             f"[b]scale={W}:{fg_h}:force_original_aspect_ratio=increase,crop={W}:{fg_h}[fg];"
@@ -410,9 +542,10 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     start, end = clip["start"], clip["end"]
     layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"))
     look = clean_look(clip.get("look"))
-    style, hook = clip.get("style", "bounce"), clip.get("hook", "")
+    style, hook = clip.get("style", "studio"), clip.get("hook", "")
     hook_font = hook_size = None
     hook_show = 0.0
+    hk = None
     if look:                                    # changed in the editor: its own font, colours, size and place
         style = look_style(look)
         if look["y"] is not None:
@@ -420,31 +553,43 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
         if look["hook_y"] is not None:
             hook_y = round(H * look["hook_y"] / 100)
         hook_font, hook_size, hook_show = ensure_font(look["hook_font"]), look["hook_size"], look["hook_dur"]
+        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp")}
         if not look["hook"]:
             hook = ""
-    ass = build_ass(words, start, end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show)
+    # Speech cleanup: the parts taken out are dropped from picture and sound, and the captions, the hook and the
+    # fades are laid on the shorter clip that is left
+    cuts = [(a - start, b - start) for a, b in clip.get("cuts") or []]
+    keeps = _keeps(cuts, end - start) if cuts else None
+    sel = asel = ""
+    out_end = end
+    if keeps and len(keeps) > 1 or (keeps and keeps[0] != (0.0, end - start)):
+        expr = "+".join(f"between(t\\,{a:.3f}\\,{b:.3f})" for a, b in keeps)
+        sel, asel = f"select='{expr}',setpts=N/FRAME_RATE/TB,", f"aselect='{expr}',asetpts=N/SR/TB,"
+        words = _cut_words(words, start, keeps)
+        out_end = start + sum(b - a for a, b in keeps)
+    ass = build_ass(words, start, out_end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show, hk)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
     # folders easily reaches. Inside the work folder every name is short and relative (a drive colon would also
     # break the filter syntax).
-    fx = effect_filters(look, end - start)
+    fx = effect_filters(look, out_end - start)
     work = Path(tempfile.mkdtemp(prefix="pk"))
     try:
-        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx)
+        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", "")) -> dict:
+def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", ""), sel="", asel="") -> dict:
     global _qsv_ok
     (work / f"{name}.ass").write_text(ass, encoding="utf-8")
     (work / "f").mkdir()
     for f in [*config.FONTS_DIR.glob("*.ttf"), *config.FONTS_DIR.glob("*.otf")]:
         shutil.copyfile(f, work / "f" / f.name)
     pre, post, audio = fx
-    fc = _filter(layout, fg_h) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
+    fc = _filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
     base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src),
-            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else ""),
+            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", asel + "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else ""),
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
     if _qsv_ok is not False:
