@@ -2487,6 +2487,27 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
 .ed-tour .tr-foot span{color:#8E8E96;font-variant-numeric:tabular-nums}
 .ed-tour .tr-foot button{height:32px;border-radius:8px;color:#D4D4D8}
 .ed-tour .tr-foot .nx{background:#fff;color:#111}
+/* phone-only parts of the editor (the Script button, the sheet's backdrop and Done) stay hidden on a computer */
+.ed-mob,.ed-rail .ed-mob,.ed-scrim,.ed-sheetx{display:none}
+@media (max-width:760px){.ed-rail .ed-mob{display:flex}.ed-scrim,.ed-sheetx{display:block}}
+/* ===== the timeline: clean blocks, readable caption pieces, a real film strip ===== */
+.ed-thn{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--e3);color:#A1A1AA;font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.ed-hchip{background:color-mix(in srgb,var(--accent) 22%,#26262B);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent);color:#fff}
+.ed-hchip:hover{background:color-mix(in srgb,var(--accent) 30%,#26262B)}
+.ed-hchip i{background:color-mix(in srgb,var(--accent) 45%,#26262B)}
+.ed-cbar{background:#1F1F23;border-radius:8px}
+.ed-chip{top:3px;height:calc(var(--rc) - 6px);border-radius:6px;background:#303036;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);overflow:hidden;text-align:left}
+.ed-chip:hover{background:#3A3A41}
+.ed-chip.on{background:#fff;box-shadow:none}
+.ed-chip span{display:block;padding:0 6px;font-size:10.5px;font-weight:500;line-height:calc(var(--rc) - 6px);color:#C4C4CC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-chip.on span{color:#111}
+.ed-lane.film{background-size:calc(var(--rf) * 16 / 9) 100%;background-repeat:repeat-x;background-position:0 0;overflow:hidden}
+.ed-lane.film::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 calc(var(--rf) * 16 / 9 - 1px),rgba(0,0,0,.55) calc(var(--rf) * 16 / 9 - 1px) calc(var(--rf) * 16 / 9))}
+.ed-shade{background:rgba(12,12,14,.72)!important}
+.ed-win{border-color:#FACC15;border-radius:10px}
+.ed-hd{background:#FACC15}
+.ed-hd::after{background:rgba(0,0,0,.45)}
 /* ===== editor: the person's brand, on the preview and in its panel ===== */
 .ed-brand{position:absolute;left:0;top:0;z-index:3;display:inline-flex;align-items:center;border:0;background:transparent;cursor:pointer;will-change:transform;
   font-family:"Mazzard H",sans-serif;font-weight:700;color:#fff;white-space:nowrap;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.55)}
@@ -2739,25 +2760,59 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   .ed-acts [data-ed=exportmenu] svg,.ed-acts [data-ed=keep] svg{margin:0}
   .ed-acts #edSave{font-size:0;gap:0;padding:0 12px}
   .ed-acts #edSave::after{content:"Save";font-size:13px;margin-left:6px}
-  .ed-body{display:flex!important;flex-direction:column;flex:1;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden}
-  .ed-center{order:0;flex:none;height:min(56vh,520px);border:0;min-width:0}
-  .ed-center .ed-stage{height:100%;padding:10px 10px 6px;gap:8px}
+  /* like an editing app: the video fills the top, the play row and film strip sit under it, the tools are a bar at
+     the bottom, and a tool's settings slide up over the video as a sheet */
+  .ed{--railh:64px;padding-bottom:var(--railh)}
+  .ed-body{display:flex!important;flex-direction:column;flex:1;min-height:0;width:100%;overflow:hidden}
+  .ed-center{order:0;flex:1;min-height:0;height:auto;border:0;min-width:0}
+  .ed-center .ed-stage{height:100%;padding:8px 10px 6px;gap:8px}
   .ed-center .ed-bar{max-width:100%;overflow-x:auto;scrollbar-width:none}
-  .ed-rail{order:1;flex:none;position:sticky;top:0;z-index:6;flex-direction:row!important;justify-content:flex-start!important;gap:2px;
-    padding:6px 8px!important;border:0!important;border-top:1px solid var(--ln)!important;border-bottom:1px solid var(--ln)!important;background:var(--e1);overflow-x:auto;scrollbar-width:none}
+  .ed-rail{position:fixed;left:0;right:0;bottom:0;z-index:30;height:var(--railh);flex-direction:row!important;justify-content:flex-start!important;gap:0;
+    padding:4px 6px calc(4px + env(safe-area-inset-bottom))!important;border:0!important;border-top:1px solid var(--ln)!important;background:#101012;overflow-x:auto;scrollbar-width:none}
   .ed-rail::-webkit-scrollbar{display:none}
-  .ed-rail button{flex:none!important;width:58px!important;height:52px!important}
-  .ed-rail button svg{width:30px;height:30px;padding:6px}
+  .ed-rail button{flex:1 0 54px!important;width:auto!important;height:56px!important;gap:2px;font-size:10.5px}
+  .ed-rail button svg{width:30px;height:30px;padding:6px;border-radius:9px}
+  .ed-rail button[aria-selected=true] svg{background:#fff;color:#111}
   .ed-left .ed-ib[data-ed=tour]{display:none}
-  .ed-panel{order:2;display:block!important;flex:none;overflow:visible!important;border:0!important;padding:12px 14px 20px!important;min-width:0}
-  .ed-panel>.ed-hero{margin:-12px -14px 12px}
-  .ed-txcard{order:3;flex:none;height:auto!important;max-height:none;border:0!important;border-top:1px solid var(--ln)!important;grid-column:auto!important}
-  .ed-txbody{max-height:440px;overflow-y:auto}
-  .ed-tl{flex:none;padding-bottom:6px}
-  .ed-tl .ed-tlw,.ed-tl .ed-zoom,.ed-tl .ed-tl-right{display:none}
-  .ed-tl .ed-tl-head{justify-content:center}
+  /* the sheets: settings or the script, sliding up from above the tool bar */
+  .ed-panel,.ed-txcard{position:fixed!important;left:0;right:0;bottom:var(--railh);z-index:25;height:58dvh!important;max-height:none;margin:0;
+    border:0!important;border-radius:18px 18px 0 0!important;background:#17171A!important;box-shadow:none;
+    transform:translateY(calc(100% + var(--railh)));transition:transform .28s cubic-bezier(.2,.8,.2,1);overflow-y:auto!important;overscroll-behavior:contain;grid-column:auto!important}
+  .ed-panel{display:block!important;padding:12px 14px 24px!important}
+  .ed-panel>.ed-hero{margin:-12px -14px 12px;border-radius:18px 18px 0 0}
+  .ed[data-sheet=panel] .ed-panel,.ed[data-sheet=tx] .ed-txcard{transform:none}
+  .ed-txcard .ed-txbody{max-height:none}
+  .ed-txcard>.ed-txhead>.ed-hero{border-radius:18px 18px 0 0}
+  .ed-scrim{position:fixed;inset:0 0 var(--railh) 0;z-index:24;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s ease}
+  .ed[data-sheet=panel] .ed-scrim,.ed[data-sheet=tx] .ed-scrim{opacity:1;pointer-events:auto}
+  .ed-sheetx{position:fixed;right:12px;bottom:calc(var(--railh) + 58dvh - 46px);z-index:26;height:32px;padding:0 14px;border:0;border-radius:999px;background:#fff;color:#111;
+    font:inherit;font-size:13px;font-weight:600;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s ease}
+  .ed[data-sheet=panel] .ed-sheetx,.ed[data-sheet=tx] .ed-sheetx{opacity:1;pointer-events:auto}
+  /* the play row and a scrolling film strip, without the track names or the level meter */
+  .ed-tl{flex:none;padding:0 0 8px;border-top:1px solid var(--ln)}
+  .ed-tl .ed-zoom,.ed-tl .ed-tl-right{display:none}
+  .ed-tl .ed-tl-head{display:flex!important;justify-content:center;padding:6px 0}
+  .ed-tl .ed-play{margin:0 auto}
+  .ed-tl .ed-pbtn{width:44px;height:44px}
+  .ed-tl .ed-tlw{display:block!important;grid-template-columns:1fr}
+  .ed-tl .ed-heads,.ed-tl .ed-meter{display:none!important}
+  .ed-tl .ed-scroll{padding:0 12px;scrollbar-width:none}
+  .ed-tl .ed-scroll::-webkit-scrollbar{display:none}
+  .ed-tl{--rh:24px;--rc:26px;--rt:16px;--rf:44px;--rg:5px;--rp:6px}
+  .ed-tl .ed-hchip,.ed-tl .ed-fxchip{font-size:11px}
+  .ed-tl .ed-hchip i,.ed-tl .ed-fxchip i{width:20px;height:20px}
   .ed-tour{display:none}
   .ed-hstyles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* Effects: four small looks per row instead of three tall ones */
+  .ed-fx{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .ed-fx.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ed-fxi{aspect-ratio:1/1.1;border-radius:8px}
+  .ed-fx.three .ed-fxi{aspect-ratio:4/3}
+  .ed-fxt{font-size:11px}
+  /* Brand: a flatter position picker */
+  .ed-posgrid{aspect-ratio:auto;grid-auto-rows:40px}
+  /* bigger touch targets on the small round buttons */
+  .ed-chips button{height:36px}
 }
 </style>
 </head>
@@ -4868,6 +4923,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=29"></script>
+<script src="/assets/editor.js?v=31"></script>
 </body>
 </html>

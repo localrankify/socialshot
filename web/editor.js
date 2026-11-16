@@ -221,7 +221,8 @@ window.openClip = async function (jid, cid) {
     look: c.look ? {...HOOK_DEFAULT, ...clone(c.look)} : lookFromStyle(c.style), lookTouched: !!c.look, off: c.src_offset || 0, min: c.src_offset || 0,
     max: c.src_end || j.duration || c.end, version: c.version || 0, waiting: 0, brand: [], sw: j.width || 1280, sh: j.height || 720,
     cuts: clone(c.cuts || []), cl: {fill: true, pause: true, min: 0.8}, cleanOpen: false, hideCut: false,
-    zoom: 1, rate: 1, q: "", tlHidden: (() => { try { return !!localStorage.getItem("ed_tl_hidden"); } catch { return false; } })()});
+    zoom: phone() ? 3 : 1, rate: 1, q: "", sheet: null,       // phones: a wider film strip that scrolls, like an editing app
+    tlHidden: phone() ? false : (() => { try { return !!localStorage.getItem("ed_tl_hidden"); } catch { return false; } })()});
   loadFonts();
   const dlg = $("#clipdlg");
   dlg.classList.add("ed-on");
@@ -286,7 +287,10 @@ function draw() {
     </header>
     <div class="ed-body">
       <nav class="ed-rail" role="tablist" aria-label="Editor tools">${TOOLS().map(([k, l, i]) =>
-        `<button role="tab" aria-selected="${toolOf(E.tab) === k}" data-ed="tab" data-t="${k}">${i}<span>${l}</span></button>`).join("")}</nav>
+        `<button role="tab" aria-selected="${toolOf(E.tab) === k}" data-ed="tab" data-t="${k}">${i}<span>${l}</span></button>`).join("")}
+        <button class="ed-mob" data-ed="sheet" data-v="tx" aria-label="Script">${svg('<path d="M5 6h14M5 10h14M5 14h9M5 18h6"/>')}<span>Script</span></button></nav>
+      <div class="ed-scrim" data-ed="sheetclose"></div>
+      <button class="ed-sheetx" data-ed="sheetclose">Done</button>
       <aside class="ed-panel" id="edPanel"></aside>
       <section class="ed-center"><section class="ed-stage" id="edStage"></section></section>
       <aside class="ed-txcard" id="edTxCard"></aside>
@@ -295,6 +299,7 @@ function draw() {
     <input type="file" id="edSrtFile" accept=".srt,text/plain" hidden>
   </div>`;
   drawPanel(); drawStage(); drawTimeline(); drawClipDlg();
+  syncSheet();
   let seen = false; try { seen = !!localStorage.getItem(TOUR_KEY); } catch {}
   if (!seen) setTimeout(() => { if ($("#clipdlg").open && !$e("#edTour")) tourShow(0); }, 700);      // the first time only
 }
@@ -376,7 +381,7 @@ function drawPanel() {
     p.innerHTML = head("Audio", "How loud the clip is. Every clip is evened out first, so 100% is its normal level.") +
       `<div class="ed-card"><b>Volume</b>${slider("Volume", "volume", 0, 200, 5, vol, vol + "%")}
         <div class="ed-seg">${[[50, "Quieter"], [100, "Normal"], [150, "Louder"]].map(([v, l]) => `<button data-ed="vol" data-v="${v}" aria-pressed="${vol === v}">${l}</button>`).join("")}</div>
-        <p class="ed-help">Heard in the preview right away, and in the video when you save and render. The meter beside the timeline shows the level as it plays.</p></div>`;
+        <p class="ed-help">Heard in the preview right away, and in the video when you save and render. On a computer, the meter beside the timeline shows the level as it plays.</p></div>`;
   } else if (E.tab === "style") {
     const L = E.look, f = FONTS();
     const tile = (key, look, label, del) => { const fc = fontCss(look.font);
@@ -507,7 +512,7 @@ function drawPanel() {
       ${fade("fade_in", "Start", [["none", "Cut in"], ["black", "From black"], ["white", "From white"]])}
       ${fade("fade_out", "End", [["none", "Cut out"], ["black", "To black"], ["white", "To white"]])}`;
   } else if (E.tab === "trim") {
-    p.innerHTML = head("Trim", "Drag the yellow edges on the timeline, or set them here.") +
+    p.innerHTML = head("Trim", "Set where the clip starts and ends here, or drag the yellow edges on the timeline.") +
       `${[["start", "Starts at"], ["end", "Ends at"]].map(([k, l]) => `<div class="ed-card"><div class="ed-f">${l}
         <div class="ed-trim"><button class="ed-ib" data-ed="nudge" data-k="${k}" data-d="-0.5" aria-label="Half a second earlier">−</button>
           <b>${ts(E[k] - E.min)}</b>
@@ -526,7 +531,7 @@ function drawPanel() {
         ${S.accounts.length ? `<div class="ed-accs">${S.accounts.map(a => `<label class="ed-acc"><input type="checkbox" data-pacc value="${esc(a.id)}"><span>${esc(a.label)} · ${esc(a.name)}</span></label>`).join("")}</div>
           <div class="ed-row"><button class="ed-btn primary" data-act="postnow">${ic("send")}Post now</button><button class="ed-btn" data-act="postqueue">Add to queue</button></div>
           <p class="ed-help">Posts the last saved version. Save first if you changed anything.</p>`
-          : `<p class="ed-help">No accounts connected yet. Connect YouTube, Instagram or TikTok in Settings.</p>`}</div>`;
+          : `<p class="ed-help">No accounts connected yet. Connect YouTube, Instagram, TikTok or X in Settings.</p>`}</div>`;
   }
 }
 
@@ -623,6 +628,14 @@ function follow(t) {             // when zoomed in, keep the playhead in sight w
   const sc = $e("#edScroll"); if (!sc) return;
   const x = pct(t) / 100 * sc.scrollWidth;
   if (x < sc.scrollLeft + 40 || x > sc.scrollLeft + sc.clientWidth - 80) sc.scrollLeft = x - sc.clientWidth / 3;
+}
+/* phones: the editor works like an editing app. The video and the film strip stay on screen; a tool's settings
+   (or the script) slide up from the bottom over them, and Done or a tap above puts them away. */
+const phone = () => matchMedia("(max-width:760px)").matches;
+function syncSheet() {
+  const ed = $e(".ed"); if (!ed) return;
+  ed.dataset.sheet = E.sheet || "";
+  $$e(".ed-rail [data-ed=sheet]").forEach(b => b.setAttribute("aria-selected", String(E.sheet === b.dataset.v)));
 }
 /* the person's brand on the preview: built once per change, then moved every frame exactly like render.brand_overlay */
 function paintBrand(t, phone, k) {
@@ -735,8 +748,8 @@ function keepInView(row) {
 }
 function markLine(gi) {
   E.gi = gi;
-  const cn = $e("#edCapNow");            // the caption track's label says the line being spoken, like the hook's block
-  if (cn) cn.textContent = gi >= 0 && lines()[gi] ? lines()[gi].map(i => E.words[i].w).join(" ") : `${lines().length} caption lines`;
+  const cn = $e("#edCapNow");            // the caption track's name shows how many lines there are
+  if (cn) cn.textContent = String(lines().length);
   $$e(".ed-line.on, .ed-chip.on").forEach(x => x.classList.remove("on"));
   if (gi < 0) return;
   $e(`.ed-chip[data-g="${gi}"]`)?.classList.add("on");
@@ -806,7 +819,7 @@ function drawTimeline() {
         <div class="ed-tbox" id="edNow2">${clock(nowT() - E.start, true)}</div>
         <div class="ed-thp">
           ${head("hook", TEXT_IC, "Hook", hasHook ? `<button class="ed-tb" data-ed="hookvis" aria-pressed="${!!E.look.hook}" title="${E.look.hook ? "Hide" : "Show"} the hook">${EYE(E.look.hook)}</button>` : "")}
-          ${head("caps", ic("cc"), "Captions")}
+          ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`)}
           ${E.chat?.counts?.length ? head("chat", ic("chat"), "Chat") : ""}
           ${head("film", ic("film"), "Video", `<button class="ed-tb" data-ed="mute" aria-pressed="${!E.muted}" title="${E.muted ? "Turn the preview's sound on" : "Mute the preview"}">${SOUND(!E.muted)}</button>`)}
         </div>
@@ -817,9 +830,8 @@ function drawTimeline() {
           <div class="ed-lanes">
             <div class="ed-lane hook">${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
               ${fx !== "None" ? `<button class="ed-fxchip" data-ed="tab" data-t="fx" style="left:${pct(hookEnd())}%;width:${Math.max(6, pct(E.end) - pct(hookEnd()))}%"><i>${FX_IC}</i><span>Filter: ${esc(fx)}</span></button>` : ""}</div>
-            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}
-              <span class="ed-clabel" style="left:${pct(E.start)}%"><i>${ic("cc")}</i><span id="edCapNow">${lines().length} caption lines</span></span></div>${chatLane()}
-            <div class="ed-lane film" style="background-image:url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')">
+            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${chatLane()}
+            <div class="ed-lane film" style="background-image:url('/media/${E.jid}/thumb.jpg'),url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')">
               <div class="ed-shade l" style="width:${pct(E.start)}%"></div><div class="ed-shade r" style="left:${pct(E.end)}%"></div>
               ${(E.cuts || []).map(([a, b]) => `<i class="ed-cutmark" style="left:${pct(a)}%;width:${Math.max(0.2, pct(b) - pct(a))}%" title="Cut by Speech cleanup"></i>`).join("")}
               <div class="ed-win" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"><i class="ed-hd" data-h="start"></i><i class="ed-hd" data-h="end"></i></div>
@@ -981,8 +993,13 @@ dlg.addEventListener("click", async e => {
   if (!b) return;
   const a = b.dataset.ed, d = b.dataset;
   if (a === "close") return edClose();
+  if (a === "sheet" || a === "sheetclose") {   // phones: the settings and the script slide up from the bottom
+    E.sheet = a === "sheet" && E.sheet !== d.v ? d.v : null; return syncSheet();
+  }
   if (a === "tab") {
+    const again = E.tab === d.t && E.sheet === "panel";
     E.tab = d.t;
+    if (phone()) { E.sheet = again && b.closest(".ed-rail") ? null : "panel"; syncSheet(); }
     drawPanel();
     if (d.t === "text") setTimeout(() => $e("#edHook")?.focus(), 0);
     return;
