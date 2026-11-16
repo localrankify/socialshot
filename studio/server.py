@@ -7,7 +7,9 @@ import hmac
 import json
 import os
 import re
+import secrets
 import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -1083,6 +1085,48 @@ def clip_source(jid: str, cid: str):
     if not f.is_file() or home not in f.resolve().parents:
         raise HTTPException(404, "The original video for this clip is no longer here.")
     return FileResponse(f, media_type="video/mp4", headers={"Cache-Control": "private, max-age=3600"})
+
+
+EXPORT_Q = {"web": (28, "3M"), "medium": (24, "6M"), "high": (20, "12M"), "ultra": (17, "20M")}   # quality -> (CRF, top bitrate)
+
+
+@app.get("/api/jobs/{jid}/clips/{cid}/export")
+def clip_export(jid: str, cid: str, fmt: str = "mp4", fps: int = 30, q: str = "high", speed: float = 1.0):
+    """The saved clip made again with export settings: MP4 or GIF, frame rate, quality, and playback speed.
+    Made from the rendered clip, so captions, hook and brand are already in it."""
+    _throttle("export:" + ctx.uid(), 20, 600)
+    job, clip = _clip_or_404(jid, cid)
+    src = Path(job["dir"]) / "clips" / (clip.get("file") or "")
+    if clip.get("status") != "done" or not src.is_file():
+        raise HTTPException(400, "Save and render the clip first, then export it.")
+    fmt = "gif" if fmt == "gif" else "mp4"
+    fps = fps if fps in (24, 30, 60) else 30
+    q = q if q in EXPORT_Q else "high"
+    speed = speed if speed in (1.0, 1.25, 1.5, 2.0) else 1.0
+    out = config.TMP_DIR / f"export-{secrets.token_hex(6)}.{fmt}"
+    vf = [f"setpts=PTS/{speed}"] if speed != 1 else []
+    if fmt == "gif":                     # a light GIF: at most 15 fps, 480 px wide, the first 20 seconds
+        vf += [f"fps={min(fps, 15)}", "scale=480:-2:flags=lanczos", "split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer"]
+        cmd = ["ffmpeg", "-y", "-v", "error", "-t", str(round(20 * speed, 2)), "-i", str(src), "-filter_complex", ",".join(vf), "-an", str(out)]
+    else:
+        crf, top = EXPORT_Q[q]
+        vf.append(f"fps={fps}")
+        af = [f"atempo={speed}"] if speed != 1 else []
+        cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vf", ",".join(vf), *(["-af", ",".join(af)] if af else []),
+               "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-maxrate", top, "-bufsize", top, "-pix_fmt", "yuv420p",
+               "-c:a", "aac", "-b:a", "192k" if q == "ultra" else "160k", "-movflags", "+faststart", str(out)]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=600, creationflags=media.NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        out.unlink(missing_ok=True)
+        raise HTTPException(500, "The export took too long. Try a lighter quality.")
+    if p.returncode != 0 or not out.is_file():
+        out.unlink(missing_ok=True)
+        raise HTTPException(500, "The export didn't work: " + (p.stderr or "")[-200:])
+    from starlette.background import BackgroundTask
+    name = re.sub(r"[^\w\- ]+", "", clip.get("title") or clip.get("hook") or "clip").strip()[:60] or "clip"
+    return FileResponse(out, filename=f"{name}.{fmt}", media_type="image/gif" if fmt == "gif" else "video/mp4",
+                        headers={"Cache-Control": "private, no-store"}, background=BackgroundTask(lambda: out.unlink(missing_ok=True)))
 
 
 @app.get("/api/jobs/{jid}/clips/{cid}/captions")

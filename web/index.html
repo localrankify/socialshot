@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SocialShot</title>
-<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=3">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Archivo+Black&family=Anton&family=Poppins:wght@800&display=swap" rel="stylesheet">
@@ -1894,6 +1894,7 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
 .ed .ed-zoom input::-webkit-slider-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--tx)}
 .ed .ed-zoom input::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--tx)}
 .ed-play{display:flex;align-items:center;gap:14px}
+.ed-mplay{display:none}   /* phones only: the play row under the video */
 .ed-now,.ed-dur{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--tx);min-width:58px}
 .ed-now{text-align:right}.ed-dur{color:var(--faint)}
 .ed-pbtn{width:34px;height:34px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--tx);color:#0C0C0E;cursor:pointer;transition:transform .16s var(--ease-out),background-color .15s ease}
@@ -2487,6 +2488,143 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
 .ed-tour .tr-foot span{color:#8E8E96;font-variant-numeric:tabular-nums}
 .ed-tour .tr-foot button{height:32px;border-radius:8px;color:#D4D4D8}
 .ed-tour .tr-foot .nx{background:#fff;color:#111}
+/* a transcript word being fixed in place (double-click a word) */
+.tw-edit{display:inline-block;height:24px;min-height:0;margin:0 2px;padding:0 6px;border:1px solid var(--accent);border-radius:6px;background:#0E0E10;color:#fff;font:inherit;font-size:13.5px;outline:none;vertical-align:baseline}
+#edTx .tw{cursor:text}
+/* the editor's one main button: Render, bold; changes save by themselves (the pill says so) */
+.ed-acts .ed-render{font-weight:700!important;font-size:13.5px;padding:0 16px;letter-spacing:.01em}
+.ed-acts .ed-render svg{width:14px;height:14px;fill:currentColor;stroke:none}
+.ed-spin{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:edspin .8s linear infinite;vertical-align:-1px}
+@keyframes edspin{to{transform:rotate(360deg)}}
+/* ===== moving the hook and captions on the video ===== */
+.ed-cap{pointer-events:auto!important;cursor:grab;touch-action:none}
+.ed-hook{cursor:grab;touch-action:none}
+.ed-cap:active,.ed-hook:active{cursor:grabbing}
+.ed-guide{position:absolute;z-index:4;pointer-events:none;opacity:0;transition:opacity .12s ease;background:#FACC15}
+.ed-guide.v{left:50%;top:0;bottom:0;width:1px}
+.ed-guide.h{top:50%;left:0;right:0;height:1px}
+.ed-guide.on{opacity:.9}
+.ed-posc{display:grid;gap:10px;padding:12px;border-radius:10px;background:var(--e1)}
+.ed-posc-h span{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#D4D4D8;line-height:1.4}
+.ed-posc-h svg{width:16px;height:16px;flex:none;color:#FACC15}
+.ed-posc-v{display:flex;gap:14px;font-size:12px;color:#8E8E96}
+.ed-posc-v b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+.ed-posc .ed-row{display:flex;gap:6px}
+.ed-posc .ed-btn{flex:1;height:32px}
+/* the preview bar's tools spread across its whole width */
+.ed-center .ed-bar{justify-content:space-evenly!important;padding:0 6px!important}
+/* ===== split face-cam layout: the two bands in the preview, and the Layout tool ===== */
+.ed-band{position:relative;width:100%;overflow:hidden;background:#000}
+.ed-bv{position:absolute;max-width:none;filter:var(--fx,contrast(1));cursor:pointer}
+.ed-lays{display:grid;gap:6px;margin-bottom:12px}
+.ed-lays button{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--ln2);border-radius:10px;background:var(--e1);color:#D4D4D8;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+.ed-lays button:hover{background:var(--e3)}
+.ed-lays button[aria-pressed=true]{border-color:color-mix(in srgb,var(--accent) 60%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--e1));color:#fff}
+.ed-lays svg{width:24px;height:24px;flex:none}
+.ed-lays span{display:grid;gap:2px}
+.ed-lays b{font-size:13px;font-weight:600}
+.ed-lays small{font-size:11.5px;color:#8E8E96}
+.ed-pick{position:relative;width:100%;align-self:start;justify-self:stretch;border-radius:10px;overflow:hidden;background:#000;touch-action:none;user-select:none}
+.ed-pick canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.85}
+.ed-rg{position:absolute;border:2px solid;border-radius:6px;cursor:move}
+.ed-rg.game{border-color:#7CC8FF;background:rgba(124,200,255,.08)}
+.ed-rg.cam{border-color:#FF8BD1;background:rgba(255,139,209,.14);z-index:2}
+.ed-rg span{position:absolute;left:4px;top:4px;padding:2px 6px;border-radius:5px;font-size:10.5px;font-weight:700;color:#111;pointer-events:none}
+.ed-rg.game span{background:#7CC8FF}.ed-rg.cam span{background:#FF8BD1}
+.ed-rg .rz{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #111;cursor:nwse-resize}
+/* glowing buttons (New clip, the editor's Export): a dark pill whose border has a soft colour line slowly going
+   round it; on hover the line goes a little faster and brighter */
+@property --ga{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes ga-spin{to{--ga:360deg}}
+.app:not(.mini) .side .new-clip,.ed-acts [data-ed=exdlg]{position:relative;isolation:isolate;border:0!important;
+  background:#121214!important;background-image:none!important;color:#fff!important;box-shadow:none!important}
+/* same corners as the buttons around them: the sidebar's 5px, and Export like Render beside it */
+.app:not(.mini) .side .new-clip{border-radius:5px!important}
+.ed-acts [data-ed=exdlg]{border-radius:9px!important}
+.app:not(.mini) .side .new-clip::before,.ed-acts [data-ed=exdlg]::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;padding:1.5px;
+  background:conic-gradient(from var(--ga),rgba(255,255,255,.08) 0 52%,#8B7CF6 64%,#E7A6D3 72%,#FFD3A1 79%,rgba(255,255,255,.08) 90%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  opacity:.75;animation:ga-spin 7s linear infinite;transition:opacity .2s ease}
+.app:not(.mini) .side .new-clip:hover::before,.ed-acts [data-ed=exdlg]:hover::before{opacity:1;animation-duration:2.6s}
+.app:not(.mini) .side .new-clip:hover,.ed-acts [data-ed=exdlg]:hover{background:#18181B!important}
+@media (prefers-reduced-motion:reduce){.app:not(.mini) .side .new-clip::before,.ed-acts [data-ed=exdlg]::before{animation:none}}
+/* sidebar top: compact. The logo, then the collapse arrow, with little room under them */
+@media (min-width:901px){
+  .app:not(.mini) .side-head{height:auto;padding:2px 2px 10px 8px}
+  .app:not(.mini) .side-head .logo{height:26px;width:auto}
+  .side-head .collapse{width:30px;height:30px;border-radius:8px;color:#8E8E96}
+  .side-head .collapse:hover{color:#fff;background:var(--s2)}
+  .side-head .collapse svg{width:17px;height:17px}
+  .app:not(.mini) #sbsearch{margin-top:0}
+}
+/* ===== Videos page cards: a dark grainy surface with soft corners (like a printed card), the details a shade lighter ===== */
+#jobs>section.job.pcard{position:relative;isolation:isolate;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:#1B1B1E;overflow:hidden}
+#jobs>section.job.pcard::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;opacity:.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:180px 180px}
+#jobs>section.job.pcard .pc-info{border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.05)}
+#jobs>section.job.pcard .pc-clip{background:rgba(0,0,0,.28);border-color:rgba(255,255,255,.06)}
+#jobs>section.job.pcard .pc-clip:hover{background:rgba(255,255,255,.06)}
+/* ===== Videos page cards: six clips when there's room; otherwise three clips and a clear "Open project" tile ===== */
+.pc-more{display:none;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;position:relative;min-height:100%;padding:14px;border-radius:10px;
+  background:radial-gradient(90% 70% at 100% 0%,color-mix(in srgb,var(--accent) 30%,transparent),transparent 70%),#1E1E22;
+  border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);color:#fff;text-decoration:none;transition:background-color .15s ease,border-color .15s ease}
+.pc-more:hover{border-color:var(--accent);background-color:#26262B}
+.pc-more-ic{position:absolute;top:14px;left:14px;width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.1)}
+.pc-more-ic svg{width:17px;height:17px}
+.pc-more b{font-size:14.5px;font-weight:600}
+.pc-more small{font-size:12px;color:#C4C4CC}
+.pc-more i{position:absolute;top:14px;right:14px;font-style:normal;color:#fff}
+.pc-more i svg{width:16px;height:16px;transition:transform .15s ease}
+.pc-more:hover i svg{transform:translateX(2px)}
+/* the card's own Open button stands out: white, the one clear way in */
+.pc-info .pc-open{height:36px;padding:0 14px;border:0;border-radius:9px;background:#fff!important;color:#111!important;font-weight:600}
+.pc-info .pc-open:hover{background:#E4E4E7!important}
+.pc-all{display:none!important}
+@container (max-width:1150px){
+  .pc-strip{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .pc-strip>.pc-t:nth-child(n+4){display:none!important}
+  .pc-strip>.pc-more{display:flex}
+  .pc-plus{display:none!important}
+}
+@container (max-width:600px){
+  .pc-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+/* ===== Creators page: the add card across the full width, then every creator ===== */
+.crnew{max-width:none;margin:0 0 28px}
+.crnew-head p{max-width:72ch}
+.crlist{display:grid;gap:14px}
+.crlist-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.crlist-h h2{font-size:16px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.crlist-h span{font-size:12.5px;color:#8E8E96}
+.crlist .crgrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.crlist .crcard{border:1px solid var(--line-2);border-radius:12px;background:color-mix(in srgb,var(--s2) 95%,#fff)}
+/* ===== export settings pop-up ===== */
+.ed-exw{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.55);animation:rise .2s ease both}
+.ed-ex{width:min(420px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;display:grid;gap:16px;padding:18px;border:1px solid var(--ln2);border-radius:16px;background:#1C1C1F;color:var(--tx)}
+.ed-ex header{display:flex;align-items:center;justify-content:space-between;margin-bottom:-6px}
+.ed-ex h3{font-size:17px;font-weight:600;color:#fff}
+.ed-ex-size{margin:0;font-size:12.5px;color:#8E8E96}
+.ed-ex-size b{color:#fff;font-weight:600}
+.ed-ex-grp{display:grid;gap:8px;min-width:0}
+.ed-ex-grp>span{font-size:12.5px;font-weight:500;color:#B4B4BC}
+.ed-ex-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px}
+.ed-ex-seg{display:flex;gap:2px;padding:3px;border-radius:10px;background:#141416}
+.ed-ex-seg button{flex:1;height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#B4B4BC;font:inherit;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-ex-seg button:hover{color:#fff}
+.ed-ex-seg button[aria-pressed=true]{background:#fff;color:#111}
+.ed-ex-plats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.ed-ex-plats button{display:flex;align-items:center;gap:8px;height:42px;padding:0 10px;border:1px solid var(--ln2);border-radius:10px;background:#141416;color:#D4D4D8;font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.ed-ex-plats button:hover{background:#232327;color:#fff}
+.ed-ex-plats button[aria-pressed=true]{border-color:#fff;color:#fff;background:#232327}
+.ed-ex-plats i{display:block;width:22px;height:22px;flex:none}
+.ed-ex-plats i svg{width:22px;height:22px;display:block}
+.ed-ex-note{margin:-4px 0 0;font-size:12px;line-height:1.45;color:#8E8E96}
+.ed-ex-note.warn{padding:10px 12px;border-radius:10px;background:rgba(234,179,8,.1);color:#FACC15;margin:0}
+.ed-ex-go{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border:0;border-radius:12px;background:#fff;color:#111;font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;transition:background-color .15s ease}
+.ed-ex-go:hover{background:#E4E4E7}
+.ed-ex-go:disabled{opacity:.45;cursor:default}
+.ed-ex-go svg{width:16px;height:16px}
+@media (max-width:420px){.ed-ex-row{grid-template-columns:1fr}}
 /* phone-only parts of the editor (the Script button, the sheet's backdrop and Done) stay hidden on a computer */
 .ed-mob,.ed-rail .ed-mob,.ed-scrim,.ed-sheetx{display:none}
 @media (max-width:760px){.ed-rail .ed-mob{display:flex}.ed-scrim,.ed-sheetx{display:block}}
@@ -2692,6 +2830,40 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   .ed-phone{height:auto;width:min(64vw,280px);max-height:none}.ed .ed-zoom input{width:70px}.ed-name b{font-size:13px}
 }
 
+/* the preview takes the clip's shape (--aw / --ah from the editor), sized to fit the space it has */
+.ed-phone{aspect-ratio:var(--aw,9)/var(--ah,16)}
+.ed-center .ed-phone{height:min(calc(100cqh - 74px),calc((100cqw - 32px) * var(--ah,16) / var(--aw,9)))}
+.ed-phone:fullscreen{aspect-ratio:var(--aw,9)/var(--ah,16)}
+/* the shape picker in the preview bar */
+.ed-asp{position:relative}
+.ed .ed-aspbtn{height:32px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#D4D4D8;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;gap:6px;transition:background-color .15s ease,color .15s ease}
+.ed .ed-aspbtn:hover{background:var(--e3);color:#fff}
+.ed .ed-aspbtn svg:last-child{width:13px;height:13px;color:#8E8E96}
+.ed-aspop{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);z-index:20;width:250px;padding:6px;border:1px solid var(--ln2);border-radius:12px;background:#1E1E21}
+.ed-aspop button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#D4D4D8;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease}
+.ed-aspop button:hover{background:var(--e3)}
+.ed-aspop button>svg:first-child{width:20px;height:20px;flex:none;color:#A1A1AA}
+.ed-aspop button[aria-checked=true]>svg:first-child{color:#fff}
+.ed-aspop span{flex:1;display:grid;gap:1px}
+.ed-aspop b{font-size:13px;font-weight:600;color:#fff}
+.ed-aspop b em{font-style:normal;font-weight:500;color:#8E8E96;margin-left:4px;font-variant-numeric:tabular-nums}
+.ed-aspop small{font-size:11.5px;color:#8E8E96}
+.ed-aspop button>svg:last-child:not(:first-child){width:15px;height:15px;color:#fff}
+/* a calmer preview area: a soft frame around the video, and the preview's tools as one bar fixed along the
+   bottom of the column, edge to edge */
+.ed-center .ed-stage{background:radial-gradient(60% 50% at 50% 45%,rgba(255,255,255,.035),transparent 70%);padding-bottom:0!important;justify-content:space-between}
+.ed-phone{border-radius:14px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.ed-center .ed-phone{margin:auto 0}
+.ed-center .ed-bar{align-self:stretch;flex:none;justify-content:center;height:52px;margin:0 -16px;padding:0 12px;border:0;border-top:1px solid var(--ln);border-radius:0;background:var(--e1)}
+.ed-center .ed-phone{height:min(calc(100cqh - 92px),calc((100cqw - 32px) * var(--ah,16) / var(--aw,9)))}
+/* the transcript's header uses the column's whole width */
+.ed-txhead{justify-content:stretch!important;grid-template-columns:minmax(0,1fr)!important;width:100%}
+/* the caption track: blocks only; the line being said shows its words in a white label, others on hover */
+.ed-chip span{display:none!important}
+.ed-chip.on,.ed-chip:hover{overflow:visible;z-index:3}
+.ed-chip.on span,.ed-chip:hover span{display:block!important;position:absolute;left:0;top:0;height:100%;width:max-content;max-width:280px;padding:0 9px;border-radius:6px;
+  background:#fff;color:#111!important;font-size:11px;font-weight:600;line-height:calc(var(--rc) - 6px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-chip:hover:not(.on) span{background:#3A3A41;color:#fff!important}
 /* ================= phones ================= */
 @media (max-width:760px){
   /* the add box: the link icon sits in the field, the button goes full width under it */
@@ -2721,12 +2893,22 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   #jobs>section.job.pcard{padding:10px;gap:12px}
   .pc-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   /* one video's page: the title gets its own full row under the cover and the buttons */
-  .topbar:has(#tpic.proj){row-gap:10px}
-  .topbar:has(#tpic.proj) .titles{order:5;flex:1 1 100%;min-width:0}
-  .topbar:has(#tpic.proj) #actions{margin-left:auto}
-  #tpic.proj .ph-cover{width:96px}
-  .topbar:has(#tpic.proj) #subtitle{display:flex;flex-wrap:wrap;gap:4px 12px}
-  #title:has(.ph-crumb)>span{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  /* row 1: menu, "← Videos", the buttons. Row 2: the cover beside a two-line title. Row 3: the facts, one line you can swipe */
+  .topbar.projbar{display:grid!important;grid-template-columns:36px 50px minmax(0,1fr) auto;grid-template-areas:"menu crumb crumb acts" "pic pic title title" "meta meta meta meta";
+    align-items:center;gap:12px 10px;padding-bottom:4px}
+  .topbar.projbar .menu{grid-area:menu}
+  .topbar.projbar .titles,.topbar.projbar #title{display:contents!important}
+  .topbar.projbar #title .ph-crumb{grid-area:crumb;margin:0;font-size:13px}
+  .topbar.projbar #tpic.proj{grid-area:pic;align-self:start}
+  .topbar.projbar #tpic.proj .ph-cover{width:96px}
+  .topbar.projbar #title>span{grid-area:title;align-self:center;font-size:15px;line-height:1.35;font-weight:600;white-space:normal!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .topbar.projbar #actions{grid-area:acts;margin:0;gap:6px}
+  .topbar.projbar #actions .btn,.topbar.projbar #actions .icon-btn{width:34px;height:34px}
+  .topbar.projbar .utabs:empty{display:none}
+  .topbar.projbar #subtitle{grid-area:meta;display:flex!important;flex-wrap:nowrap;gap:6px;margin:0;overflow-x:auto;scrollbar-width:none;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .topbar.projbar #subtitle::-webkit-scrollbar{display:none}
+  .topbar.projbar #subtitle .mp{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--line-2);border-radius:5px;font-size:12px;color:#A1A1AA;white-space:nowrap}
+  .topbar.projbar #subtitle .mp svg{width:13px;height:13px}
   #jobs.proj .ctools{transform:scale(.88);transform-origin:top right}
   /* Settings: one column, the sections as a row of tabs you can swipe */
   .set-layout{grid-template-columns:1fr;gap:14px}
@@ -2756,17 +2938,16 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   .ed-name b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ed-acts{gap:4px}
   .ed-acts .ed-btn{height:34px;padding:0 10px;font-size:12.5px}
-  .ed-acts [data-ed=exportmenu],.ed-acts [data-ed=keep]{font-size:0;gap:0;width:34px;padding:0;justify-content:center}
-  .ed-acts [data-ed=exportmenu] svg,.ed-acts [data-ed=keep] svg{margin:0}
-  .ed-acts #edSave{font-size:0;gap:0;padding:0 12px}
-  .ed-acts #edSave::after{content:"Save";font-size:13px;margin-left:6px}
+  .ed-acts [data-ed=exdlg],.ed-acts [data-ed=keep]{font-size:0;gap:0;width:34px;padding:0;justify-content:center}
+  .ed-acts [data-ed=exdlg] svg,.ed-acts [data-ed=keep] svg{margin:0}
+  .ed-acts #edSave{gap:6px;padding:0 12px;font-size:13px}
   /* like an editing app: the video fills the top, the play row and film strip sit under it, the tools are a bar at
      the bottom, and a tool's settings slide up over the video as a sheet */
   .ed{--railh:64px;padding-bottom:var(--railh)}
   .ed-body{display:flex!important;flex-direction:column;flex:1;min-height:0;width:100%;overflow:hidden}
   .ed-center{order:0;flex:1;min-height:0;height:auto;border:0;min-width:0}
   .ed-center .ed-stage{height:100%;padding:8px 10px 6px;gap:8px}
-  .ed-center .ed-bar{max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .ed-center .ed-bar{max-width:none;overflow-x:auto;scrollbar-width:none;margin:0 -10px;height:48px;justify-content:flex-start}
   .ed-rail{position:fixed;left:0;right:0;bottom:0;z-index:30;height:var(--railh);flex-direction:row!important;justify-content:flex-start!important;gap:0;
     padding:4px 6px calc(4px + env(safe-area-inset-bottom))!important;border:0!important;border-top:1px solid var(--ln)!important;background:#101012;overflow-x:auto;scrollbar-width:none}
   .ed-rail::-webkit-scrollbar{display:none}
@@ -2785,16 +2966,33 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   .ed-txcard>.ed-txhead>.ed-hero{border-radius:18px 18px 0 0}
   .ed-scrim{position:fixed;inset:0 0 var(--railh) 0;z-index:24;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s ease}
   .ed[data-sheet=panel] .ed-scrim,.ed[data-sheet=tx] .ed-scrim{opacity:1;pointer-events:auto}
-  .ed-sheetx{position:fixed;right:12px;bottom:calc(var(--railh) + 58dvh - 46px);z-index:26;height:32px;padding:0 14px;border:0;border-radius:999px;background:#fff;color:#111;
-    font:inherit;font-size:13px;font-weight:600;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s ease}
+  /* a small close cross at the sheet's top right; closing the sheet keeps what was changed */
+  .ed-sheetx{position:fixed;right:16px;bottom:calc(var(--railh) + 58dvh - 48px);z-index:26;width:32px;height:32px;padding:0;display:grid!important;place-items:center;border:1px solid var(--ln2);border-radius:8px;background:var(--e2);color:var(--tx);
+    cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s ease,background-color .15s ease}
+  .ed-sheetx svg{width:16px;height:16px}
+  /* the cross sits 16px in from the top and right, like the header's own padding; the header text stops before it */
+  .ed[data-sheet] .ed-panel .ed-hero{padding-right:60px}
+  .ed[data-sheet] .ed-txhead.compact{padding:15px 16px 10px 12px}
+  .ed[data-sheet] .ed-txhead.compact .ed-txrow{padding-right:44px}
+  .ed-sheetx:active{background:var(--e3)}
   .ed[data-sheet=panel] .ed-sheetx,.ed[data-sheet=tx] .ed-sheetx{opacity:1;pointer-events:auto}
+  /* the shape menu opens in the middle of the screen (the preview bar scrolls sideways and would cut it off) */
+  .ed-aspop{position:fixed;left:50%;top:22%;bottom:auto;transform:translateX(-50%);width:min(300px,calc(100vw - 32px));z-index:40}
   /* the play row and a scrolling film strip, without the track names or the level meter */
   .ed-tl{flex:none;padding:0 0 8px;border-top:1px solid var(--ln)}
-  .ed-tl .ed-zoom,.ed-tl .ed-tl-right{display:none}
-  .ed-tl .ed-tl-head{display:flex!important;justify-content:center;padding:6px 0}
-  .ed-tl .ed-play{margin:0 auto}
-  .ed-tl .ed-pbtn{width:44px;height:44px}
-  .ed-tl .ed-tlw{display:block!important;grid-template-columns:1fr}
+  /* the play row: the show/hide timeline button on the left, play in the middle */
+  .ed-tl .ed-tl-right{display:none}
+  .ed-tl .ed-tl-head{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:center;padding:6px 12px}
+  .ed-tl .ed-zoom{display:flex;justify-self:start}
+  .ed-tl .ed-zoom>:not(.ed-tltog){display:none!important}
+  .ed-tl .ed-tltog{height:32px;padding:0 10px 0 8px;border:1px solid var(--ln2);border-radius:8px;font-size:12px}
+  /* play sits right under the video, like a phone video app; the timeline row keeps only its show/hide button */
+  .ed-tl .ed-play{display:none!important}
+  .ed .ed-mplay{display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 0 6px}
+  .ed-mplay .ed-pbtn{width:42px;height:42px}
+  .ed-mplay .ed-pbtn svg{width:17px;height:17px}
+  .ed-tl:not(.folded) .ed-tlw{display:block!important;grid-template-columns:1fr}
+  .ed-tl.folded .ed-tlw{display:none!important}
   .ed-tl .ed-heads,.ed-tl .ed-meter{display:none!important}
   .ed-tl .ed-scroll{padding:0 12px;scrollbar-width:none}
   .ed-tl .ed-scroll::-webkit-scrollbar{display:none}
@@ -2814,12 +3012,134 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   /* bigger touch targets on the small round buttons */
   .ed-chips button{height:36px}
 }
+
+/* ---------- transcript header: two short rows instead of a big title card */
+.ed-txhead.compact{gap:8px;padding:10px 12px}
+.ed-txrow{display:flex;align-items:center;gap:10px;min-width:0}
+.ed-txhead.compact .ed-ptabs.pill{margin:0;flex:none}
+.ed-txhead.compact .ed-ptabs.pill button{height:28px;padding:0 12px;font-size:12.5px}
+.ed-txmeta{flex:1;min-width:0;text-align:right;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.ed-txhead.compact .ed-ptools{gap:4px}
+.ed-txhead.compact .ed-search{height:32px}
+.ed-txhead.compact .ed-ptools .ed-ib{width:32px;height:32px}
+/* the Cleanup tool's choices */
+.ed-clean2{display:grid;gap:4px}
+.ed-clean2 .ed-ck{min-height:44px}
+
+/* ---------- export popup: quick clicks never select the labels; captions download and import sit at the foot */
+.ed-ex{-webkit-user-select:none;user-select:none}
+.ed-ex-cap{display:flex;align-items:center;gap:6px;margin-top:-4px;padding-top:12px;border-top:1px solid var(--ln)}
+.ed-ex-cap span{flex:1;font-size:12.5px;color:#8E8E96}
+.ed-ex-cap button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--ln2);border-radius:8px;background:transparent;color:#D4D4D8;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-ex-cap button:hover{background:#26262A;color:#fff}
+.ed-ex-cap svg{width:14px;height:14px}
+
+/* ---------- editor: a panel's tabs (and the style search) stay pinned to the top while it scrolls */
+.ed-stick{position:sticky;top:-12px;z-index:6;margin:0 -14px 12px;padding:10px 14px 2px;background:var(--e1);border-bottom:1px solid transparent;transition:border-color .15s ease}
+.ed-stick .ed-ptabs.pill.wide{margin:0 0 10px}
+.ed-stick .ed-ssearch{margin-bottom:10px}
+.ed-stick.stuck{border-bottom-color:var(--ln)}
+
+/* ---------- notifications: quiet rows, outline icons, time on the right, unread marked by a dot */
+#bellpop{width:380px;border-radius:12px;border-color:var(--line-2);background:#18181B}
+#bellpop .pop-head{padding:14px 14px 12px 16px;border-bottom:1px solid var(--line-2);gap:8px}
+#bellpop .pop-head h3{flex:none;font-size:14px;font-weight:600;color:#F4F4F5}
+#bellpop .pop-head .grow{flex:1}
+#bellpop .nt-count{font-style:normal;font-size:11.5px;font-weight:600;color:#A1A1AA;padding:2px 7px;border-radius:999px;border:1px solid var(--line-2)}
+#bellpop .pop-head button{font-size:12px;color:#A1A1AA}
+#bellpop .pop-head button:hover{color:#fff;background:transparent}
+#bellpop .pop-list{padding:4px}
+#bellpop .nt{position:relative;gap:12px;padding:12px 12px 12px 14px;border-radius:8px;align-items:flex-start}
+#bellpop .nt+.nt::before{content:"";position:absolute;left:14px;right:12px;top:-2px;height:1px;background:var(--line)}
+#bellpop .nt:hover{background:#202024}
+#bellpop .nt:hover::before,#bellpop .nt:hover+.nt::before{opacity:0}
+#bellpop .nt i,#bellpop .nt.k-clips i,#bellpop .nt.k-live i,#bellpop .nt.k-post i,#bellpop .nt.k-fail i,#bellpop .nt.k-expiry i{width:30px;height:30px;border-radius:50%;background:transparent;border:1px solid var(--line-2);color:#A1A1AA}
+#bellpop .nt i svg{width:14px;height:14px}
+#bellpop .nt.k-fail i,#bellpop .nt.k-post i{color:#F87171}
+#bellpop .nt.k-live i{color:#F4F4F5}
+#bellpop .nt-top{display:flex;align-items:baseline;gap:10px}
+#bellpop .nt-top b{flex:1;min-width:0;font-size:13px;font-weight:600;color:#E4E4E7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bellpop .nt.new b::after{display:none}
+#bellpop .nt-top small{flex:none;margin:0;font-size:11.5px;color:#71717A;font-variant-numeric:tabular-nums}
+#bellpop .nt-body{margin-top:3px;font-size:12.5px;line-height:1.45;color:#8E8E96;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#bellpop .nt.new::after{content:"";position:absolute;left:4px;top:24px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+#bellpop .nt.new .nt-top b{color:#fff}
+#bellpop .pop-empty{padding:36px 24px 40px;font-size:12.5px;line-height:1.5;color:#71717A}
+#bellpop .pop-empty svg{width:22px;height:22px;color:#52525B;margin-bottom:10px}
+
+/* ---------- creator cards: name and audience on top, numbers in a quiet strip, grain in two corners */
+.crlist .crcard.v2{position:relative;isolation:isolate;overflow:hidden;gap:16px;padding:18px;border:1px solid var(--line-2);border-radius:12px;background:#19191C;transition:border-color .15s ease,background-color .15s ease}
+.crlist .crcard.v2::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--grain);background-size:140px;opacity:.10;
+  -webkit-mask:radial-gradient(70% 60% at 0 0,#000,transparent 70%),radial-gradient(70% 60% at 100% 100%,#000,transparent 70%);
+  mask:radial-gradient(70% 60% at 0 0,#000,transparent 70%),radial-gradient(70% 60% at 100% 100%,#000,transparent 70%)}
+.crlist .crcard.v2:hover{border-color:#3F3F46;background:#1C1C20}
+.crlist .crcard.v2:active{transform:none}
+.crcard.v2 .crtop{gap:12px;align-items:center}
+.crcard.v2 .crtop .avatar{width:44px;height:44px}
+.crcard.v2 .crname{flex:1;gap:2px}
+.crcard.v2 .crname b{font-size:15px;color:#F4F4F5}
+.crcard.v2 .crname small{font-size:12.5px;color:#8E8E96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.crcard.v2 .crtop .sbadge{flex:none;align-self:flex-start;margin:2px 0 0}
+.crcard.v2 .crstats{display:grid;grid-template-columns:repeat(3,1fr);padding:0;border:0;border-radius:8px;background:#141416}
+.crcard.v2 .crstats>span{padding:10px 12px;gap:2px;font-size:11.5px;color:#8E8E96}
+.crcard.v2 .crstats>span+span{border-left:1px solid var(--line)}
+.crcard.v2 .crstats b{font-size:15px;color:#F4F4F5}
+.crcard.v2 .crstats b.on{color:#4ADE80}
+.crcard.v2 .crfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:-2px}
+.crcard.v2 .crplats{min-height:0;gap:6px}
+.crcard.v2 .crplats .logo{width:22px;height:22px;border-radius:6px}
+.crcard.v2 .crplats .logo svg{width:12px;height:12px}
+.crcard.v2 .cropen{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:#A1A1AA;transition:color .15s ease}
+.crcard.v2 .cropen svg{width:14px;height:14px}
+.crcard.v2:hover .cropen{color:#fff}
+
+/* ---------- creator setup: plain headings, grouped rows, short choices side by side */
+.cs{max-width:1000px}
+.cs-nav button.on{color:#fff;background:#1F1F23}
+.cs-main{gap:40px}
+.cs-h{display:block;margin-bottom:14px}
+.cs-h h2{font-size:17px;color:#F4F4F5}
+.cs-h p{font-size:13px;color:#8E8E96}
+.cs-card{border:1px solid var(--line-2);border-radius:12px;background:#18181B}
+.cs-row{min-height:64px;padding:14px 20px}
+.cs-row.wide{flex-wrap:nowrap}
+.cs-row.wide .cs-l{flex:1 1 auto}
+.cs-row.wide .cs-c{flex:0 1 auto}
+.cs-row.wide .cs-text{width:300px}
+.cs-l b{color:#E4E4E7}
+.cs-l small{color:#7C7C85;max-width:52ch}
+.cs-sub{padding:16px 20px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#71717A}
+.cs-sub+.cs-row{border-top:0}
+.cs-row+.cs-sub{border-top:1px solid var(--line-2);margin-top:0}
+.cs-c select,.cs-text,.cs-num{background:#111113;border-color:#2E2E33}
+.cs-tg input:checked+span{background:var(--accent)}
+.cs-num:focus-within,.cs-text:focus,.cs-c select:focus{border-color:#52525B}
+/* the summary sentence above the picking settings */
+.cs-sum{margin:0 0 12px;padding:12px 16px;border:1px solid var(--line-2);border-radius:10px;background:#141416;font-size:13px;line-height:1.6;color:#A1A1AA}
+.cs-sum b{color:#F4F4F5;font-weight:600}
+/* segmented choices */
+.cs-seg{display:inline-flex;padding:3px;gap:2px;border-radius:9px;background:#111113;border:1px solid #2E2E33}
+.cs-seg label{position:relative;cursor:pointer}
+.cs-seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.cs-seg span{display:grid;place-items:center;height:28px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;color:#8E8E96;white-space:nowrap;transition:background-color .15s ease,color .15s ease}
+.cs-seg label:hover span{color:#E4E4E7}
+.cs-seg input:checked+span{background:#2A2A2F;color:#fff}
+.cs-seg input:focus-visible+span{outline:2px solid #52525B;outline-offset:1px}
+/* score sliders */
+.cs-rng{display:inline-flex;align-items:center;gap:12px}
+.cs-rng input{-webkit-appearance:none;appearance:none;width:180px;height:4px;border-radius:999px;background:linear-gradient(90deg,#E4E4E7 var(--p),#2E2E33 var(--p));cursor:pointer}
+.cs-rng input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:0}
+.cs-rng input::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:0}
+.cs-rng output{min-width:40px;height:30px;display:grid;place-items:center;border-radius:7px;background:#111113;border:1px solid #2E2E33;font-size:13px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+#cs-danger .cs-card{border-color:rgba(248,113,113,.25)}
+@media (max-width:860px){.cs-row.wide{flex-wrap:wrap}.cs-row.wide .cs-text{width:100%}}
+@media (max-width:560px){.cs-seg{display:flex;width:100%}.cs-seg label{flex:1}.cs-seg span{padding:0 6px}.cs-rng{width:100%}.cs-rng input{flex:1;width:auto}}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <aside class="side" aria-label="Sidebar">
-    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=3" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=3" alt="SocialShot">
+    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=4" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=4" alt="SocialShot">
       <button class="icon-btn collapse" data-act="collapse" id="collapseBtn" aria-label="Collapse sidebar"></button></div>
     <div id="sbsearch"></div>
     <nav class="nav" id="nav" aria-label="Main"></nav>
@@ -3175,9 +3495,9 @@ async function openBell() {
   openPop(p, $("[data-act=bell]"));
   try {
     const d = await api("/api/notifications");
-    p.innerHTML = `<div class="pop-head"><h3>Notifications</h3>${d.unread ? `<button data-act="bellread">Mark all as read</button>` : ""}</div>
+    p.innerHTML = `<div class="pop-head"><h3>Notifications</h3>${d.unread ? `<em class="nt-count">${d.unread} new</em>` : ""}<span class="grow"></span>${d.unread ? `<button data-act="bellread">Mark all as read</button>` : ""}</div>
       ${d.items.length ? `<div class="pop-list">${d.items.map(n => `<button class="nt k-${esc(n.kind)} ${n.read ? "" : "new"}" data-act="ntgo" data-link="${esc(n.link)}">
-        <i>${ic(NT_ICON[n.kind] || "bell")}</i><span class="tx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${ago(n.t)}</small></span></button>`).join("")}</div>`
+        <i>${ic(NT_ICON[n.kind] || "bell")}</i><span class="tx"><span class="nt-top"><b>${esc(n.title)}</b><small>${ago(n.t)}</small></span>${n.body ? `<span class="nt-body">${esc(n.body)}</span>` : ""}</span></button>`).join("")}</div>`
         : `<div class="pop-empty">${ic("bell")}Nothing yet. Recordings, finished clips and posts that need a look show up here.</div>`}`;
     if (d.unread) setTimeout(markRead, 1500);
   } catch (e) { p.innerHTML = `<div class="pop-head"><h3>Notifications</h3></div><div class="pop-empty">${esc(e.message)}</div>`; }
@@ -3207,6 +3527,8 @@ function collapseLabel() {
   const b = $("#collapseBtn"); if (!b) return;
   const mini = $("#app").classList.contains("mini");
   b.setAttribute("aria-label", mini ? "Expand sidebar" : "Collapse sidebar"); b.title = mini ? "Expand sidebar" : "Collapse sidebar";
+  // an arrow that points the way it will move: « folds the sidebar away, » brings it back
+  b.innerHTML = `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true">${mini ? '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>' : '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>'}</svg>`;
 }
 setTimeout(collapseLabel, 0);
 function openAcct(hover) {
@@ -3724,7 +4046,7 @@ function onLink(input) {
   linkTimer = setTimeout(() => { if (input.value.trim() === u) takeLink(A, u, input); }, 900);   // other link shapes: take it once typing stops
 }
 document.addEventListener("input", e => { if (e.target.id === "url") onLink(e.target);
-  if (e.target.closest?.("#cform") && e.target.dataset.k && !/checkbox|radio/.test(e.target.type)) dirty(true); });
+  if (e.target.closest?.("#cform") && e.target.dataset.k) { refreshPick(e.target); if (!/checkbox|radio/.test(e.target.type)) dirty(true); } });
 document.addEventListener("keydown", e => { if (e.target.id === "url" && e.key === "Enter" && e.target.value.trim() && looksLink(e.target.value.trim())) { e.preventDefault(); clearTimeout(linkTimer); takeLink(att(), e.target.value.trim(), e.target); } });
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-rm]"), A = att(); if (!r || A.busy) return;
@@ -3965,7 +4287,9 @@ function projHtml(j) {
         <label class="selck"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
         <a class="btn sm pc-open" href="${link}" data-act="openproj" data-j="${j.id}">Open${ic("arrowr")}</a></div>
     </div>
-    ${tiles || waiting ? `<div class="pc-strip">${tiles || waiting}</div>` : `<div class="pc-strip pc-none"><p class="sub">${busy ? "" : "No clips from this video."}</p></div>`}
+    ${tiles || waiting ? `<div class="pc-strip">${tiles || waiting}${tiles && total > 3 ? `<a class="pc-more" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project to see all ${total} clips">
+        <span class="pc-more-ic">${ic("film")}</span><b>Open project</b><small>+${total - 3} more · ${total} clips</small><i>${ic("arrowr")}</i></a>` : ""}</div>`
+      : `<div class="pc-strip pc-none"><p class="sub">${busy ? "" : "No clips from this video."}</p></div>`}
     ${total > 2 ? `<a class="pc-all" href="${link}" data-act="openproj" data-j="${j.id}">View all ${total} clips${ic("arrowr")}</a>` : ""}`;
 }
 /* ---- selecting several videos and clips: delete or download them together */
@@ -4020,7 +4344,7 @@ function emptyState({label, title, text, actions = [], key = ""}) {
   return `<div class="es" data-es="${esc(key)}">
     <div class="es-fold" aria-hidden="true"><i class="es-back"></i>
       <span class="es-paper"><b>${esc(label)}</b><i></i><i></i></span>
-      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=3" alt="">SocialShot</span></span></div>
+      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=4" alt="">SocialShot</span></span></div>
     <h3>${esc(title)}</h3><p>${text}</p>
     ${actions.length ? `<div class="es-acts">${actions.map(a => `<button class="btn ${a.primary ? "primary" : ""}" data-act="${a.act}"${a.data ? " " + a.data : ""}>${a.icon ? ic(a.icon) : ""}${esc(a.label)}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -4122,6 +4446,17 @@ function costHint(every) {
   every = Number(every) || 3;
   return `About ${Math.round(60 / every * 2)} AI calls per live hour at most. Each check covers everything since the last one, so slower checks don't miss moments; they find them later.`;
 }
+// the picking settings read back as one plain sentence, so a change is easy to check at a glance
+function pickSummary(c) {
+  const n = k => Number(c[k]) || 0, must = n("must_clip_min");
+  const mode = c.decide_mode === "either" ? "both checks agree, or the words check is very sure" : "both checks agree";
+  return `Looks every <b>${n("ai_every_min") || 3} min</b> and makes a clip when ${mode} and the words score <b>${n("min_score")}+</b>.
+    At most <b>${n("live_per_hour")} an hour</b>, <b>${n("min_gap_min")} min</b> apart${must ? `, and at least one every <b>${must >= 60 ? must / 60 + " h" : must + " min"}</b>` : ""}.`;
+}
+function refreshPick(t) {
+  if (t.type === "range") { t.nextElementSibling.textContent = t.value; t.style.setProperty("--p", t.value + "%"); }
+  if ($("#cssum")) $("#cssum").innerHTML = pickSummary(creatorForm());
+}
 function channelRows(c) {
   const chs = c.channels || {}, many = Object.keys(chs).length > 1;
   return Object.keys(PLAT).map(k => {
@@ -4149,39 +4484,48 @@ function drawCreatorForm() {
   const tog = (k, on) => `<label class="cs-tg"><input type="checkbox" data-k="${k}" ${on ? "checked" : ""}><span></span></label>`;
   const num = (k, v, min, max, unit, step = 1) => `<span class="cs-num"><input data-k="${k}" type="number" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${k}">${unit ? `<em>${unit}</em>` : ""}</span>`;
   const sel = (k, map, v) => `<select data-k="${k}">${opts(map, v)}</select>`;
-  const sec = (id, icon, title, sub, body) => `<section class="cs-sec" id="cs-${id}"><div class="cs-h"><span class="cs-ic">${ic(icon)}</span><div><h2>${title}</h2><p>${sub}</p></div></div><div class="cs-card">${body}</div></section>`;
-  const NAV = [["stream", "radio", "Stream"], ["ai", "spark", "How clips are picked"], ["clips", "scissors", "Clips"], ["post", "send", "Posting"], ["danger", "trash", "Delete"]];
+  // a few short choices side by side; picking one saves straight away
+  const seg = (k, map, v) => `<div class="cs-seg" role="radiogroup" aria-label="${k}">${Object.entries(map).map(([val, lab]) =>
+    `<label><input type="radio" name="cs_${k}" data-k="${k}" value="${esc(val)}" ${String(v) === String(val) ? "checked" : ""}><span>${lab}</span></label>`).join("")}</div>`;
+  // a score out of 100 as a slider with its number beside it
+  const rng = (k, v) => `<span class="cs-rng"><input type="range" data-k="${k}" min="0" max="100" step="5" value="${Number(v) || 0}" aria-label="${k}" style="--p:${Number(v) || 0}%"><output>${Number(v) || 0}</output></span>`;
+  const sec = (id, title, sub, body, top = "") => `<section class="cs-sec" id="cs-${id}"><div class="cs-h"><h2>${title}</h2><p>${sub}</p></div>${top}<div class="cs-card">${body}</div></section>`;
+  const NAV = [["stream", "radio", "Stream"], ["ai", "sliders", "How clips are picked"], ["clips", "scissors", "Clips"], ["post", "send", "Posting"], ["danger", "trash", "Delete"]];
   box.innerHTML = `<div class="cs">
     <nav class="cs-nav" aria-label="Creator settings">${NAV.map(([k, i, l], n) => `<button type="button" data-act="csjump" data-v="${k}" class="${n ? "" : "on"}">${ic(i)}${l}</button>`).join("")}</nav>
     <div class="cs-main">
-    ${sec("stream", "radio", "Stream", "Where to record from, and whether to start by itself.", `
+    ${sec("stream", "Stream", "Where to record from, and whether to start by itself.", `
       <div class="cs-chans chans">${channelRows(c)}</div>
       ${row("Record automatically when they go live", "Checks straight away, then every two minutes.", tog("auto_watch", c.auto_watch))}
       ${row("Minutes of stream to keep", "How far back a clip can reach while recording.", num("buffer_min", c.buffer_min, 5, 120, "min"))}`)}
-    ${sec("ai", "spark", "How clips are picked", "Two separate checks: one reads what was said, the other only hears how loud it got and how busy chat was.", `
-      ${row("Check the stream every", `<span id="costhint">${costHint(c.ai_every_min)}</span>`, sel("ai_every_min", {1:"1 minute", 2:"2 minutes", 3:"3 minutes", 5:"5 minutes", 10:"10 minutes"}, c.ai_every_min || 3))}
-      ${row("Make a clip when", "It also looks straight away when the stream gets louder, chat gets busier or someone says “clip it”.", sel("decide_mode", {both:"Both checks say yes", either:"Both say yes, or the words check is very sure"}, c.decide_mode))}
-      ${row("Words check must score at least", "Out of 100.", num("min_score", c.min_score, 0, 100, ""))}
+    ${sec("ai", "How clips are picked", "Two checks run side by side: one reads what was said, the other only hears how loud it got and how busy chat was.", `
+      <div class="cs-sub">When to look</div>
+      ${row("Check the stream every", `<span id="costhint">${costHint(c.ai_every_min)}</span>`, seg("ai_every_min", {1:"1m", 2:"2m", 3:"3m", 5:"5m", 10:"10m"}, c.ai_every_min || 3), "wide")}
+      ${row("Clip when someone says", "The last 30 seconds, straight away. Separate phrases with commas. No AI needed.", `<input class="cs-text" data-k="trigger_words" value="${esc(c.trigger_words)}" placeholder="clip that, clip it">`, "wide")}
+      <div class="cs-sub">What counts as a clip</div>
+      ${row("Make a clip when", "It also looks straight away when the stream gets louder or chat gets busier.", seg("decide_mode", {both:"Both checks agree", either:"Either, if words are very sure"}, c.decide_mode || "both"), "wide")}
+      ${row("Words check must score at least", "Out of 100. Higher means fewer, stronger clips.", rng("min_score", c.min_score))}
+      <div class="cs-sub">How many</div>
       ${row("Most clips per hour", "", num("live_per_hour", c.live_per_hour, 1, 60, "/ hour"))}
       ${row("Gap between clips", "", num("min_gap_min", c.min_gap_min, 0, 60, "min"))}
-      ${row("Always make a clip at least every", "Even on a quiet stream.", sel("must_clip_min", {0:"Off", 15:"15 minutes", 30:"30 minutes", 60:"1 hour", 120:"2 hours"}, c.must_clip_min))}
-      ${row("Clip the last 30 seconds when someone says", "Separate phrases with commas. No AI needed.", `<input class="cs-text" data-k="trigger_words" value="${esc(c.trigger_words)}" placeholder="clip that, clip it">`, "wide")}`)}
-    ${sec("clips", "scissors", "Clips", "How this creator's clips look and how long they run.", `
+      ${row("Always make a clip at least every", "Even on a quiet stream.", seg("must_clip_min", {0:"Off", 15:"15m", 30:"30m", 60:"1h", 120:"2h"}, c.must_clip_min || 0))}`,
+      `<p class="cs-sum" id="cssum">${pickSummary(c)}</p>`)}
+    ${sec("clips", "Clips", "How this creator's clips look and how long they run.", `
       ${row("Caption style", "", sel("style", S.status.styles, c.style))}
       ${row("Layout", "", sel("layout", S.status.layouts, c.layout))}
       ${row("Clip length", "Shortest and longest, in seconds.", `<span class="cs-pair">${num("min_len", c.min_len, 5, 120, "s")}<i>to</i>${num("max_len", c.max_len, 10, 180, "s")}</span>`)}
       ${row("Clips per video", "", num("max_clips", c.max_clips, 1, 20, ""))}`)}
-    ${sec("post", "send", "Posting", A.length ? "Where clips go, and how often. One account can be shared by several creators." : "No accounts are connected yet.", `
+    ${sec("post", "Posting", A.length ? "Where clips go, and how often. One account can be shared by several creators." : "No accounts are connected yet.", `
       ${A.length ? A.map(a => row(`${esc(a.label)}`, esc(a.name), `<label class="cs-tg"><input type="checkbox" data-acc value="${esc(a.id)}" ${c.accounts.includes(a.id) ? "checked" : ""}><span></span></label>`)).join("")
         : row("Connect an account first", "YouTube, Instagram or TikTok, in Settings.", `<button class="btn sm" data-act="go" data-v="settings">${ic("cog")}Open Settings</button>`)}
       ${row("Post new clips automatically", "Clips that score high enough go out without you approving them.", tog("autopost", c.autopost))}
-      ${row("Only post clips scoring at least", "Out of 100.", num("post_min_score", c.post_min_score, 0, 100, ""))}
+      ${row("Only post clips scoring at least", "Out of 100.", rng("post_min_score", c.post_min_score))}
       ${row("Time between posts on one account", "", num("post_gap_min", c.post_gap_min, 5, 1440, "min"))}
       ${row("Most posts per account per day", "", num("daily_cap", c.daily_cap, 1, 50, ""))}
-      ${row("Who can see posts", "YouTube and TikTok.", sel("privacy", {public:"Public", unlisted:"Unlisted", private:"Private"}, c.privacy))}
+      ${row("Who can see posts", "YouTube and TikTok.", seg("privacy", {public:"Public", unlisted:"Unlisted", private:"Private"}, c.privacy || "public"))}
       ${row("Campaign pay per 1,000 views", "Used to estimate earnings.", num("rate_per_1k", c.rate_per_1k, 0, 1000, "$", 0.1))}
       ${row("Line added to every post", "A credit or campaign tag.", `<input class="cs-text" data-k="post_footer" value="${esc(c.post_footer)}" placeholder="Clipped from @streamer">`, "wide")}`)}
-    ${sec("danger", "trash", "Delete this creator", "This cannot be undone.", `
+    ${sec("danger", "Delete this creator","This cannot be undone.", `
       ${row(`Delete ${esc(c.name)}`, "Removes their settings and every video and clip filed under them.", `<button class="btn danger sm" data-act="delcreator">${ic("trash")}Delete creator</button>`)}`)}
     </div></div>
     <div class="savebar" id="savebar"><span>${ic("warn")}You have unsaved changes</span><button class="btn ghost" data-act="cdiscard">Discard</button><button class="btn primary" data-act="csave">${ic("check")}Save changes</button></div>`;
@@ -4266,13 +4610,21 @@ function drawCreators() {
     const jobs = S.jobs.filter(j => j.creator === c.id);
     const clips = jobs.reduce((n, j) => n + (j.clips || []).filter(x => x.status === "done").length, 0);
     const plats = Object.keys(c.channels || {}).filter(k => PLAT[k]);
-    return `<button class="crcard" data-act="go" data-v="c:${esc(c.id)}">
-      <span class="crtop">${cav(c)}<span class="crname"><b>${esc(c.name)}</b>${statusBadge(c)}</span></span>
-      <span class="crplats">${plats.map(platLogo).join("")}</span>
-      <span class="crstats"><span><b>${jobs.length}</b>Videos</span><span><b>${clips}</b>Clips</span><span><b>${c.auto_watch ? "On" : "Off"}</b>Auto-record</span></span></button>`;
+    // the line under the name: their main platform and audience, when we have looked it up
+    const pk = plats[0], pr = pk && (c.profiles || {})[pk];
+    const who = pk ? [PLAT[pk].name, pr && pr.followers].filter(Boolean).join(" · ") : "No channel yet";
+    return `<button class="crcard v2" data-act="go" data-v="c:${esc(c.id)}">
+      <span class="crtop">${cav(c)}<span class="crname"><b>${esc(c.name)}</b><small>${esc(who)}</small></span>${statusBadge(c)}</span>
+      <span class="crstats"><span><b>${jobs.length}</b>Videos</span><span><b>${clips}</b>Clips</span><span><b class="${c.auto_watch ? "on" : ""}">${c.auto_watch ? "On" : "Off"}</b>Auto-record</span></span>
+      <span class="crfoot"><span class="crplats">${plats.map(platLogo).join("")}</span><span class="cropen">Open${ic("arrowr")}</span></span></button>`;
   };
-  const adding = !S.creators.length || S.addingCreator;
-  put(box, `${adding ? addCreatorPanel() : ""}${S.creators.length ? `<div class="crgrid">${S.creators.map(card).join("")}</div>` : ""}`);
+  // the page: adding a creator at the top, every creator under it (or the usual empty card when there are none)
+  const adding = true, n = S.creators.length;
+  put(box, `${addCreatorPanel()}
+    <section class="crlist"><div class="crlist-h"><h2>All creators</h2><span>${n} creator${n === 1 ? "" : "s"}</span></div>
+    ${n ? `<div class="crgrid">${S.creators.map(card).join("")}</div>`
+      : emptyState({key: "cr", label: "0 creators", title: "No creators yet",
+          text: "Add one above. Each creator gets their own clips, settings and posting accounts, and SocialShot can record their streams.", actions: []})}</section>`);
   const i = adding && $("#nc_chan");
   if (i && !i.dataset.ready) {             // only right after the panel was drawn, not on every refresh
     i.dataset.ready = "1";
@@ -4284,7 +4636,7 @@ function drawCreators() {
 function addCreatorPanel() {
   return `<section class="crnew">
     <div class="crnew-head"><div><h2>Add a creator</h2><p>Paste their channel. SocialShot finds their name and picture, watches for their streams and keeps their clips together.</p></div>
-      ${S.creators.length ? `<button type="button" class="cmp-opt" data-act="crnewclose">${ic("x")}<span>Close</span></button>` : ""}</div>
+</div>
     <form class="crnew-card" id="crnewform" autocomplete="off">
       <div class="composer-input crnew-in">${ic("link")}<input id="nc_chan" placeholder="youtube.com/@name, twitch.tv/name or kick.com/name" aria-label="Channel link">
         <button class="btn cmp-go" id="ncGo">Add creator</button></div>
@@ -4896,7 +5248,7 @@ document.addEventListener("click", async e => {
   } catch (err) { b.disabled = false; toast(err.message, "bad"); }
 });
 
-$("#collapseBtn").innerHTML = ic("sidebar"); $("#menuBtn").innerHTML = ic("menu");
+collapseLabel(); $("#menuBtn").innerHTML = ic("menu");
 try { if (localStorage.getItem("mini")) $("#app").classList.add("mini"); } catch {}
 try { applyAccent(localStorage.getItem("accent") || ""); } catch {}
 $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck", $("#main").scrollTop > 4), {passive:true});
@@ -4923,6 +5275,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=31"></script>
+<script src="/assets/editor.js?v=46"></script>
 </body>
 </html>

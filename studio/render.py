@@ -3,12 +3,22 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 from . import config, roman
 from .media import NO_WINDOW, run
 
 W, H = config.OUT_W, config.OUT_H
+# The shapes a clip can be made in, and the frame each one is drawn on. 9:16 is the default (Shorts, Reels,
+# TikTok); 4:5 suits Instagram's feed; 1:1 is square; 16:9 is a normal wide video.
+ASPECTS = {"9:16": (1080, 1920), "4:5": (1080, 1350), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+_frame = threading.local()      # the frame of the clip being made right now, per render thread
+
+
+def _wh() -> tuple[int, int]:
+    """The width and height of the frame the current clip is drawn on."""
+    return getattr(_frame, "wh", (W, H))
 
 # ASS colours are &HBBGGRR. `size` is the ASS font size (line height); _Font turns it into real pixels.
 STYLES = {
@@ -34,55 +44,115 @@ _PATHS = {name: _BUNDLED / f for name, f in FONT_FILES.items()}   # the renderer
 # Fonts people can pick in the clip editor. Three ship with SocialShot; the rest come from Google Fonts the first
 # time someone uses them and are kept in the fonts folder after that.
 FONTS = {
-    "Poppins": {"ass": "Poppins ExtraBold", "google": "Poppins", "weight": 800},
+    "Poppins": {"google": "Poppins", "weight": 600},          # semibold: lighter and cleaner than extra-bold
     "Mazzard H": {"ass": "Mazzard H", "google": "Mazzard H", "weight": 700, "local": True},   # SocialShot's own heading font, shipped here
     "Apfel Grotezk": {"ass": "Apfel Grotezk", "google": "Apfel Grotezk", "weight": 400, "local": True},   # SocialShot's body font, shipped here
     "Anton": {"ass": "Anton", "google": "Anton", "weight": 400},
     "Archivo Black": {"ass": "Archivo Black", "google": "Archivo Black", "weight": 400},
-    "Montserrat": {"google": "Montserrat", "weight": 800},
+    "Montserrat": {"google": "Montserrat", "weight": 600},
     "Bebas Neue": {"google": "Bebas Neue", "weight": 400},
-    "Oswald": {"google": "Oswald", "weight": 700},
+    "Oswald": {"google": "Oswald", "weight": 600},
     "Bangers": {"google": "Bangers", "weight": 400},
     "Luckiest Guy": {"google": "Luckiest Guy", "weight": 400},
     "Lilita One": {"google": "Lilita One", "weight": 400},
     "Titan One": {"google": "Titan One", "weight": 400},
-    "Fredoka": {"google": "Fredoka", "weight": 700},
-    "Rubik": {"google": "Rubik", "weight": 800},
-    "Inter": {"google": "Inter", "weight": 800},
-    "Barlow Condensed": {"google": "Barlow Condensed", "weight": 800},
+    "Fredoka": {"google": "Fredoka", "weight": 600},
+    "Rubik": {"google": "Rubik", "weight": 600},
+    "Inter": {"google": "Inter", "weight": 600},
+    "Barlow Condensed": {"google": "Barlow Condensed", "weight": 600},
     "Russo One": {"google": "Russo One", "weight": 400},
     "Bungee": {"google": "Bungee", "weight": 400},
     "Permanent Marker": {"google": "Permanent Marker", "weight": 400},
     # more Google Fonts for captions: clean modern sans, bold display, a few with character
-    "Outfit": {"google": "Outfit", "weight": 800},
-    "Sora": {"google": "Sora", "weight": 800},
-    "Plus Jakarta Sans": {"google": "Plus Jakarta Sans", "weight": 800},
-    "Manrope": {"google": "Manrope", "weight": 800},
-    "DM Sans": {"google": "DM Sans", "weight": 800},
-    "Urbanist": {"google": "Urbanist", "weight": 800},
-    "Lexend": {"google": "Lexend", "weight": 800},
-    "Space Grotesk": {"google": "Space Grotesk", "weight": 700},
-    "Archivo": {"google": "Archivo", "weight": 800},
-    "Kanit": {"google": "Kanit", "weight": 800},
-    "Unbounded": {"google": "Unbounded", "weight": 800},
-    "Syne": {"google": "Syne", "weight": 800},
+    "Outfit": {"google": "Outfit", "weight": 600},
+    "Sora": {"google": "Sora", "weight": 600},
+    "Plus Jakarta Sans": {"google": "Plus Jakarta Sans", "weight": 600},
+    "Manrope": {"google": "Manrope", "weight": 600},
+    "DM Sans": {"google": "DM Sans", "weight": 600},
+    "Urbanist": {"google": "Urbanist", "weight": 600},
+    "Lexend": {"google": "Lexend", "weight": 600},
+    "Space Grotesk": {"google": "Space Grotesk", "weight": 600},
+    "Archivo": {"google": "Archivo", "weight": 600},
+    "Kanit": {"google": "Kanit", "weight": 600},
+    "Unbounded": {"google": "Unbounded", "weight": 600},
+    "Syne": {"google": "Syne", "weight": 600},
     "Righteous": {"google": "Righteous", "weight": 400},
-    "Chakra Petch": {"google": "Chakra Petch", "weight": 700},
+    "Chakra Petch": {"google": "Chakra Petch", "weight": 600},
     "Paytone One": {"google": "Paytone One", "weight": 400},
     "Black Han Sans": {"google": "Black Han Sans", "weight": 400},
+    # a hand-picked set from Google Fonts (all free for commercial use): modern sans, display, serif, script, mono
+    "Bricolage Grotesque": {"google": "Bricolage Grotesque", "weight": 600},
+    "Geist": {"google": "Geist", "weight": 600},
+    "Instrument Sans": {"google": "Instrument Sans", "weight": 600},
+    "Host Grotesk": {"google": "Host Grotesk", "weight": 600},
+    "Funnel Sans": {"google": "Funnel Sans", "weight": 600},
+    "Funnel Display": {"google": "Funnel Display", "weight": 600},
+    "Parkinsans": {"google": "Parkinsans", "weight": 600},
+    "Elms Sans": {"google": "Elms Sans", "weight": 600},
+    "Public Sans": {"google": "Public Sans", "weight": 600},
+    "Work Sans": {"google": "Work Sans", "weight": 600},
+    "Mona Sans": {"google": "Mona Sans", "weight": 600},
+    "Inter Tight": {"google": "Inter Tight", "weight": 600},
+    "IBM Plex Sans": {"google": "IBM Plex Sans", "weight": 600},
+    "Onest": {"google": "Onest", "weight": 600},
+    "Rethink Sans": {"google": "Rethink Sans", "weight": 600},
+    "Schibsted Grotesk": {"google": "Schibsted Grotesk", "weight": 600},
+    "Hanken Grotesk": {"google": "Hanken Grotesk", "weight": 600},
+    "Figtree": {"google": "Figtree", "weight": 600},
+    "Albert Sans": {"google": "Albert Sans", "weight": 600},
+    "Be Vietnam Pro": {"google": "Be Vietnam Pro", "weight": 600},
+    "Epilogue": {"google": "Epilogue", "weight": 600},
+    "Familjen Grotesk": {"google": "Familjen Grotesk", "weight": 600},
+    "Golos Text": {"google": "Golos Text", "weight": 600},
+    "Reddit Sans": {"google": "Reddit Sans", "weight": 600},
+    "Anybody": {"google": "Anybody", "weight": 600},
+    "Moderustic": {"google": "Moderustic", "weight": 600},
+    "Afacad": {"google": "Afacad", "weight": 600},
+    "Scoutie Sans": {"google": "Scoutie Sans", "weight": 600},
+    "Dela Gothic One": {"google": "Dela Gothic One", "weight": 400},
+    "BBH Bogle": {"google": "BBH Bogle", "weight": 400},
+    "Climate Crisis": {"google": "Climate Crisis", "weight": 400},
+    "Ultra": {"google": "Ultra", "weight": 400},
+    "Caprasimo": {"google": "Caprasimo", "weight": 400},
+    "Graduate": {"google": "Graduate", "weight": 400},
+    "Faculty Glyphic": {"google": "Faculty Glyphic", "weight": 400},
+    "Liter": {"google": "Liter", "weight": 400},
+    "Instrument Serif": {"google": "Instrument Serif", "weight": 400},
+    "DM Serif Display": {"google": "DM Serif Display", "weight": 400},
+    "Gloock": {"google": "Gloock", "weight": 400},
+    "Marcellus": {"google": "Marcellus", "weight": 400},
+    "Libre Caslon Display": {"google": "Libre Caslon Display", "weight": 400},
+    "Gilda Display": {"google": "Gilda Display", "weight": 400},
+    "Fraunces": {"google": "Fraunces", "weight": 600},
+    "Playfair Display": {"google": "Playfair Display", "weight": 600},
+    "Bodoni Moda": {"google": "Bodoni Moda", "weight": 600},
+    "Libre Bodoni": {"google": "Libre Bodoni", "weight": 600},
+    "Noto Serif Display": {"google": "Noto Serif Display", "weight": 600},
+    "Montagu Slab": {"google": "Montagu Slab", "weight": 600},
+    "Roboto Slab": {"google": "Roboto Slab", "weight": 600},
+    "Zilla Slab": {"google": "Zilla Slab", "weight": 600},
+    "Besley": {"google": "Besley", "weight": 600},
+    "Sour Gummy": {"google": "Sour Gummy", "weight": 600},
+    "Playpen Sans": {"google": "Playpen Sans", "weight": 600},
+    "Ms Madi": {"google": "Ms Madi", "weight": 400},
+    "Oooh Baby": {"google": "Oooh Baby", "weight": 400},
+    "Nothing You Could Do": {"google": "Nothing You Could Do", "weight": 400},
+    "DM Mono": {"google": "DM Mono", "weight": 500},
+    "Geist Mono": {"google": "Geist Mono", "weight": 600},
+    "Martian Mono": {"google": "Martian Mono", "weight": 600},
 }
 
 # Ready-made caption looks for the editor. A look is everything about the captions a person can change.
 PRESETS = {
     "studio": {"label": "Studio", "font": "Apfel Grotezk", "size": 104, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 3},
-    "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": False, "per": 3, "outline": 7},
-    "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": False, "per": 2, "outline": 7},
-    "clean": {"label": "Clean", "font": "Poppins", "size": 100, "base": "#FFFFFF", "active": "#FFD76B", "upper": False, "per": 4, "outline": 5},
-    "boldpop": {"label": "Bold pop", "font": "Montserrat", "size": 122, "base": "#FFFFFF", "active": "#FFE500", "upper": False, "per": 3, "outline": 8},
-    "headline": {"label": "Headline", "font": "Bebas Neue", "size": 176, "base": "#FFFFFF", "active": "#22E06B", "upper": True, "per": 3, "outline": 6},
-    "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 2, "outline": 8},
-    "soft": {"label": "Soft", "font": "Fredoka", "size": 112, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 6},
-    "marker": {"label": "Marker", "font": "Permanent Marker", "size": 120, "base": "#FFFFFF", "active": "#FF8B33", "upper": False, "per": 3, "outline": 6},
+    "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": False, "per": 3, "outline": 4},
+    "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": False, "per": 2, "outline": 4},
+    "clean": {"label": "Clean", "font": "Poppins", "size": 100, "base": "#FFFFFF", "active": "#FFD76B", "upper": False, "per": 4, "outline": 3},
+    "boldpop": {"label": "Bold pop", "font": "Montserrat", "size": 122, "base": "#FFFFFF", "active": "#FFE500", "upper": False, "per": 3, "outline": 4},
+    "headline": {"label": "Headline", "font": "Bebas Neue", "size": 176, "base": "#FFFFFF", "active": "#22E06B", "upper": True, "per": 3, "outline": 4},
+    "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 2, "outline": 5},
+    "soft": {"label": "Soft", "font": "Fredoka", "size": 112, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 4},
+    "marker": {"label": "Marker", "font": "Permanent Marker", "size": 120, "base": "#FFFFFF", "active": "#FF8B33", "upper": False, "per": 3, "outline": 4},
     # newer looks, with Google Fonts; some sit on a box (cap_box / cap_op) instead of an outline
     "minimal": {"label": "Minimal", "font": "Outfit", "size": 98, "base": "#FFFFFF", "active": "#A3E635", "upper": False, "per": 3, "outline": 2},
     "boxed": {"label": "Boxed", "font": "Plus Jakarta Sans", "size": 96, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 0,
@@ -90,10 +160,17 @@ PRESETS = {
     "paper": {"label": "Paper", "font": "Sora", "size": 92, "base": "#141416", "active": "#7C3AED", "upper": False, "per": 3, "outline": 0,
               "cap_box": "#FFFFFF", "cap_op": 100},
     "podcast": {"label": "Podcast", "font": "Manrope", "size": 92, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 3},
-    "tech": {"label": "Tech", "font": "Space Grotesk", "size": 104, "base": "#FFFFFF", "active": "#22E06B", "upper": False, "per": 3, "outline": 4},
-    "street": {"label": "Street", "font": "Kanit", "size": 136, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 7},
-    "loud": {"label": "Loud", "font": "Unbounded", "size": 100, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 2, "outline": 6},
-    "neon": {"label": "Neon", "font": "Lexend", "size": 108, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 3, "outline": 5},
+    "tech": {"label": "Tech", "font": "Space Grotesk", "size": 104, "base": "#FFFFFF", "active": "#22E06B", "upper": False, "per": 3, "outline": 3},
+    "street": {"label": "Street", "font": "Kanit", "size": 136, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 4},
+    "loud": {"label": "Loud", "font": "Unbounded", "size": 100, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 2, "outline": 4},
+    "editorial": {"label": "Editorial", "font": "Instrument Serif", "size": 128, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 3},
+    "grotesk": {"label": "Grotesk", "font": "Bricolage Grotesque", "size": 108, "base": "#FFFFFF", "active": "#A3E635", "upper": False, "per": 3, "outline": 3},
+    "geist": {"label": "Geist", "font": "Geist", "size": 100, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 3, "outline": 0,
+              "cap_box": "#000000", "cap_op": 60},
+    "poster": {"label": "Poster", "font": "Dela Gothic One", "size": 104, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 4},
+    "vogue": {"label": "Vogue", "font": "Bodoni Moda", "size": 116, "base": "#FFFFFF", "active": "#F5D0A9", "upper": False, "per": 3, "outline": 2},
+    "gummy": {"label": "Gummy", "font": "Sour Gummy", "size": 116, "base": "#FFFFFF", "active": "#FF8BD1", "upper": False, "per": 3, "outline": 4},
+    "neon": {"label": "Neon", "font": "Lexend", "size": 108, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 3, "outline": 3},
 }
 _HEX = re.compile(r"#[0-9A-Fa-f]{6}")
 
@@ -132,6 +209,8 @@ def clean_look(look) -> dict | None:
             # the heading at the top: its own font, size and height
             "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Mazzard H", "hook_size": hook_size,
             "hook_y": None if hy is None else max(5.0, min(95.0, float(hy))),
+            # where across the frame they sit, as a percent of its width (None: the middle). Dragged in the editor.
+            "x": _pct(look.get("x")), "hook_x": _pct(look.get("hook_x")),
             "hook_dur": _hook_dur(look.get("hook_dur")),     # seconds the hook stays on screen; 0 is the whole clip
             # the hook's box and text: colours, how solid the box is (0 = no box, text with an outline), corners, letter gaps
             "hook_box": _hex(look.get("hook_box"), "#FFFFFF"), "hook_ink": _hex(look.get("hook_ink"), "#14100E"),
@@ -147,6 +226,8 @@ def clean_look(look) -> dict | None:
             "brand_pos": look["brand_pos"] if look.get("brand_pos") in BRAND_POS else "tr",
             "brand_anim": look["brand_anim"] if look.get("brand_anim") in BRAND_ANIM else "float",
             "brand_size": _num(look.get("brand_size"), 40, 200, 84), "brand_op": _num(look.get("brand_op"), 20, 100, 90),
+            "aspect": look["aspect"] if look.get("aspect") in ASPECTS else "9:16",     # the clip's shape
+            "split": clean_split(look.get("split")),           # the split layout's stream and face cam parts
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
@@ -224,6 +305,14 @@ def brand_overlay(look: dict) -> tuple[str, str]:
     elif anim == "fade":                                   # fades in at the start
         pre += ",fade=t=in:st=0:d=0.8:alpha=1"
     return pre, f"overlay=x='{x}':y='{y}':shortest=1:format=auto"
+
+
+def _pct(v):
+    """A left-to-right position in percent of the frame's width, or None for the middle."""
+    try:
+        return None if v is None else max(8.0, min(92.0, float(v)))
+    except (TypeError, ValueError):
+        return None
 
 
 def _hex(v, default) -> str:
@@ -361,7 +450,8 @@ def look_style(look: dict) -> dict:
     bgr = lambda h: h[5:7] + h[3:5] + h[1:3]   # noqa: E731
     return {"font": ensure_font(look["font"]), "size": look["size"], "base": bgr(look["base"]), "active": bgr(look["active"]),
             "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"],
-            "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"]}
+            "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"],
+            "x": look.get("x")}
 
 
 class _Font:
@@ -417,7 +507,39 @@ def install_fonts():
             shutil.copyfile(f, config.FONTS_DIR / f.name)
 
 
-LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fill", "crop": "Fill the screen (centre crop)"}
+LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fill", "crop": "Fill the screen (centre crop)",
+           "split": "Split: the stream on top, the face cam below"}
+# The split layout cuts two parts out of the source: the gameplay (or whatever is on stream) and the streamer's face
+# cam, and stacks them. Each part is [left, top, width, height] as fractions of the source picture. Most streamers
+# keep their face cam in the bottom-right corner, so that's where it starts; the editor can move both.
+SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], "cam_at": "bottom", "share": 50}
+
+
+def _region(v, default):
+    """A part of the picture as [left, top, width, height] fractions, kept inside the picture and not too small."""
+    try:
+        x, y, w, h = (max(0.0, min(1.0, float(n))) for n in v)
+    except (TypeError, ValueError):
+        return list(default)
+    w, h = max(0.05, min(w, 1 - x)), max(0.05, min(h, 1 - y))
+    return [round(min(x, 0.95), 4), round(min(y, 0.95), 4), round(w, 4), round(h, 4)]
+
+
+def clean_split(v) -> dict:
+    v = v if isinstance(v, dict) else {}
+    share = v.get("share", SPLIT_DEFAULT["share"])
+    try:
+        share = max(30, min(70, int(share)))
+    except (TypeError, ValueError):
+        share = SPLIT_DEFAULT["share"]
+    return {"game": _region(v.get("game"), SPLIT_DEFAULT["game"]), "cam": _region(v.get("cam"), SPLIT_DEFAULT["cam"]),
+            "cam_at": "top" if v.get("cam_at") == "top" else "bottom", "share": share}
+
+
+def _split_heights(split, H):
+    """(height of the stream part, height of the face cam part), even numbers that add up to the frame."""
+    gh = int(round(H * split["share"] / 100 / 2)) * 2
+    return gh, H - gh
 
 
 def _ts(t):
@@ -447,20 +569,28 @@ def _groups(words, per):
     return out
 
 
-def geometry(src_w, src_h, layout):
-    """Where the video sits in the 1080x1920 frame, and where hook and captions go."""
-    if src_h >= src_w and layout != "crop":
-        layout = "crop"  # already vertical or square: nothing to gain from a blurred fill
+def geometry(src_w, src_h, layout, split=None):
+    """Where the video sits in the frame (1080x1920 for 9:16), and where hook and captions go.
+    The numbers are tuned for 9:16 and kept in proportion for the other shapes.
+    Split: the hook sits just above the seam between the two parts, the captions just below it."""
+    W, H = _wh()
+    if layout == "split":
+        sp = split or SPLIT_DEFAULT
+        gh, ch = _split_heights(sp, H)
+        seam = gh if sp["cam_at"] == "bottom" else ch
+        return layout, gh, seam - round(H * 0.045), seam + round(H * 0.07)     # both in the middle: hook above, captions below
+    if src_h * W >= src_w * H and layout != "crop":
+        layout = "crop"  # as tall as the frame or taller: nothing to gain from a blurred fill
     if layout == "blur":
         fg_h = min(H, int(round(W * src_h / src_w / 2)) * 2)
     elif layout == "zoom":
-        fg_h = 1000
+        fg_h = min(H, round(H * 1000 / 1920 / 2) * 2 if W < H else H)
     else:
         fg_h = H
     top = (H - fg_h) // 2
     if layout == "crop":
-        return layout, fg_h, 300, 1380
-    return layout, fg_h, max(230, top - 190), min(1640, top + fg_h + 180)
+        return layout, fg_h, round(H * 300 / 1920), round(H * 1380 / 1920)
+    return layout, fg_h, max(round(H * 230 / 1920), top - round(H * 190 / 1920)), min(round(H * 1640 / 1920), top + fg_h + round(H * 180 / 1920))
 
 
 def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
@@ -469,6 +599,7 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
     `hk` is the look from the editor: box and text colours, how solid the box is, its corners, the letter gaps.
     With little or no box the text gets a dark outline, so it still reads on any picture."""
     hk = hk or {}
+    W, _ = _wh()
     f, size = _Font.get(font or HOOK["font"]), size or HOOK["size"]
     sp, op = hk.get("hook_sp", 0), hk.get("hook_op", 100)
     out = 0
@@ -492,7 +623,10 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
         widest = max(wid(l, size) for l in lines)
     line_h = f.em(size) * 1.16
     bw, bh = widest + 2 * HOOK["pad_x"], line_h * len(lines) + 2 * HOOK["pad_y"]
-    x0, y0 = (W - bw) / 2, y - bh / 2
+    # across: where it was dragged in the editor (its middle), kept fully inside the frame; the middle otherwise
+    cx = W / 2 if hk.get("hook_x") is None else W * hk["hook_x"] / 100
+    cx = max(bw / 2 + 12, min(W - bw / 2 - 12, cx)) if bw < W - 24 else W / 2
+    x0, y0 = cx - bw / 2, y - bh / 2
     span = f"{_ts(0)},{_ts(dur)}"
     ink = _bgr(hk["hook_ink"]) if "hook_ink" in hk else HOOK["ink"]
     ev = []
@@ -504,13 +638,14 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
     tag = (f"\\fsp{sp}" if sp else "") + (f"\\c&H{ink}&" if ink != HOOK["ink"] else "") + edge
     for i, line in enumerate(lines):
         cy = y - line_h * (len(lines) - 1) / 2 + i * line_h - f.cap_shift(size)
-        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({W // 2},{cy:.0f})\\fad(160,{out})\\fs{size}{tag}}}{line}")
+        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({cx:.0f},{cy:.0f})\\fad(160,{out})\\fs{size}{tag}}}{line}")
     return ev
 
 
 def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None, hook_show=0.0, hk=None) -> str:
     """`style_name` is a key of STYLES, or a full style made from an editor look (see look_style).
     `hook_font` is the renderer's font name for the heading and `hook_size` its size; both default to HOOK."""
+    W, H = _wh()
     st = style_name if isinstance(style_name, dict) else STYLES.get(style_name, STYLES["studio"])
     hook_font, hook_size = hook_font or HOOK["font"], hook_size or HOOK["size"]
     words = [dict(w, s=w["s"] - CAPTION_LEAD, e=w["e"] - CAPTION_LEAD) for w in words]
@@ -554,20 +689,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # they are not placed one by one. The line is drawn whole and centred, in a font the system has for it.
             line = " ".join(texts)
             fs = max(44, min(int(st["size"] * 0.7), int(1500 / max(1, len(line)) * 1.6)))
-            ev.append(f"Dialogue: 1,{_ts(g_start)},{_ts(g_end)},Cap,,60,60,0,,{{\\an5\\pos({W // 2},{cap_y:.0f})\\q0\\fs{fs}}}{line}")
+            lx = W / 2 if st.get("x") is None else W * st["x"] / 100
+            ev.append(f"Dialogue: 1,{_ts(g_start)},{_ts(g_end)},Cap,,60,60,0,,{{\\an5\\pos({lx:.0f},{cap_y:.0f})\\q0\\fs{fs}}}{line}")
             continue
         size, sp, wgap = st["size"], st.get("sp", 0), st.get("wgap", 0)     # extra room between letters and between words
         wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)          # noqa: E731
-        gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"] + wgap   # a space, room for both outlines, and any extra
+        gap = f.width("n n", size) - 2 * f.width("n", size) + (st["outline"] + 2) * size / st["size"] + wgap   # a normal space, a little room for the outline, and any extra
         total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
         if total > CAP_MAX_W:                                  # a long phrase: shrink it to fit, never run off the frame
             k = CAP_MAX_W / total
             size, sp, wgap = max(36, int(size * k)), sp * k, wgap * k
             wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)      # noqa: E731
-            gap = f.width("n n", size) - 2 * f.width("n", size) + (2 * st["outline"] + 6) * size / st["size"] + wgap
+            gap = f.width("n n", size) - 2 * f.width("n", size) + (st["outline"] + 2) * size / st["size"] + wgap
             total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
         cy = cap_y - f.cap_shift(size)
-        x = (W - total) / 2
+        # across: where the captions were dragged in the editor (their middle), kept inside the frame
+        ccx = W / 2 if st.get("x") is None else W * st["x"] / 100
+        ccx = max(total / 2 + 24, min(W - total / 2 - 24, ccx)) if total < W - 48 else W / 2
+        x = ccx - total / 2
         if st.get("box_op", 0) > 0:                            # a box behind the whole line, under the words
             px, half = 0.3 * size, f.em(size) * 0.62
             box = _rounded(x - px, cap_y - half, x + total + px, cap_y + half, st.get("box_r", 18))
@@ -627,12 +766,24 @@ def _cut_words(words, start, keeps):
     return out
 
 
-def _filter(layout, fg_h, sel=""):
+def _filter(layout, fg_h, sel="", split=None):
     """`sel`: a select step that keeps only some parts (Speech cleanup), put right after the frame rate is set."""
+    W, H = _wh()
+    if layout == "split":                # two parts of the source, each filling its band, stacked
+        sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
+        gh, ch = _split_heights(sp, H)
+
+        def part(r, h, tag, src):
+            x, y, w, hh = r
+            return (f"[{src}]crop=iw*{w}:ih*{hh}:iw*{x}:ih*{y},scale={W}:{h}:force_original_aspect_ratio=increase,"
+                    f"crop={W}:{h},setsar=1[{tag}];")
+        order = "[g][c]" if sp["cam_at"] == "bottom" else "[c][g]"
+        return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];" + part(sp["game"], gh, "g", "a") + part(sp["cam"], ch, "c", "b")
+                + f"{order}vstack=inputs=2,setsar=1[v0];")
     if layout == "crop":
         return f"[0:v]fps={config.OUT_FPS},{sel}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
     return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];"
-            f"[a]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=6:2,"
+            f"[a]scale={W // 8 * 2}:{H // 8 * 2}:force_original_aspect_ratio=increase,crop={W // 8 * 2}:{H // 8 * 2},boxblur=6:2,"
             f"scale={W}:{H},eq=brightness=-0.14:saturation=1.15[bg];"
             f"[b]scale={W}:{fg_h}:force_original_aspect_ratio=increase,crop={W}:{fg_h}[fg];"
             f"[bg][fg]overlay=0:(H-h)/2,setsar=1[v0];")
@@ -643,15 +794,30 @@ RENDER_SECONDS = 600      # one clip's video encode; far beyond normal, so a fro
 
 
 def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, src_w: int, src_h: int) -> dict:
-    """Writes <name>.mp4, <name>.jpg and <name>.ass into out_dir. Returns file names."""
+    """Writes <name>.mp4, <name>.jpg and <name>.ass into out_dir. Returns file names.
+    The clip is made in the shape its look asks for (9:16 unless the editor chose 4:5, 1:1 or 16:9)."""
+    look = clean_look(clip.get("look"))
+    _frame.wh = ASPECTS[look["aspect"]] if look else (W, H)
+    try:
+        return _render_clip(src, out_dir, name, clip, words, src_w, src_h, look)
+    finally:
+        _frame.wh, _frame.split = (W, H), None
+
+
+def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
+    W, H = _wh()
     out_dir.mkdir(parents=True, exist_ok=True)
     start, end = clip["start"], clip["end"]
-    layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"))
-    look = clean_look(clip.get("look"))
+    split = look["split"] if look else SPLIT_DEFAULT
+    _frame.split = split                        # the split layout's two parts, for the picture step below
+    layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"), split)
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
     hook_font = hook_size = None
     hook_show = 0.0
     hk = brand = None
+    if not look and style in PRESETS:           # not changed in the editor: the ready-made look of that name
+        base = {k: v for k, v in PRESETS[style].items() if k != "label"}
+        style = look_style(clean_look(base))
     if look:                                    # changed in the editor: its own font, colours, size and place
         style = look_style(look)
         if look["y"] is not None:
@@ -659,7 +825,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
         if look["hook_y"] is not None:
             hook_y = round(H * look["hook_y"] / 100)
         hook_font, hook_size, hook_show = ensure_font(look["hook_font"]), look["hook_size"], look["hook_dur"]
-        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp")}
+        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp", "hook_x")}
         brand = look if look["brand_on"] else None
         if not look["hook"]:
             hook = ""
