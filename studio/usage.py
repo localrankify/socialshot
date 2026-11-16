@@ -57,11 +57,18 @@ def brief() -> dict:
         return dict(got[1])
     midnight = time.mktime(time.localtime(now)[:3] + (0, 0, 0, 0, 0, -1))
     u = db.usage.c
+    start = midnight - 13 * 86400                   # the last 14 days, today included, for the Home graph
     with db.engine.connect() as c:
         today = c.execute(sa.select(sa.func.count(), sa.func.coalesce(sa.func.sum(_tokens()), 0)).where(
             u.user_id == uid, u.t >= midnight)).first()
+        rows = c.execute(sa.select(u.t, _tokens()).where(u.user_id == uid, u.t >= start)).all()
+    days = [{"day": time.strftime("%Y-%m-%d", time.localtime(start + i * 86400 + 3600)), "calls": 0, "tokens": 0} for i in range(14)]
+    for t, tok in rows:
+        i = min(13, max(0, int((t - start) // 86400)))
+        days[i]["calls"] += 1
+        days[i]["tokens"] += int(tok or 0)
     out = {"ready": ai.ready(), "provider": ai.label(), "model": (ai.models() or [""])[0],
-           "today_calls": int(today[0]), "today_tokens": int(today[1]),
+           "today_calls": int(today[0]), "today_tokens": int(today[1]), "daily": days,
            "problem": ai.problem["text"] if ai.problem["text"] and now - ai.problem["at"] < 6 * 3600 else ""}
     _brief[uid] = (now, out)
     return dict(out)

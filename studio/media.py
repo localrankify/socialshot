@@ -187,6 +187,66 @@ def _caption_words(data: dict) -> list:
 
 
 _PREVIEWS: dict = {}
+_LATEST: dict = {}      # (list link) -> (when, items): a creator's newest videos, kept for ten minutes
+LATEST_KINDS = ("streams", "videos")
+
+
+def _inline_image(url: str, limit: int = 300_000) -> str:
+    """A small picture from a video site as a data: address (the page may only load images from this site)."""
+    import base64
+    import urllib.request
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip()
+            data = r.read(limit + 1)
+        if ctype in ("image/jpeg", "image/png", "image/webp") and len(data) <= limit:
+            return f"data:{ctype};base64," + base64.b64encode(data).decode()
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
+def latest(channel: str, kind: str = "streams", n: int = 4) -> list:
+    """A creator's newest videos, newest first, without downloading anything: on YouTube their past streams or
+    their uploads (kind), on Twitch their past broadcasts. A stream that is live right now is marked live.
+    Each item: url, title, duration (seconds), views, live, thumb (a data: picture, YouTube only)."""
+    from urllib.parse import urlparse
+    host = (urlparse(channel).hostname or "").lower()
+    kind = kind if kind in LATEST_KINDS else "streams"
+    if is_youtube(channel):
+        base = re.sub(r"/(live|videos|streams|featured|shorts)/?$", "", channel.rstrip("/"))
+        listing = f"{base}/{kind}"
+    elif host.endswith("twitch.tv"):
+        name = (urlparse(channel).path.strip("/").split("/") or [""])[0]
+        if not re.fullmatch(r"[A-Za-z0-9_]{2,40}", name):
+            return []
+        listing = f"https://www.twitch.tv/{name}/videos?filter=archives&sort=time"
+    else:
+        return []                       # Kick has no list of past videos we can read
+    hit = _LATEST.get(listing)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    with _youtube_guard(listing), _ydl({"playlistend": n}) as ydl:
+        i = ydl.extract_info(listing, download=False)
+    items = []
+    for e in (i.get("entries") or []):
+        url = e.get("url") or ""
+        if e.get("live_status") == "is_upcoming" or not url.startswith("https://") or not site_allowed(url):
+            continue                    # a scheduled stream that hasn't started has nothing to clip yet
+        items.append({"url": url, "id": str(e.get("id") or ""), "title": e.get("title") or "Untitled",
+                      "duration": float(e.get("duration") or 0), "views": int(e.get("view_count") or 0),
+                      "live": e.get("live_status") == "is_live"})
+        if len(items) >= n:
+            break
+    # YouTube pictures, fetched side by side so the list comes back in about a second
+    from concurrent.futures import ThreadPoolExecutor
+    yt = [it for it in items if re.fullmatch(r"[\w-]{11}", it["id"]) and is_youtube(it["url"])]
+    with ThreadPoolExecutor(4) as pool:
+        for it, pic in zip(yt, pool.map(lambda it: _inline_image(f"https://i.ytimg.com/vi/{it['id']}/mqdefault.jpg"), yt)):
+            it["thumb"] = pic
+    _LATEST[listing] = (time.time(), items)
+    return items
 
 
 def preview(url: str) -> dict:

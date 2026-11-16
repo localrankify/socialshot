@@ -78,6 +78,90 @@ def enqueue(job, clip, account_ids, now=False) -> list:
     return made
 
 
+PLATFORMS = ("youtube", "instagram", "tiktok", "x")
+MAX_AHEAD = 90 * 86400      # a post can be planned up to 90 days out
+
+
+def _when(at) -> float:
+    """A chosen posting time (seconds since 1970, UTC), checked: not in the past, not too far ahead."""
+    try:
+        at = float(at)
+    except (TypeError, ValueError):
+        raise ValueError("Pick a date and time to post.")
+    if at < time.time() - 120:
+        raise ValueError("That time has already passed. Pick a later one.")
+    if at > time.time() + MAX_AHEAD:
+        raise ValueError("Posts can be planned up to 90 days ahead.")
+    return max(at, time.time())
+
+
+def schedule(job, clip, at, tz="", account_ids=(), platforms=()) -> list:
+    """Post one clip at a time the user picked, to connected accounts and/or to platforms not connected yet.
+    A post for a platform without an account waits; when it is due it uses that platform's first connected
+    account, or fails with a note to connect one. tz is only remembered, to show the time the way it was picked."""
+    due, tz = _when(at), str(tz or "")[:64]
+    made = []
+    with _lock:
+        targets = [("acc", str(a)) for a in account_ids] + [("plat", str(p)) for p in platforms if p in PLATFORMS]
+        for kind, v in targets[:20]:
+            acc = accounts.get(v) if kind == "acc" else None
+            if kind == "acc" and not acc:
+                continue
+            plat = acc["platform"] if acc else v
+            if any(p["job"] == job["id"] and p["clip"] == clip["id"] and p["status"] in OPEN + ("posted",)
+                   and (p["account"] == v if acc else (not p["account"] and p["platform"] == plat)) for p in _mine()):
+                continue  # this clip is already going to that account (or that platform)
+            p = {"id": secrets.token_hex(8), "user": ctx.uid(), "job": job["id"], "clip": clip["id"], "creator": job["creator"],
+                 "account": acc["id"] if acc else "", "account_name": acc["name"] if acc else accounts.PLATFORM_NAMES.get(plat, plat),
+                 "platform": plat, "status": "scheduled", "due_at": due, "tz": tz, "created": time.time(),
+                 "title": clip.get("title") or clip.get("hook") or "Clip", "score": clip.get("score", 0), "tries": 0,
+                 "url": "", "remote_id": "", "error": None, "views": None}
+            _posts.append(p)
+            made.append(p)
+        _save()
+    for p in made:
+        _mirror(p)
+    return made
+
+
+def move(pid, at, tz=None):
+    """Move a post that is still waiting to another time (dragged on the calendar or the board)."""
+    due = _when(at)
+    with _lock:
+        p = next((p for p in _mine() if p["id"] == pid), None)
+        if not p or p["status"] != "scheduled":
+            raise ValueError("Only posts that are still waiting can be moved.")
+        p["due_at"] = due
+        if tz is not None:
+            p["tz"] = str(tz)[:64]
+        _save()
+    _mirror(p)
+
+
+def board() -> dict:
+    """Everything the Schedule page shows: finished clips that can be posted, and every post planned or made."""
+    names = {c["id"]: c["name"] for c in creators.all_creators()}
+    ready = []
+    for j in jobs.list_jobs():
+        for k in j["clips"]:
+            if k.get("status") != "done" or not k.get("file"):
+                continue
+            ready.append({"job": j["id"], "clip": k["id"], "title": k.get("title") or k.get("hook") or "Clip",
+                          "cover": k.get("cover") or "", "version": k.get("version", 0), "length": round(k["end"] - k["start"], 1),
+                          "score": k.get("score", 0), "made_at": k.get("made_at") or j.get("created", 0),
+                          "creator": j.get("creator") or "", "creator_name": names.get(j.get("creator"), "")})
+    ready.sort(key=lambda r: -r["made_at"])
+    keep = [p for p in _mine() if p["status"] != "cancelled" or time.time() - p.get("created", 0) < 7 * 86400]
+    covers = {(r["job"], r["clip"]): r for r in ready}
+    posts = []
+    for p in sorted(keep, key=lambda p: p["due_at"]):
+        r = covers.get((p["job"], p["clip"]), {})
+        posts.append({**{k: v for k, v in p.items() if k != "user"}, "cover": r.get("cover", ""), "version": r.get("version", 0),
+                      "creator_name": names.get(p["creator"], "")})
+    return {"ready": ready[:120], "posts": posts, "accounts": accounts.list_accounts(),
+            "paused": accounts.settings()["paused"]}
+
+
 def on_clip_ready(job, clip):
     """Called once when a clip first finishes rendering."""
     c = creators.get(job["creator"])
@@ -98,8 +182,14 @@ def _caption(clip, creator):
 def _post(p):
     job = jobs.get(p["job"])
     clip = next((c for c in job["clips"] if c["id"] == p["clip"]), None) if job else None
-    acc = accounts.get(p["account"])
+    if not p.get("account"):               # planned for a platform before an account was connected: use one now
+        first = next((a for a in accounts.list_accounts() if a["platform"] == p["platform"]), None)
+        if first:
+            p.update(account=first["id"], account_name=first["name"])
+    acc = accounts.get(p["account"]) if p.get("account") else None
     try:
+        if not acc and not p.get("account"):
+            raise RuntimeError(f"No {accounts.PLATFORM_NAMES.get(p['platform'], p['platform'])} account is connected. Connect one in Settings, then retry.")
         if not clip or clip.get("status") != "done":
             raise RuntimeError("The clip no longer exists or is not finished.")
         if not acc:

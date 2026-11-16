@@ -1382,6 +1382,29 @@ def edit_creator(cid: str, body: dict = Body(...)):
     return c
 
 
+@app.get("/api/creators/{cid}/latest")
+def creator_latest(cid: str, kind: str = "streams", p: str = ""):
+    """A creator's newest videos from one of their channels, to clip with one click from their page."""
+    _throttle("latest:" + ctx.uid(), 60, 600)
+    try:
+        c = creators.get(cid)
+    except ValueError:
+        c = None
+    if not c:
+        raise HTTPException(404, "No such creator")
+    chans = {k: u for k, u in (c.get("channels") or {}).items() if k in ("youtube", "twitch")}
+    key = p if p in chans else creators.platform_key(c["channel"]) if creators.platform_key(c["channel"]) in chans else next(iter(chans), "")
+    if not key:
+        return {"platform": "", "platforms": [], "items": []}
+    try:
+        items = media.latest(chans[key], kind)
+    except media.YouTubeBlocked as e:
+        raise HTTPException(503, str(e))
+    except Exception:  # noqa: BLE001
+        raise HTTPException(422, "Couldn't read this channel's videos right now. Try again in a minute.")
+    return {"platform": key, "platforms": list(chans), "kind": kind if key == "youtube" else "", "items": items}
+
+
 @app.post("/api/creators/{cid}/live")
 def go_live(cid: str, body: dict = Body(default={})):
     _need_verified()
@@ -1589,6 +1612,41 @@ def add_posts(body: dict = Body(...)):
     if not made:
         raise HTTPException(400, "Nothing was queued. Pick at least one account this clip has not already gone to.")
     return {"queued": len(made)}
+
+
+@app.get("/api/schedule")
+def schedule_board():
+    """The Schedule page: finished clips ready to post, and every post planned or made."""
+    return posting.board()
+
+
+@app.post("/api/schedule")
+def schedule_post(body: dict = Body(...)):
+    """Post one clip at a time the user picked (sent as seconds since 1970, UTC; tz only says how it was picked)."""
+    _throttle("sched:" + ctx.uid(), 120, 600)
+    job = jobs.get(str(body.get("job")))
+    clip = next((c for c in job["clips"] if c["id"] == body.get("clip")), None) if job else None
+    if not clip or clip.get("status") != "done":
+        raise HTTPException(404, "That clip is not ready")
+    try:
+        made = posting.schedule(job, clip, body.get("at"), body.get("tz", ""),
+                                [str(a) for a in body.get("accounts", []) or []][:20], [str(p) for p in body.get("platforms", []) or []][:4])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not made:
+        raise HTTPException(400, "Nothing was scheduled. Pick at least one place this clip isn't already going to.")
+    ctx.bump()
+    return {"scheduled": len(made)}
+
+
+@app.post("/api/posts/{pid}/move")
+def move_post(pid: str, body: dict = Body(...)):
+    try:
+        posting.move(pid, body.get("at"), body.get("tz"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ctx.bump()
+    return {"ok": True}
 
 
 @app.post("/api/posts/{pid}/{action}")
