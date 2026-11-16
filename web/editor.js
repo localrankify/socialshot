@@ -10,6 +10,44 @@ const ASPECTS = {"9:16": [1080, 1920], "4:5": [1080, 1350], "1:1": [1080, 1080],
 let OUT_W = 1080, OUT_H = 1920;
 const setFrame = () => { [OUT_W, OUT_H] = ASPECTS[E.look?.aspect] || ASPECTS["9:16"]; };
 const E = {};            // everything about the clip being edited
+/* A button that shows its own progress (Render, Export): the label rolls to the new words letter by letter, and a
+   soft glow fills the button from the left. How long the work takes isn't known exactly, so the glow eases towards 90%
+   over the expected time and only finishes when the work does. */
+function rollLabel(btn, text) {
+  const l = btn?.querySelector(".pf-l"); if (!l || l.dataset.t === text) return;
+  l.dataset.t = text; l.setAttribute("aria-label", text);
+  l.innerHTML = [...text].map((ch, i) => `<b style="animation-delay:${i * 22}ms">${ch === " " ? "&nbsp;" : esc(ch)}</b>`).join("");
+}
+function pfStart(btn, text, seconds) {
+  if (btn._pf) return;
+  const t0 = performance.now();
+  btn.classList.add("going"); rollLabel(btn, text);
+  const tick = () => {
+    const t = (performance.now() - t0) / 1000;
+    btn.style.setProperty("--p", (90 * (1 - Math.exp(-t / Math.max(1, seconds / 2)))).toFixed(1) + "%");
+  };
+  tick(); btn._pf = setInterval(tick, 120);
+}
+function pfStop(btn, doneText, restText) {
+  clearInterval(btn._pf); btn._pf = 0;
+  btn.style.setProperty("--p", "100%"); rollLabel(btn, doneText);
+  setTimeout(() => { btn.classList.remove("going"); btn.style.setProperty("--p", "0%"); rollLabel(btn, restText); }, 1300);
+}
+// full screen: the play bar shows on any mouse move or tap and fades after a moment of stillness while playing;
+// a click on the picture plays or pauses, like any video player
+let fsT = 0;
+function fsAwake() {
+  const ph = document.fullscreenElement; if (!ph || ph.id !== "edPhone") return;
+  ph.classList.add("awake"); clearTimeout(fsT);
+  fsT = setTimeout(() => { const v = document.querySelector("#edVid"); if (v && !v.paused) ph.classList.remove("awake"); }, 2200);
+}
+document.addEventListener("pointermove", fsAwake, true);
+document.addEventListener("fullscreenchange", () => { $("#edPhone")?.classList.remove("awake"); fsAwake(); });
+document.addEventListener("click", e => {
+  const ph = document.fullscreenElement;
+  if (!ph || ph.id !== "edPhone" || e.target.closest(".ed-fsbar, button, a, input")) return;
+  e.stopPropagation(); ph.querySelector('.ed-fsbar [data-ed="play"]')?.click(); fsAwake();
+}, true);
 // once a panel scrolls, its pinned tabs get a thin line under them so the content reads as passing beneath
 document.addEventListener("scroll", e => { const p = e.target; if (p.classList?.contains("ed-panel")) p.querySelector(".ed-stick")?.classList.toggle("stuck", p.scrollTop > 4); }, true);
 let raf = 0;
@@ -49,8 +87,10 @@ const rgba = (hex, op) => { const n = parseInt(hex.slice(1), 16); return `rgba($
 const PCT_KEYS = new Set(["y", "hook_y", "hook_op", "cap_op"]);
 const COLOUR_KEYS = /^(base|active|hook_box|hook_ink|cap_box)$/;
 const svg = d => `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
-const TEXT_IC = svg('<path d="M6 5h12M12 5v14M9 19h6"/>');
-const FX_IC = svg('<path d="M15 4l1.5 3.5L20 9l-3.5 1.5L15 14l-1.5-3.5L10 9l3.5-1.5zM6 13l1 2.5L9.5 16.5L7 17.5L6 20l-1-2.5L2.5 16.5L5 15.5z"/>');
+// the tool rail's icons come from Reicon (RI in index.html); the old line drawing stays only as a fallback
+const ri = (k, d) => typeof RI !== "undefined" && RI[k] ? `<svg class="ti ri" viewBox="0 0 24 24" fill="none" aria-hidden="true">${RI[k]}</svg>` : svg(d);
+const TEXT_IC = ri("ed_text", '<path d="M6 5h12M12 5v14M9 19h6"/>');
+const FX_IC = ri("ed_fx", '<path d="M15 4l1.5 3.5L20 9l-3.5 1.5L15 14l-1.5-3.5L10 9l3.5-1.5zM6 13l1 2.5L9.5 16.5L7 17.5L6 20l-1-2.5L2.5 16.5L5 15.5z"/>');
 // the colour looks the server can render (render.EFFECTS), and how each one looks in the browser preview
 const EFFECTS = [["none", "None", ""], ["vivid", "Vivid", "saturate(1.35) contrast(1.08)"], ["bright", "Bright", "brightness(1.08) contrast(1.05) saturate(1.1)"],
   ["warm", "Warm", "sepia(.18) saturate(1.15)"], ["cool", "Cool", "hue-rotate(-10deg) saturate(.95) brightness(1.03)"],
@@ -136,14 +176,23 @@ function paintMeter(v) {
 /* ---------- the same layout and caption grouping the server uses, so the preview matches the clip */
 // the split layout: the stream part and the face cam part as [left, top, width, height] fractions (render.SPLIT_DEFAULT)
 const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at: "bottom", share: 50};
-const splitOf = () => ({...SPLIT_DEFAULT, ...(E.look?.split || {})});
+// the split layout's two parts: as placed here, else where the face cam was found in this clip, else the usual box
+const splitOf = () => ({...SPLIT_DEFAULT, ...(E.look?.split || clipNow()?.auto_split || {})});
+async function findFacecam() {
+  const c = clipNow(); if (!c || c.auto_split !== undefined) return;
+  try {
+    const r = await send(`/api/jobs/${E.jid}/clips/${E.cid}/facecam`);
+    c.auto_split = r.split || null;
+    if (r.split && !E.look.split) { drawStage(); after("p"); toast("Found the face cam.", "ok"); }
+  } catch {}
+}
 function geo(layout, sw, sh) {
   setFrame();
   const W = OUT_W, H = OUT_H, r = v => Math.round(H * v / 1920);
-  if (layout === "split") {             // same as render.geometry: the hook on the seam, captions near the bottom
+  if (layout === "split") {             // same as render.geometry: the hook just above the seam, captions on it
     const sp = splitOf(), gh = Math.round(H * sp.share / 100 / 2) * 2, ch = H - gh;
     const seam = sp.cam_at === "bottom" ? gh : ch;
-    return {layout, fg: gh, ch, hook: seam - Math.round(H * 0.045), cap: seam + Math.round(H * 0.07)};
+    return {layout, fg: gh, ch, hook: seam - Math.round(H * 0.045), cap: seam};
   }
   if (sh * W >= sw * H && layout !== "crop") layout = "crop";
   const fg = layout === "blur" ? Math.min(H, Math.round(W * sh / sw / 2) * 2) : layout === "zoom" ? (W < H ? Math.min(H, Math.round(H * 1000 / 1920 / 2) * 2) : H) : H;
@@ -214,7 +263,33 @@ function lookFromStyle(style) {
 let hookCanvas;
 const hookMeasure = () => (hookCanvas ||= document.createElement("canvas").getContext("2d"));
 const emOf = key => (FONTS()[key] || {}).em || 0.7;
-const fontCss = key => { const f = FONTS()[key] || {google: "Poppins", weight: 800}; return {family: `'${f.google}'`, weight: f.weight}; };
+// a font as the preview draws it; a picked weight loads that weight of the Google font the first time it's used
+// (a bundled font has one weight: Semibold and up show bold, as the video does)
+const webWeights = new Set();
+const fontCss = (key, w) => {
+  const f = FONTS()[key] || {google: "Poppins", weight: 800};
+  if (!w) return {family: `'${f.google}'`, weight: f.weight};
+  if (f.local) return {family: `'${f.google}'`, weight: w >= 600 ? 700 : f.weight};
+  const tag = f.google + w;
+  if (!webWeights.has(tag)) {
+    webWeights.add(tag);
+    const l = document.createElement("link"); l.rel = "stylesheet";
+    l.href = `https://fonts.googleapis.com/css2?family=${f.google.replace(/ /g, "+")}:wght@${w}&display=swap`;
+    l.onload = () => { E.lastKey = ""; paintOverlay(); };        // redraw once the new weight has arrived
+    document.head.append(l);
+  }
+  return {family: `'${f.google}'`, weight: w};
+};
+// the weight and style buttons, for the captions (prefix "") or the hook (prefix "hook_")
+const WEIGHT_NAMES = [[300, "Light"], [400, "Regular"], [500, "Medium"], [600, "Semibold"], [700, "Bold"], [800, "Black"]];
+function typeCtl(L, fontKey, pre) {
+  const f = FONTS()[fontKey] || {}, own = f.weight || 400, cur = L[pre + "weight"] || own;
+  const list = f.local ? [[own, "Regular"], [700, "Bold"]] : WEIGHT_NAMES;      // a bundled font comes in one weight
+  return `<div class="ed-f">Weight<div class="ed-seg ed-wt ${f.local ? "two" : ""}">${list.map(([v, l]) => `<button data-ed="weight" data-k="${pre}weight" data-v="${v}" aria-pressed="${f.local ? (v === 700) === (cur >= 600) : cur === v}" style="font-weight:${v}">${l}</button>`).join("")}</div></div>
+    <div class="ed-f">Style<div class="ed-seg ed-fst">
+      <button data-ed="fstyle" data-k="${pre}italic" aria-pressed="${!!L[pre + "italic"]}" aria-label="Italic"><i style="font-family:Georgia,serif;font-weight:600">I</i>Italic</button>
+      <button data-ed="fstyle" data-k="${pre}underline" aria-pressed="${!!L[pre + "underline"]}" aria-label="Underline"><u style="font-weight:600">U</u>Underline</button></div></div>`;
+}
 function loadFonts() {
   if (document.getElementById("edFonts")) return;
   // one small request per font (bundled ones are already on the page), so one font Google can't serve never
@@ -281,16 +356,21 @@ window.drawClipDlg = function () {          // called on every refresh of the pa
   // changes save by themselves a moment after the last one; Render makes the video
   clearTimeout(E.asT);
   if (dirty() && !busy) E.asT = setTimeout(autoSave, 1500);
-  const sv = $e("#edSave"); if (sv) sv.disabled = busy;
+  const sv = $e("#edSave");
+  if (sv) {                                // Render: rolls to "Rendering" and fills softly while the clip is made
+    sv.disabled = busy;
+    if (busy && !sv._pf) pfStart(sv, "Rendering", Math.max(10, (E.end - E.start) * 0.45));
+    else if (!busy && sv._pf) pfStop(sv, c.status === "done" ? "Done" : "Render", "Render");
+  }
   const kp = $e("#edKeep"); if (kp) kp.disabled = busy || !dirty();
   const mk = $e(".ed-making"); if (mk) mk.hidden = !busy;
 };
 
 /* ---------- the whole editor */
 // the tools on the left rail open their settings in the panel on the right; the transcript is always under the preview
-const LAYOUT_IC = svg('<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 12h12"/>');
-const CLEAN_IC = svg('<path d="M3 12h2M7 9v6M11 6v12M15 10v4M19 8v8"/><path d="M4 20L20 4" opacity=".55"/>');   // a sound wave with a cut through it
-const BRAND_IC = svg('<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5"/>');
+const LAYOUT_IC = ri("ed_layout", '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 12h12"/>');
+const CLEAN_IC = ri("ed_clean", '<path d="M3 12h2M7 9v6M11 6v12M15 10v4M19 8v8"/><path d="M4 20L20 4" opacity=".55"/>');   // a sound wave with a cut through it
+const BRAND_IC = typeof RI !== "undefined" && RI.ed_brand ? ri("ed_brand", "") : svg('<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5"/>');
 const TOOLS = () => [["style", "Captions", ic("cc")], ["text", "Text", TEXT_IC], ["layout", "Layout", LAYOUT_IC], ["brand", "Brand", BRAND_IC], ["fx", "Effects", FX_IC],
   ["audio", "Audio", SOUND(true)], ["trim", "Trim", ic("scissors")], ["clean", "Cleanup", CLEAN_IC], ["post", "Post", ic("send")]];
 const toolOf = tab => tab;
@@ -303,7 +383,7 @@ function draw() {
       <div class="ed-name"><b title="${esc(E.title || E.hook || "")}">${esc(E.title || E.hook || "Untitled clip")}</b></div>
       <div class="ed-acts">
         <button class="ed-btn" data-ed="exdlg" aria-haspopup="dialog">${ic("down")}Export</button>
-        <button class="ed-btn primary ed-render" id="edSave" data-ed="save" title="Make the video with your changes (they're already saved)">${svg('<path d="M7 4v16l13-8z"/>')}Render</button>
+        <button class="ed-btn primary ed-render pfx" id="edSave" data-ed="save" title="Make the video with your changes (they're already saved)"><i class="pf-fill"></i>${svg('<path d="M7 4v16l13-8z"/>')}<span class="pf-l">Render</span></button>
       </div>
     </header>
     <div class="ed-body">
@@ -424,6 +504,7 @@ function drawPanel() {
       ${fold("text", "Font and size", esc(L.font), `
         <label class="ed-f">Font<select data-look="font">${Object.keys(f).sort((a, b) => a.localeCompare(b)).map(k => `<option ${k === L.font ? "selected" : ""}>${esc(k)}</option>`).join("")}</select></label>
         ${slider("Size", "size", 60, 220, 2, L.size, L.size)}
+        ${typeCtl(L, L.font, "")}
         <div class="ed-f">Words per line<div class="ed-seg">${[1, 2, 3, 4, 5].map(n => `<button data-ed="per" data-n="${n}" aria-pressed="${L.per === n}">${n}</button>`).join("")}</div></div>
         <div class="ed-f">Letters<div class="ed-seg"><button data-ed="upper" data-v="1" aria-pressed="${L.upper}">AA</button><button data-ed="upper" data-v="0" aria-pressed="${!L.upper}">Aa</button></div></div>`)}
       ${fold("colour", "Colours", "", `
@@ -464,6 +545,7 @@ function drawPanel() {
       <div class="ed-card"><b>Font and spacing</b>
         <label class="ed-f">Font<select data-look="hook_font">${Object.keys(f).sort((a, b) => a.localeCompare(b)).map(k => `<option ${k === H.hook_font ? "selected" : ""}>${esc(k)}</option>`).join("")}</select></label>
         ${slider("Size", "hook_size", 50, 140, 2, H.hook_size, H.hook_size)}
+        ${typeCtl(L, H.hook_font, "hook_")}
         ${slider("Letter spacing", "hook_sp", -4, 24, 1, H.hook_sp, H.hook_sp)}
         ${posCard("hook")}
         <button class="ed-link" data-ed="hookreset">Back to the default look</button>
@@ -598,6 +680,10 @@ function drawStage() {
         <i class="ed-guide v" id="edGuideV"></i><i class="ed-guide h" id="edGuideH"></i>`
       : `<video class="ed-done" id="edVid" src="/media/${E.jid}/${esc(c.file)}?v=${c.version}" playsinline preload="auto"></video>`}
       <div class="ed-making" ${busy ? "" : "hidden"}><i></i>Making your clip…</div>
+      <div class="ed-fsbar" aria-label="Playback">
+        <button class="ed-pbtn" data-ed="play" aria-label="Play or pause">${ic("play")}</button>
+        <span class="ed-fstime"><b id="edNowF">${ts(Math.max(0, nowT() - E.start))}</b> / ${ts(keptLen())}</span><span class="grow"></span>
+        <button class="ed-ib" data-ed="fs" aria-label="Leave full screen" title="Leave full screen (Esc)">${svg('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>')}</button></div>
     </div>
     <div class="ed-mplay"><span class="ed-now" id="edNowM">${ts(Math.max(0, nowT() - E.start))}</span>
       <button class="ed-pbtn" data-ed="play" aria-label="Play or pause">${ic("play")}</button>
@@ -669,6 +755,7 @@ function loop() {
     const now = ts(Math.max(0, t - E.start));
     if (now !== E.shownNow) { E.shownNow = now; const tl = $e("#edNow"); if (tl) tl.textContent = now;
       const tm = $e("#edNowM"); if (tm) tm.textContent = now;      // the phone's play row under the video
+      const tf = $e("#edNowF"); if (tf) tf.textContent = now;      // the bar shown in full screen
       const tb = $e("#edNow2"); if (tb) tb.textContent = clock(t - E.start, true); }
     if (v.paused !== E.shownPaused) { E.shownPaused = v.paused; $$e("[data-ed=play]").forEach(pb => { pb.innerHTML = ic(v.paused ? "play" : "pause"); }); }
     if (!v.paused && E.zoom > 1) follow(t);
@@ -696,6 +783,7 @@ function exSizeMB() {
 }
 function drawEx() {
   if (!E.exOpen) return $e("#edEx")?.remove();
+  if (E.exBusy && $e("#edEx")) return;          // exporting: leave the button's progress alone
   const c = clipNow(), x = E.ex, ready = c?.status === "done";
   const seg = (k, opts) => `<div class="ed-ex-seg">${opts.map(([v, l]) => `<button data-ed="exset" data-k="${k}" data-v="${v}" aria-pressed="${String(x[k]) === String(v)}">${l}</button>`).join("")}</div>`;
   const mark = k => (typeof APP_MARK !== "undefined" && APP_MARK[k]) || "";
@@ -709,7 +797,7 @@ function drawEx() {
       : `<div class="ed-ex-grp"><span>Quality</span>${seg("q", [["web", "Web"], ["medium", "Medium"], ["high", "High"], ["ultra", "Ultra"]])}</div>`}
     <div class="ed-ex-grp"><span>Speed</span>${seg("speed", [[1, "Normal"], [1.25, "1.25×"], [1.5, "1.5×"], [2, "2×"]])}</div>
     ${ready ? "" : `<p class="ed-ex-note warn">Save and render the clip first. Export uses the last saved version.</p>`}
-    <button class="ed-ex-go" data-ed="exgo" ${ready && !E.exBusy ? "" : "disabled"}>${E.exBusy ? "Exporting…" : `Confirm and export ${ic("arrowr")}`}</button>
+    <button class="ed-ex-go pfx" data-ed="exgo" ${ready && !E.exBusy ? "" : "disabled"}><i class="pf-fill"></i><span class="pf-l">Confirm and export</span>${ic("arrowr")}</button>
     <div class="ed-ex-cap"><span>Captions</span><button data-ed="srt">${ic("down")}Download .srt</button><button data-ed="importsrt">${ic("up")}Import .srt</button></div>`;
   // already open: change only what is inside, so the popup doesn't flash or replay its opening
   const box = $e("#edEx .ed-ex");
@@ -721,7 +809,10 @@ function drawEx() {
 }
 async function exGo() {
   const c = clipNow(), x = E.ex; if (!c || E.exBusy) return;
-  E.exBusy = true; drawEx();
+  // the button itself shows the export: "Exporting" with a soft fill, then "Downloaded"; the popup isn't redrawn meanwhile
+  const btn = $e("#edEx .ed-ex-go");
+  E.exBusy = true; if (btn) { btn.disabled = true; pfStart(btn, "Exporting", x.fmt === "gif" ? 8 : Math.max(5, keptLen() * 0.25 / x.speed)); }
+  let ok = false;
   try {
     const q = new URLSearchParams({fmt: x.fmt, fps: x.fps, q: x.q, speed: x.speed});
     const r = await fetch(`/api/jobs/${E.jid}/clips/${E.cid}/export?${q}`);
@@ -729,9 +820,11 @@ async function exGo() {
     const blob = await r.blob(), a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = (c.title || c.hook || "clip").replace(/[^\w\- ]+/g, "").trim().slice(0, 60) + "." + x.fmt;
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast("Exported", "ok"); E.exOpen = false;
+    ok = true;
   } catch (er) { toast(er.message, "bad"); }
-  E.exBusy = false; drawEx();
+  if (btn) pfStop(btn, ok ? "Downloaded" : "Confirm and export", "Confirm and export");
+  // finished: the full button and "Downloaded" stay a moment, then the popup closes; a failure keeps it open
+  setTimeout(() => { E.exBusy = false; if (ok) E.exOpen = false; drawEx(); }, ok ? 1100 : 300);
 }
 /* ---------- the split layout in the preview: two bands, each showing one part of the same video.
    Each band crops its part and fills its band exactly like render._filter: crop the part, cover the band, centre. */
@@ -907,12 +1000,13 @@ function paintOverlay(t = nowT()) {
   const key = [gi, act, k.toFixed(3), E.lookKey, E.hook, E.layout, hookNow, shown.join(" ")].join("|");
   if (key === E.lastKey) return;
   E.lastKey = key;
-  const fc = fontCss(L.font);
+  const fc = fontCss(L.font, L.weight);
   const y = L.y == null ? g.cap / OUT_H * 100 : L.y;
   // the renderer's spacing (a space plus room for both outlines) and its soft half-black shadow, at preview scale
-  const gapPx = (0.26 * emOf(L.font) * L.size + L.outline + 2 + (L.wgap || 0)) * k;   // a normal space, as the render does
+  const gapPx = (0.26 * emOf(L.font) * L.size + L.outline + 2 + (L.wgap || 0) + (L.italic ? L.size * 0.14 : 0)) * k;   // a normal space, as the render does
   const capBox = L.cap_op > 0 ? `background:${rgba(L.cap_box || "#000000", L.cap_op)};padding:${0.12 * emOf(L.font) * L.size * k}px ${0.3 * L.size * k}px;border-radius:${(L.cap_round ?? 18) * k}px;` : "";
   cap.style.cssText = `top:${y}%;left:${L.x ?? 50}%;font-family:${fc.family};font-weight:${fc.weight};font-size:${L.size * emOf(L.font) * k}px;color:${L.base};` +
+    `font-style:${L.italic ? "italic" : "normal"};text-decoration:${L.underline ? "underline" : "none"};text-underline-offset:.12em;` +
     `-webkit-text-stroke:${L.outline * 2 * k}px #000;column-gap:${gapPx}px;letter-spacing:${(L.sp || 0) * k}px;${capBox}text-shadow:${CAP_SHADOW * k}px ${CAP_SHADOW * k}px 0 rgba(0,0,0,.5);`;
   cap.innerHTML = shown.map((w, n) => { w = w.replace(/[.,;:]+$/, "");
     w = L.upper ? w.toUpperCase() : n === 0 ? w.replace(/^\p{Ll}/u, c => c.toUpperCase()) : w;     // normal case: each line starts with a capital
@@ -922,11 +1016,11 @@ function paintOverlay(t = nowT()) {
   if (cap.scrollWidth > maxW) cap.style.transform = `translate(-50%,-50%) scale(${maxW / cap.scrollWidth})`;
   keepInside(cap, L.x, 24 * k, phone);
   if (hook) {
-    const hf = fontCss(H.hook_font);
+    const hf = fontCss(H.hook_font, L.hook_weight);
     hook.hidden = !L.hook || !E.hook.trim();
     // the same lines as the video: one line, or two split where they come out most even (render._hook_events)
     const px = H.hook_size * emOf(H.hook_font), mc = hookMeasure();
-    mc.font = `${hf.weight} ${px}px ${hf.family}, sans-serif`;
+    mc.font = `${L.hook_italic ? "italic " : ""}${hf.weight} ${px}px ${hf.family}, sans-serif`;
     const wd = t => mc.measureText(t).width + H.hook_sp * Math.max(0, t.length - 1), ws = E.hook.trim().split(/\s+/);
     let hl = [ws.join(" ")];
     if (wd(hl[0]) * 0.6 > 940 && ws.length > 1) {        // one line unless it would get too small to read (render._hook_events)
@@ -937,6 +1031,7 @@ function paintOverlay(t = nowT()) {
     const shrink = Math.min(1, 940 / Math.max(...hl.map(wd)));      // still too wide: smaller, as the video does
     hook.innerHTML = hl.map(esc).join("<br>");
     hook.style.cssText = `top:${H.hook_y == null ? g.hook / OUT_H * 100 : H.hook_y}%;left:${L.hook_x ?? 50}%;font-family:${hf.family};font-weight:${hf.weight};` +
+      `font-style:${L.hook_italic ? "italic" : "normal"};text-decoration:${L.hook_underline ? "underline" : "none"};text-underline-offset:.12em;` +
       `font-size:${px * shrink * k}px;padding:${24 * k}px ${40 * k}px;border-radius:${H.hook_round * k}px;width:max-content;max-width:${1020 * k}px;box-sizing:border-box;white-space:nowrap;` +
       `background:${H.hook_op ? rgba(H.hook_box, H.hook_op) : "transparent"};color:${H.hook_ink};letter-spacing:${H.hook_sp * k}px;` +
       (H.hook_op < 35 ? `-webkit-text-stroke:${Math.max(3, H.hook_size / 22) * 2 * k}px #000;paint-order:stroke fill;text-shadow:${CAP_SHADOW * k}px ${CAP_SHADOW * k}px 0 rgba(0,0,0,.5);` : "") +
@@ -997,8 +1092,8 @@ const clock = (t, tenths) => { t = Math.max(0, t); const h = Math.floor(t / 3600
   return (h ? `${h}:` : "") + `${String(m).padStart(2, "0")}:${ss}`; };
 const EYE = on => svg(on ? '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
   : '<path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.1 3.9M6.6 6.6A17.7 17.7 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>');
-const SOUND = on => svg(on ? '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>'
-  : '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/>');
+const SOUND = on => on ? ri("ed_audio", '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>')
+  : ri("ed_mute", '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/>');
 function drawTimeline() {
   const tl = $e("#edTl"), c = clipNow(); if (!tl || !c) return;
   const span = E.max - E.min, want = span / (8 * E.zoom), step = [1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s >= want) || 600;
@@ -1281,7 +1376,7 @@ dlg.addEventListener("click", async e => {
   if (a === "fs") {                      // the preview full screen; Esc (or the button) brings it back
     const ph = $e("#edPhone");
     if (document.fullscreenElement) return document.exitFullscreen?.();
-    return ph?.requestFullscreen?.().catch(() => toast("Full screen isn't allowed here.", "bad"));
+    return ph?.requestFullscreen?.().then(fsAwake).catch(() => toast("Full screen isn't allowed here.", "bad"));
   }
   if (a === "tournext") return tourShow(+d.i);
   if (a === "tourexit") return tourEnd();
@@ -1345,10 +1440,12 @@ dlg.addEventListener("click", async e => {
   if (a === "hookdur") { E.look.hook_dur = +d.v; E.lookTouched = true; return after("pt"); }
   if (a === "per") { E.look.per = +d.n; E.lookTouched = true; after("pt"); return showCaptions(); }
   if (a === "upper") { E.look.upper = d.v === "1"; E.lookTouched = true; after("p"); return showCaptions(); }
+  if (a === "weight") { E.look[d.k] = +d.v; E.lookTouched = true; after("p"); return showCaptions(); }
+  if (a === "fstyle") { E.look[d.k] = !E.look[d.k]; E.lookTouched = true; after("p"); return showCaptions(); }
   if (a === "colour") { E.look[d.k] = d.v; E.lookTouched = true; after("p"); return d.k.startsWith("hook") ? showHook() : showCaptions(); }
-  if (a === "layout") { E.layout = d.v; if (d.v === "split" && !b.closest("#edPanel")) E.tab = "layout"; drawPanel(); drawStage(); return after(""); }
+  if (a === "layout") { E.layout = d.v; if (d.v === "split" && !b.closest("#edPanel")) E.tab = "layout"; drawPanel(); drawStage(); if (d.v === "split") findFacecam(); return after(""); }
   if (a === "splitpos") { E.look.split = {...splitOf(), cam_at: d.v}; E.lookTouched = true; drawStage(); return after("p"); }
-  if (a === "splitreset") { E.look.split = {...SPLIT_DEFAULT}; E.lookTouched = true; drawStage(); return after("p"); }
+  if (a === "splitreset") { E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {})}; E.lookTouched = true; drawStage(); return after("p"); }
   if (a === "aspmenu") { const m = $e("#edAsp"); m.hidden = !m.hidden; return; }
   if (a === "exdlg") { if (E.exOpen) { E.exOpen = false; return drawEx(); } E.ex ||= {preset: "reels", fmt: "mp4", fps: 30, q: "high", speed: 1}; E.exOpen = true; return drawEx(); }
   if (a === "exclose") { E.exOpen = false; return drawEx(); }

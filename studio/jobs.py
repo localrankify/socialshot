@@ -466,6 +466,15 @@ def render_one(job, clip, words):
         near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in (raw if typed else roman.words(raw))]
         logo = render.brand_logo_path(job.get("user") or ctx.uid())
         local["logo_path"] = str(logo) if logo.is_file() else ""
+        # split face cam with no box placed yet: find the streamer's face cam once, and keep it on the clip
+        if clip.get("layout") == "split" and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
+            try:
+                from . import facecam
+                cam = facecam.find(src, local["start"], local["end"])
+            except Exception:  # noqa: BLE001 - no face found is fine: the usual box is used
+                cam = None
+            clip["auto_split"] = dict(render.SPLIT_DEFAULT, cam=cam) if cam else None
+            local["auto_split"] = clip["auto_split"]
         out = render.render_clip(src, d / "clips", clip["id"], local, near, job["width"], job["height"])
         clip.update(out, status="done", version=clip.get("version", 0) + 1, error=None)
         post = {k: clip[k] for k in ("title", "description", "hashtags", "hook", "start", "end", "score")}

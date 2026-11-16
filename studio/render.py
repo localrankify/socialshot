@@ -190,6 +190,18 @@ FADES = ("none", "black", "white")      # how a clip starts and ends: straight i
 FADE_SECONDS = 0.5
 
 
+WEIGHTS = (300, 400, 500, 600, 700, 800)       # Light, Regular, Medium, Semibold, Bold, Black
+
+
+def _weight(v):
+    """A letter weight picked in the editor, or None for the font's own."""
+    try:
+        v = int(v)
+    except (TypeError, ValueError):
+        return None
+    return v if v in WEIGHTS else None
+
+
 def clean_look(look) -> dict | None:
     """A caption look from the editor, checked and limited. None means "use the clip's style as it is"."""
     if not isinstance(look, dict):
@@ -220,6 +232,10 @@ def clean_look(look) -> dict | None:
             "sp": _num(look.get("sp"), -4, 24, 0), "wgap": _num(look.get("wgap"), 0, 80, 0),
             "cap_box": _hex(look.get("cap_box"), "#000000"), "cap_op": _num(look.get("cap_op"), 0, 100, 0),
             "cap_round": _num(look.get("cap_round"), 0, 60, 18),
+            # how heavy and in what style the letters are (None: the font's own weight), for captions and hook
+            "weight": _weight(look.get("weight")), "italic": bool(look.get("italic")), "underline": bool(look.get("underline")),
+            "hook_weight": _weight(look.get("hook_weight")), "hook_italic": bool(look.get("hook_italic")),
+            "hook_underline": bool(look.get("hook_underline")),
             # the person's brand on the video: their logo and name, where it sits, how big, how solid, how it moves
             "brand_on": bool(look.get("brand_on", False)), "brand_logo": bool(look.get("brand_logo", True)),
             "brand_text": re.sub(r"[\x00-\x1f\x7f]", "", str(look.get("brand_text") or ""))[:40],
@@ -417,18 +433,28 @@ def font_em(key: str) -> float | None:
     return None
 
 
-def ensure_font(key: str) -> str:
-    """Makes sure a font from FONTS is on this machine and returns its name for the caption renderer."""
+def ensure_font(key: str, weight=None) -> str:
+    """Makes sure a font from FONTS is on this machine and returns its name for the caption renderer.
+    weight asks for another weight of a Google font (300 to 800); a font that doesn't come in it keeps its own."""
     f = FONTS.get(key) or FONTS["Poppins"]
     if "ass" in f:
         return f["ass"]
+    if weight and weight != f["weight"]:
+        try:
+            return _fetch_font(key, f, weight)
+        except Exception:  # noqa: BLE001 - not made in that weight: the font's own weight instead
+            pass
+    return _fetch_font(key, f, f["weight"])
+
+
+def _fetch_font(key, f, weight) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", f["google"].lower()).strip("-")
-    path = config.FONTS_DIR / f"g-{slug}-{f['weight']}.ttf"
+    path = config.FONTS_DIR / f"g-{slug}-{weight}.ttf"
     with _font_lock:
         if not path.is_file():
             import httpx
             family = f["google"].replace(" ", "+")
-            css = httpx.get(f"https://fonts.googleapis.com/css2?family={family}:wght@{f['weight']}",
+            css = httpx.get(f"https://fonts.googleapis.com/css2?family={family}:wght@{weight}",
                             headers={"User-Agent": "SocialShot-fonts"}, timeout=20).text
             m = re.search(r"url\((https://fonts\.gstatic\.com/[^)\s]+\.ttf)\)", css)
             if not m:
@@ -448,7 +474,11 @@ def ensure_font(key: str) -> str:
 def look_style(look: dict) -> dict:
     """Turns an editor look into the style the caption builder draws with (ASS colours are BBGGRR)."""
     bgr = lambda h: h[5:7] + h[3:5] + h[1:3]   # noqa: E731
-    return {"font": ensure_font(look["font"]), "size": look["size"], "base": bgr(look["base"]), "active": bgr(look["active"]),
+    w = look.get("weight")
+    local = "ass" in FONTS.get(look["font"], {})
+    return {"font": ensure_font(look["font"], w), "size": look["size"],
+            # a bundled font has one weight: Semibold and up are drawn bold by the renderer itself
+            "bold": bool(local and w and w >= 600), "italic": look.get("italic", False), "underline": look.get("underline", False), "base": bgr(look["base"]), "active": bgr(look["active"]),
             "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"],
             "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"],
             "x": look.get("x")}
@@ -572,13 +602,13 @@ def _groups(words, per):
 def geometry(src_w, src_h, layout, split=None):
     """Where the video sits in the frame (1080x1920 for 9:16), and where hook and captions go.
     The numbers are tuned for 9:16 and kept in proportion for the other shapes.
-    Split: the hook sits just above the seam between the two parts, the captions just below it."""
+    Split: the hook sits just above the seam between the two parts, the captions right on the seam under it."""
     W, H = _wh()
     if layout == "split":
         sp = split or SPLIT_DEFAULT
         gh, ch = _split_heights(sp, H)
         seam = gh if sp["cam_at"] == "bottom" else ch
-        return layout, gh, seam - round(H * 0.045), seam + round(H * 0.07)     # both in the middle: hook above, captions below
+        return layout, gh, seam - round(H * 0.045), seam     # both in the middle: hook just above, captions on the seam
     if src_h * W >= src_w * H and layout != "crop":
         layout = "crop"  # as tall as the frame or taller: nothing to gain from a blurred fill
     if layout == "blur":
@@ -650,6 +680,8 @@ def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hoo
     hook_font, hook_size = hook_font or HOOK["font"], hook_size or HOOK["size"]
     words = [dict(w, s=w["s"] - CAPTION_LEAD, e=w["e"] - CAPTION_LEAD) for w in words]
     strong = {_key(h) for h in highlight if _key(h)}
+    on = lambda v: -1 if v else 0      # noqa: E731 - bold, italic and underline are -1 (on) or 0 in a caption style
+    hk = hk or {}
     head = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -659,8 +691,8 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,{st['outline']},{CAP_SHADOW},5,0,0,0,1
-Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
+Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H80000000,{on(st.get('bold'))},{on(st.get('italic'))},{on(st.get('underline'))},0,100,100,0,0,1,{st['outline']},{CAP_SHADOW},5,0,0,0,1
+Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,{on(hk.get('hook_bold'))},{on(hk.get('hook_italic'))},{on(hk.get('hook_underline'))},0,100,100,0,0,1,0,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -693,6 +725,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             ev.append(f"Dialogue: 1,{_ts(g_start)},{_ts(g_end)},Cap,,60,60,0,,{{\\an5\\pos({lx:.0f},{cap_y:.0f})\\q0\\fs{fs}}}{line}")
             continue
         size, sp, wgap = st["size"], st.get("sp", 0), st.get("wgap", 0)     # extra room between letters and between words
+        if st.get("italic"):
+            wgap += st["size"] * 0.14       # slanted letters lean past their width: a little more room so words don't touch
         wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)          # noqa: E731
         gap = f.width("n n", size) - 2 * f.width("n", size) + (st["outline"] + 2) * size / st["size"] + wgap   # a normal space, a little room for the outline, and any extra
         total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
@@ -808,7 +842,9 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     W, H = _wh()
     out_dir.mkdir(parents=True, exist_ok=True)
     start, end = clip["start"], clip["end"]
-    split = look["split"] if look else SPLIT_DEFAULT
+    # the two parts of the split layout: as placed in the editor, else where the face cam was found, else the usual box
+    placed = (clip.get("look") or {}).get("split")
+    split = look["split"] if look and placed else clean_split(clip["auto_split"]) if clip.get("auto_split") else look["split"] if look else SPLIT_DEFAULT
     _frame.split = split                        # the split layout's two parts, for the picture step below
     layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"), split)
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
@@ -824,8 +860,9 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             cap_y = round(H * look["y"] / 100)
         if look["hook_y"] is not None:
             hook_y = round(H * look["hook_y"] / 100)
-        hook_font, hook_size, hook_show = ensure_font(look["hook_font"]), look["hook_size"], look["hook_dur"]
-        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp", "hook_x")}
+        hook_font, hook_size, hook_show = ensure_font(look["hook_font"], look["hook_weight"]), look["hook_size"], look["hook_dur"]
+        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp", "hook_x", "hook_italic", "hook_underline")}
+        hk["hook_bold"] = bool("ass" in FONTS.get(look["hook_font"], {}) and (look["hook_weight"] or 0) >= 600)
         brand = look if look["brand_on"] else None
         if not look["hook"]:
             hook = ""

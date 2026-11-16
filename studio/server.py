@@ -1090,6 +1090,24 @@ def clip_source(jid: str, cid: str):
 EXPORT_Q = {"web": (28, "3M"), "medium": (24, "6M"), "high": (20, "12M"), "ultra": (17, "20M")}   # quality -> (CRF, top bitrate)
 
 
+@app.post("/api/jobs/{jid}/clips/{cid}/facecam")
+def find_facecam(jid: str, cid: str):
+    """Where the streamer's face cam is in this clip, for the split layout (found once, then kept on the clip)."""
+    _throttle("facecam:" + ctx.uid(), 30, 600)
+    job = jobs.get(jid)
+    clip = next((c for c in job["clips"] if c["id"] == cid), None) if job else None
+    if not clip:
+        raise HTTPException(404, "No such clip")
+    if "auto_split" not in clip:
+        from . import facecam
+        off = clip.get("src_offset", 0.0)
+        src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "")
+        cam = facecam.find(src, clip["start"] - off, clip["end"] - off) if src.is_file() else None
+        clip["auto_split"] = dict(render.SPLIT_DEFAULT, cam=cam) if cam else None
+        jobs.save(job)
+    return {"split": clip["auto_split"]}
+
+
 @app.get("/api/jobs/{jid}/clips/{cid}/export")
 def clip_export(jid: str, cid: str, fmt: str = "mp4", fps: int = 30, q: str = "high", speed: float = 1.0):
     """The saved clip made again with export settings: MP4 or GIF, frame rate, quality, and playback speed.
