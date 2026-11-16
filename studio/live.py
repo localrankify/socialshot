@@ -481,9 +481,14 @@ class Session:
         finally:
             lst.unlink(missing_ok=True)
         dur = segs[-1][2] - segs[0][1]
-        offset = self._align(src, segs[0][1] + self.clock_fix, dur)
+        offset, heard = self._align(src, segs[0][1] + self.clock_fix, dur)
         self.clock_fix = offset - segs[0][1]  # the two clocks drift ~4 s an hour; start the next clip from here
         clip.update(src=str(src), src_offset=round(offset, 2), src_end=round(offset + dur, 2))
+        if heard:
+            # the clip's captions come from its own audio, heard in long pieces: the running transcript is made a
+            # few seconds at a time, so it misses and splits words. Its times are the clip's own, so always in sync.
+            clip.update(heard_words=[dict(w, s=round(w["s"] + offset, 2), e=round(w["e"] + offset, 2)) for w in heard],
+                        heard_for=[round(offset, 2), round(offset + dur, 2)])
         clip["start"] = max(clip["start"], clip["src_offset"])
         clip["end"] = min(clip["end"], clip["src_end"])
         jobs.render_one(self.job, clip, list(self.words))
@@ -491,28 +496,34 @@ class Session:
     def _align(self, src, guess, dur):
         """Where `src` really starts on the transcript clock. The video pieces and the audio feed keep separate
         clocks that drift apart, so transcribe the clip's own audio and line its words up with the live words.
-        Local speech model only: no AI calls."""
+        Local speech model only: no AI calls. Also gives back what was heard, on the clip's own clock."""
         key = lambda w: re.sub(r"[^a-z0-9]", "", w.lower())
+        heard, audio = [], None
         try:
             wav = src.with_suffix(".wav")
             media.extract_audio(src, wav)
-            heard = transcribe.transcribe(media.load_audio(wav))
+            audio = media.load_audio(wav)
             wav.unlink(missing_ok=True)
+            # lined up with the main model's words, since the live words come from that model too
+            english = transcribe.transcribe(audio, pieces=transcribe.CLIP_PIECES)
+            heard = english
             with self.lock:
                 near = [w for w in self.words if guess - 15 <= w["s"] <= guess + dur + 15]
             diffs = []
-            for h in heard:
+            for h in english:
                 k = key(h["w"])
                 if len(k) < 3:
                     continue
                 m = [w["s"] for w in near if key(w["w"]) == k and abs(w["s"] - (guess + h["s"])) < 8]
                 if m:
                     diffs.append(min(m, key=lambda s: abs(s - (guess + h["s"]))) - h["s"])
+            # the captions: the Hindi model's words when the clip is in Hindi or Urdu, else these same words
+            heard = transcribe.hear_clip(audio, self.job.get("lang") or "", english=english)
             if len(diffs) >= 4:
-                return float(np.median(diffs))
+                return float(np.median(diffs)), heard
         except Exception:  # noqa: BLE001 - fall back to the piece clock
             pass
-        return guess
+        return guess, heard
 
     def clip_last(self, seconds):
         end = self.samples / SR

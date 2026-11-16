@@ -5,6 +5,7 @@ separate machine with a graphics card (studio/asr_worker.py), which does the sam
 machine cannot be reached, the pieces are done here instead, so transcription never stops because of it."""
 import os
 import queue
+import re
 import threading
 import time
 
@@ -198,13 +199,17 @@ def _decode_remote(pieces: list) -> list:
     return [(p["tokens"], p["timestamps"]) for p in got]
 
 
-def transcribe(audio: np.ndarray, on_progress=None) -> list:
+CLIP_PIECES = (6.0, 10.0)   # one short clip heard again: shorter pieces. Measured on a Hindi stream over game sound,
+# 6-10 s pieces caught about twice the words of 12-24 s ones (the model drops speech it is unsure of in long pieces)
+
+
+def transcribe(audio: np.ndarray, on_progress=None, pieces=(12.0, 24.0)) -> list:
     """Returns [{'w': word, 's': start_sec, 'e': end_sec}, ...] for the whole audio.
-    Speech is cut at quiet moments into 12-24 s pieces; silent pieces are skipped."""
+    Speech is cut at quiet moments into pieces of 12-24 s (or `pieces`); silent pieces are skipped."""
     global _remote_down_until
     words = []
     todo = []
-    for a, b in _chunks(audio):
+    for a, b in _chunks(audio, *pieces):
         seg = audio[a:b].astype(np.float32) / 32768.0
         if len(seg) < 4800 or float(np.sqrt((seg ** 2).mean())) < 0.003:
             continue  # silence: skip, saves time and avoids made-up words
@@ -258,14 +263,75 @@ def transcribe(audio: np.ndarray, on_progress=None) -> list:
             results = list(ex.map(decode, groups))
     else:
         results = [decode(g) for g in groups]
-    for out in results:
-        for piece in out:
-            for w in piece:
-                if words and words[-1]["w"] == w["w"] and words[-1]["s"] == w["s"]:
-                    continue  # the model sometimes says the same word twice at the same moment
-                words.append(w)
+    return _finish([piece for out in results for piece in out])
+
+
+def _finish(pieces) -> list:
+    words = []
+    for piece in pieces:
+        for w in piece:
+            if words and words[-1]["w"] == w["w"] and words[-1]["s"] == w["s"]:
+                continue  # the model sometimes says the same word twice at the same moment
+            words.append(w)
     # A word lasts until the next one starts, capped so pauses stay pauses.
     for i, w in enumerate(words):
         nxt = words[i + 1]["s"] if i + 1 < len(words) else w["e"] + 0.4
         w["e"] = round(max(w["s"] + 0.08, min(nxt, max(w["e"], w["s"] + 0.6))), 2)
     return words
+
+
+# ---------------------------------------------------------------- Hindi (and Urdu): one clip heard again
+# The main model hears English only, so Hindi speech comes out as guesses ("Patani kya hai") and much of it is
+# dropped. Meta's Omnilingual model hears Hindi properly. It writes Hindi in Urdu or Devanagari letters; the caption
+# step then spells that in Roman letters (Hinglish), as it already does for Hindi videos. Measured on a Hindi stream
+# over game sound: 93 words heard where the main model heard 28, in about the same time.
+_hindi = None
+_hindi_use = threading.Lock()          # one clip at a time through it: it is used rarely and holds one copy
+_HINDI_LETTERS = re.compile(r"[ऀ-ॿ؀-ۿ]")
+
+
+def _hindi_words(audio: np.ndarray) -> list:
+    global _hindi
+    import sherpa_onnx
+    with _hindi_use:
+        if _hindi is None:
+            d = config.HINDI_MODEL_DIR
+            model = min(d.glob("model*.onnx"), key=lambda f: "int8" not in f.name)   # the compact file if there
+            _hindi = sherpa_onnx.OfflineRecognizer.from_omnilingual_asr_ctc(
+                model=str(model), tokens=str(d / "tokens.txt"), num_threads=THREADS, provider=PROVIDER)
+        pieces = []
+        for a, b in _chunks(audio, *CLIP_PIECES):
+            seg = audio[a:b].astype(np.float32) / 32768.0
+            if len(seg) < 4800 or float(np.sqrt((seg ** 2).mean())) < 0.003:
+                continue
+            st = _hindi.create_stream()
+            st.accept_waveform(16000, seg)
+            _hindi.decode_stream(st)
+            pieces.append(_words(list(st.result.tokens), [float(t) for t in st.result.timestamps], a, b))
+    return _finish(pieces)
+
+
+def _hindi_share(words) -> float:
+    """How much of what was heard is written in Hindi or Urdu letters (0 to 1)."""
+    letters = [c for w in words for c in w["w"] if c.isalpha()]
+    return sum(bool(_HINDI_LETTERS.match(c)) for c in letters) / max(1, len(letters))
+
+
+def hear_clip(audio: np.ndarray, lang: str = "", english=None) -> list:
+    """One clip heard again, from its own audio. A clip known to be English goes to the main model. Otherwise the
+    Hindi model listens first, and its words are kept when they are mostly Hindi or Urdu; anything else (English,
+    or a language the main model was already handling) is heard by the main model as before. `english`: the main
+    model's words for this audio, when the caller already has them."""
+    from . import fetch_model
+    lang = (lang or "").lower()
+    if config.HINDI_ASR and not lang.startswith("en"):
+        if fetch_model.hindi_ready():
+            try:
+                heard = _hindi_words(audio)
+                if lang.startswith(("hi", "ur")) or (len(heard) >= 3 and _hindi_share(heard) >= 0.5):
+                    return heard
+            except Exception:  # noqa: BLE001 - a broken Hindi model never stops a clip: the main model hears it
+                pass
+        else:
+            fetch_model.fetch_hindi_later()        # ready for the next clip
+    return english if english is not None else transcribe(audio, pieces=CLIP_PIECES)

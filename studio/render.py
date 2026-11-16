@@ -369,11 +369,16 @@ def _volume(v) -> int:
         return 100
 
 
+HOOK_SHOW = 3.0      # seconds the hook stays on screen unless the editor says otherwise (0 means the whole clip)
+
+
 def _hook_dur(v) -> float:
+    if v is None:
+        return HOOK_SHOW
     try:
-        return max(0.0, min(60.0, round(float(v or 0) * 2) / 2))
+        return max(0.0, min(60.0, round(float(v) * 2) / 2))
     except (TypeError, ValueError):
-        return 0.0
+        return HOOK_SHOW
 
 
 def effect_filters(look, dur) -> tuple[str, str, str]:
@@ -564,6 +569,29 @@ def clean_split(v) -> dict:
         share = SPLIT_DEFAULT["share"]
     return {"game": _region(v.get("game"), SPLIT_DEFAULT["game"]), "cam": _region(v.get("cam"), SPLIT_DEFAULT["cam"]),
             "cam_at": "top" if v.get("cam_at") == "top" else "bottom", "share": share}
+
+
+def avoid_cam(split, src_w, src_h, W, H):
+    """While the stream part is still the whole picture (nobody changed it), crop it so it doesn't show the face cam
+    overlay too. The crop keeps the stream band's shape and full height, starting from the middle and sliding away
+    from the face cam's side until it no longer covers it. A face cam too wide to avoid leaves the crop centred.
+    A stream part someone set by hand is left exactly as it is."""
+    game, cam = split["game"], split["cam"]
+    if game != [0.0, 0.0, 1.0, 1.0] and game != [0, 0, 1, 1] or not src_w or not src_h:
+        return split
+    gh, _ = _split_heights(split, H)
+    w = src_h * W / max(1, gh)                  # the widest crop with the band's shape at full height
+    if w >= src_w:
+        return split                            # the band is wider than the picture: it already crops top and bottom
+    cl, cr = cam[0] * src_w, (cam[0] + cam[2]) * src_w
+    x0 = (src_w - w) / 2
+    if (cl + cr) / 2 > src_w / 2:
+        x0 = min(x0, cl - w)                    # face cam on the right: end the crop where it starts
+    else:
+        x0 = max(x0, cr)                        # on the left: start the crop where it ends
+    if x0 < 0 or x0 + w > src_w:
+        return split
+    return dict(split, game=[round(x0 / src_w, 4), 0.0, round(w / src_w, 4), 1.0])
 
 
 def _split_heights(split, H):
@@ -845,11 +873,13 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     # the two parts of the split layout: as placed in the editor, else where the face cam was found, else the usual box
     placed = (clip.get("look") or {}).get("split")
     split = look["split"] if look and placed else clean_split(clip["auto_split"]) if clip.get("auto_split") else look["split"] if look else SPLIT_DEFAULT
-    _frame.split = split                        # the split layout's two parts, for the picture step below
+    if clip.get("layout") == "split":
+        split = avoid_cam(split, src_w, src_h, W, H)   # stream part still the whole picture: keep the face cam out of it
+    _frame.split = split                       # the split layout's two parts, for the picture step below
     layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"), split)
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
     hook_font = hook_size = None
-    hook_show = 0.0
+    hook_show = HOOK_SHOW                       # not changed in the editor: the hook shows for the first few seconds
     hk = brand = None
     if not look and style in PRESETS:           # not changed in the editor: the ready-made look of that name
         base = {k: v for k, v in PRESETS[style].items() if k != "label"}

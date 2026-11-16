@@ -71,6 +71,7 @@ def _startup():
     if not transcribe.REMOTE and config.env("PEAKCUT_FETCH_MODEL", "1") != "0":     # the speech model: fetched now, in the background, if it was never downloaded
         from . import fetch_model
         threading.Thread(target=lambda: _quiet(fetch_model.ensure), daemon=True).start()
+        fetch_model.fetch_hindi_later()     # the Hindi one, for clips heard again (about 290 MB, once)
     jobs.start()
     live.start()
     posting.start()
@@ -1106,6 +1107,23 @@ def find_facecam(jid: str, cid: str):
         clip["auto_split"] = dict(render.SPLIT_DEFAULT, cam=cam) if cam else None
         jobs.save(job)
     return {"split": clip["auto_split"]}
+
+
+@app.post("/api/jobs/{jid}/clips/{cid}/retranscribe")
+def clip_retranscribe(jid: str, cid: str):
+    """Listen to just this clip's audio again and remake its caption words. The rest of the video is untouched."""
+    _throttle("retranscribe:" + ctx.uid(), 20, 600)
+    job, clip = _clip_or_404(jid, cid)
+    if clip.get("status") in ("queued", "rendering"):
+        raise HTTPException(409, "This clip is being made right now. Try again when it's ready.")
+    if not transcribe.model_ready() and not transcribe.REMOTE:
+        raise HTTPException(503, "The speech model is still downloading. Try again in a minute.")
+    try:
+        jobs.retranscribe(job, clip)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ctx.bump()
+    return clip_captions(jid, cid)
 
 
 @app.get("/api/jobs/{jid}/clips/{cid}/export")

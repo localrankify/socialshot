@@ -1,8 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SocialShot</title>
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -347,6 +346,7 @@ label.ck input{accent-color:var(--brand);margin:0}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
+.ed .ed-ib.busy{opacity:1;cursor:progress}.ed .ed-ib.busy svg{animation:spin 1s linear infinite}
 .working{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--brand);background:rgba(139,92,246,.14);padding:2px 8px 2px 6px;border-radius:999px}
 .working i{width:10px;height:10px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
 .nav-item.on .working{background:rgba(42,26,18,.14);color:var(--brand-ink)}
@@ -2744,6 +2744,57 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
 .ed-ex-go.going,.ed-ex-go.going:disabled{opacity:1!important;cursor:progress;background:#fff!important;color:#111!important}
 .ed-ex-go .pf-fill{background:linear-gradient(90deg,rgba(229,50,63,.08),rgba(229,50,63,.28))}
 @media (prefers-reduced-motion:reduce){.pfx .pf-l b{animation:none}.pfx .pf-fill{transition:none}}
+/* editor on a mid-size window (761 to 1100 wide): the transcript sits under the settings in the left column, so the
+   preview keeps the full height on the right instead of being squeezed above a full-width transcript */
+@media (min-width:761px) and (max-width:1100px){
+  .ed .ed-body{grid-template-columns:64px 310px minmax(0,1fr);grid-template-rows:minmax(0,1.1fr) minmax(0,1fr)}
+  .ed .ed-body .ed-rail{grid-column:1;grid-row:1 / 3}
+  .ed .ed-body .ed-panel{grid-column:2;grid-row:1;border-right:1px solid var(--ln)}
+  .ed .ed-body .ed-txcard{grid-column:2;grid-row:2;height:auto;min-height:0;border-left:0;border-right:1px solid var(--ln);border-top:1px solid var(--ln)}
+  .ed .ed-body .ed-center{grid-column:3;grid-row:1 / 3;min-height:0}
+  /* an older rule (under 900 wide) turned the rail into a row and let the panel spill: keep them as on a computer */
+  .ed .ed-body{overflow:hidden}
+  .ed .ed-body .ed-rail{order:0;flex-direction:column;justify-content:flex-start;padding:6px 0;border-top:0;border-bottom:0;border-right:1px solid var(--ln);overflow-x:hidden;overflow-y:auto}
+  .ed .ed-body .ed-rail button{width:auto;flex:none}
+  .ed .ed-body .ed-panel{order:0;overflow-y:auto}
+}
+/* layouts: two small phones a row, each this clip's frame arranged as that layout would place it */
+.ed-lays2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.ed-lays2 button{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px 8px 10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:#18181B;color:#D4D4D8;
+  font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+.ed-lays2 button:hover{background:#1F1F23;border-color:rgba(255,255,255,.14)}
+.ed-lays2 button[aria-pressed=true]{border-color:var(--accent);background:#1E1618}
+.ed-lays2 b{margin-top:4px;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-lays2 small{font-size:11px;line-height:1.35;color:#8E8E96}
+.lp-ph{position:relative;display:flex;flex-direction:column;aspect-ratio:9/16;max-height:200px;margin:0 auto;width:100%;border-radius:9px;overflow:hidden;background:#0C0C0E;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.lp-ph i{display:block;background-repeat:no-repeat}
+.lp-bg{position:absolute;inset:-12px;background-size:cover;background-position:center;filter:blur(8px) brightness(.55)}
+.lp-fg{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);background-size:cover;background-position:center}
+.lp-fg.blur{aspect-ratio:16/9}
+.lp-fg.zoom{height:48%}
+.lp-fg.crop{top:0;height:100%;transform:none}
+.lp-ph.crop .lp-bg{display:none}
+.lp-part{flex:1;min-height:0}
+.lp-part+.lp-part{border-top:1px solid rgba(0,0,0,.6)}
+.lp-ph.camtop{flex-direction:column-reverse}
+.lp-ph.camtop .lp-part+.lp-part{border-top:0;border-bottom:1px solid rgba(0,0,0,.6)}
+/* caption styles: three small phone-shaped tiles a row, each a frame of the clip with the style where captions sit,
+   its name on a thin strip at the foot, the chosen one ringed and ticked */
+.ed .ed-presets.big{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ed .ed-presets .ed-preset{gap:0}
+.ed .ed-presets .ed-ps{aspect-ratio:4/5;border-radius:10px;align-items:flex-end;justify-content:center;padding-bottom:30%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+/* zoomed into the lower part of the frame: the clip's own hook (burned in at the top) stays out of view */
+.ed .ed-presets .ed-ps i{inset:0;background-size:auto 175%;background-position:center 92%;filter:brightness(.62) saturate(.85);transition:filter .2s ease}
+.ed .ed-presets .ed-ps.raw i{background-size:cover;background-position:center}     /* the clean still from the footage */
+.ed .ed-presets .ed-preset:hover .ed-ps i{filter:brightness(.75) saturate(.95)}
+.ed .ed-presets .ed-pt{font-size:12.5px}
+.ed .ed-presets .ed-ps>b{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:5px 6px;background:rgba(0,0,0,.62);color:#D4D4D8;font-size:11px;font-weight:500;line-height:1.2;
+  text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed .ed-presets .ed-preset:hover .ed-ps{box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.ed .ed-presets .ed-preset.on .ed-ps{box-shadow:inset 0 0 0 2px var(--accent)}
+.ed .ed-presets .ed-preset.on .ed-ps>b{color:#fff}
+.ed-pck{position:absolute;top:5px;right:5px;z-index:2;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff}
+.ed-pck svg{width:11px;height:11px}
 /* the toolbar under the preview, as one rounded strip: no boxes on the buttons, thin dividers between groups, and the
    chosen item a soft lighter patch with the strip's own rounding, so it reads as part of the strip */
 @media (min-width:761px){
@@ -2766,6 +2817,22 @@ a.lnk,.ed-link,.chat-help a,.set-link.on b{color:var(--accent-ink)}
   .ed .ed-bar .ed-vol{gap:8px;padding:0 6px 0 4px}
   .ed .ed-bar .ed-vol input{width:84px}
   .ed .ed-bar .ed-vol output{min-width:38px;font-size:12px;color:#A1A1AA}
+  /* never spill past its own edges: when the buttons don't fit, they start at the left and the strip scrolls inside */
+  .ed .ed-center .ed-bar{justify-content:safe center!important;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+  .ed .ed-center .ed-bar::-webkit-scrollbar{display:none}
+  .ed .ed-bar>*{flex:none}
+}
+/* a narrower preview: tighter buttons, a shorter volume slider without its number */
+@container (max-width:620px){
+  .ed .ed-center .ed-bar{padding:4px;gap:0;max-width:calc(100% - 16px)}
+  .ed .ed-bar button,.ed .ed-bar .ed-aspbtn{min-width:34px;height:36px;padding:0 7px}
+  .ed .ed-bar-sep{margin:0 3px}
+  .ed .ed-bar .ed-vol input{width:56px}
+  .ed .ed-bar .ed-vol output{display:none}
+}
+.ed .ed-bar .ed-bar-lbl{display:inline-flex}      /* the shape button stays: an older rule hid it on narrow previews */
+@container (max-width:360px){
+  .ed .ed-bar .ed-vol,.ed .ed-bar-sep:has(+.ed-vol){display:none}
 }
 /* Reicon icons are filled shapes (their outline is already drawn into the shape): no extra stroke on top */
 svg.ti.ri{fill:none;stroke:none;stroke-width:1.5}     /* a few Reicon icons (chevrons) are lines: they set their own stroke */
@@ -6103,6 +6170,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=51"></script>
+<script src="/assets/editor.js?v=61"></script>
 </body>
 </html>

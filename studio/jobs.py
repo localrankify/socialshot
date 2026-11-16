@@ -152,7 +152,7 @@ def public(job) -> dict:
     """What the browser may see: no server paths, no owner id."""
     out = {k: v for k, v in job.items() if k not in HIDDEN}
     out["source"] = {k: v for k, v in job["source"].items() if k != "path"}
-    out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for", "caption_words")} for c in job["clips"]]
+    out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for", "caption_words", "heard_words", "heard_for")} for c in job["clips"]]
     ai = job.get("ai") or {}
     out["ai"] = {"tokens": ai.get("tokens", 0), "note": ai.get("note", ""), "used": bool(ai.get("model"))}   # never the model, never raw errors
     if job.get("status") == "queued":
@@ -432,7 +432,55 @@ def caption_words(job, clip) -> tuple[list, bool]:
         words = json.loads((Path(job["dir"]) / "words.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         words = []
+    words = with_heard(clip, words)
     return roman.words([w for w in words if clip["start"] - 1 <= w["s"] <= clip["end"] + 1]), False
+
+
+def with_heard(clip, words) -> list:
+    """The video's words, with this clip's own transcript in place of them where it has one. A clip heard on its
+    own (from its own audio, in long pieces) is more exact than a live stream's running transcript, which is made
+    a few seconds at a time; outside that stretch (after a longer trim) the video's words are still used."""
+    h, mine = clip.get("heard_for"), clip.get("heard_words")
+    if not h or mine is None:
+        return words
+    return sorted([w for w in words if not h[0] <= w["s"] <= h[1]] + mine, key=lambda w: w["s"])
+
+
+def clip_audio_words(src: Path, a: float, b: float, shift: float, lang: str = "") -> list:
+    """Transcribe seconds a..b of a file on its own, with each word's time moved by `shift` (to the video's clock)."""
+    wav = config.TMP_DIR / f"heard-{uuid.uuid4().hex[:10]}.wav"
+    try:
+        media.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", str(src), "-vn",
+                   "-ac", "1", "-ar", "16000", "-af", "aresample=async=1:first_pts=0", "-c:a", "pcm_s16le", str(wav)])
+        heard = transcribe.hear_clip(media.load_audio(wav), lang)
+    finally:
+        wav.unlink(missing_ok=True)
+    return [dict(w, s=round(w["s"] + shift, 2), e=round(w["e"] + shift, 2)) for w in heard]
+
+
+def retranscribe(job, clip) -> list:
+    """Listen to just this clip again, from its own audio, and make its captions from what is heard now. The rest
+    of the video is left alone. Words typed in the editor are replaced, since the person asked for a fresh hearing."""
+    off = clip.get("src_offset", 0.0)
+    src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "")
+    if not src.is_file():
+        raise ValueError("This clip's video is no longer here, so it can't be listened to again.")
+    end = clip.get("src_end") or job.get("duration") or clip["end"]
+    a, b = max(off, clip["start"] - 3), min(end, clip["end"] + 3)       # a little either side, for later trims
+    words = clip_audio_words(src, a - off, b - off, off, job.get("lang") or "")
+    clip.update(heard_words=words, heard_for=[round(a, 2), round(b, 2)])
+    for k in ("fixed_words", "fixed_for", "caption_words"):
+        clip.pop(k, None)
+    raw = [w for w in words if clip["start"] - 1 <= w["s"] <= clip["end"] + 1]
+    try:                                    # tidied the same way a render does, so the editor shows the final words
+        usage.set_context(job.get("creator"), job.get("title") or "")
+        fixed = brain.english_captions(raw, job.get("lang") or "", job.get("title") or "",
+                                       youtube_english=lambda: _english_part(job, clip))
+        clip.update(fixed_words=fixed, fixed_for=[round(clip["start"], 2), round(clip["end"], 2), "en2"])
+    except Exception:  # noqa: BLE001 - the words as heard are still better than before
+        pass
+    save(job)
+    return words
 
 
 def render_one(job, clip, words):
@@ -440,6 +488,7 @@ def render_one(job, clip, words):
     clip["status"] = "rendering"
     save(job)
     try:
+        words = with_heard(clip, words)
         off = clip.get("src_offset", 0.0)
         src = Path(clip["src"]) if clip.get("src") else Path(job["source_path"])
         if not clip.get("src"):

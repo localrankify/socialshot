@@ -63,6 +63,11 @@ YT_TRANSCRIPT = env("PEAKCUT_YT_TRANSCRIPT", "1") != "0"
 # the compact model for processors; a machine with a graphics card sets PEAKCUT_ASR_MODEL to the full-precision one
 ASR_MODEL_NAME = env("PEAKCUT_ASR_MODEL", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8")
 ASR_MODEL_DIR = MODELS_DIR / ASR_MODEL_NAME
+# The main model hears English only. When one clip is heard again (live clips, the editor's button), this one is
+# tried too, and its words are kept when the clip turns out to be in Hindi or Urdu. PEAKCUT_HINDI_ASR=0 turns it off.
+HINDI_ASR = env("PEAKCUT_HINDI_ASR", "1") != "0"
+HINDI_MODEL_NAME = env("PEAKCUT_HINDI_MODEL", "sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12")
+HINDI_MODEL_DIR = MODELS_DIR / HINDI_MODEL_NAME
 DATABASE_URL = env("DATABASE_URL") or f"sqlite:///{(DATA_DIR / 'peakcut.db').as_posix()}"
 
 for d in (USERS_DIR, MODELS_DIR, TMP_DIR, FONTS_DIR):
