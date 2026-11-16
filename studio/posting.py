@@ -113,6 +113,8 @@ def _post(p):
             rid, url = accounts.instagram_upload(acc, path, f"{title}\n\n{cap}", job["id"])
         elif acc["platform"] == "tiktok":
             rid, url = accounts.tiktok_upload(acc, path, f"{title}\n\n{cap}", creator["privacy"])
+        elif acc["platform"] == "x":           # X posts are short: the title, then as much of the rest as fits
+            rid, url = accounts.x_upload(acc, path, f"{title}\n\n{cap}")
         else:
             raise RuntimeError("That kind of account is no longer supported.")
         p.update(status="posted", posted_at=time.time(), remote_id=rid, url=url, error=None)

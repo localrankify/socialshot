@@ -464,6 +464,8 @@ def render_one(job, clip, words):
         # the last word on it: whatever was said, nothing is drawn in Hindi or Urdu script
         typed = clip.get("caption_words") is not None
         near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in (raw if typed else roman.words(raw))]
+        logo = render.brand_logo_path(job.get("user") or ctx.uid())
+        local["logo_path"] = str(logo) if logo.is_file() else ""
         out = render.render_clip(src, d / "clips", clip["id"], local, near, job["width"], job["height"])
         clip.update(out, status="done", version=clip.get("version", 0) + 1, error=None)
         post = {k: clip[k] for k in ("title", "description", "hashtags", "hook", "start", "end", "score")}

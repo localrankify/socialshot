@@ -32,7 +32,7 @@ user, b = person("user@example.com")
 
 # ---- nothing is set up: the buttons say so, and only an admin may set it up
 st = b.get("/api/status").json()
-check("nothing can be connected before setup", st["connect"], {"youtube": False, "instagram": False, "tiktok": False})
+check("nothing can be connected before setup", st["connect"], {"youtube": False, "instagram": False, "tiktok": False, "x": False})
 check("a normal user cannot see the setup", b.get("/api/apps").status_code, 404)
 check("...or change it", b.put("/api/apps", json={"platform": "tiktok", "client_id": "abcd", "client_secret": "x"}, headers=ORIGIN).status_code, 404)
 r = b.get("/oauth/instagram/start")
@@ -40,7 +40,7 @@ check("Connect before setup comes back with a reason", (r.status_code, "connect_
 check("setup from another website is refused", a.put("/api/apps", json={"platform": "tiktok", "client_id": "abcd1234", "client_secret": "s"},
                                                     headers={"Origin": "https://evil.example"}).status_code, 403)
 check("a bad id is refused", a.put("/api/apps", json={"platform": "tiktok", "client_id": "a b<", "client_secret": "s"}, headers=ORIGIN).status_code, 400)
-for pf, cid in (("youtube", "g-client-123.apps"), ("instagram", "1234567890"), ("tiktok", "awtiktokkey123")):
+for pf, cid in (("youtube", "g-client-123.apps"), ("instagram", "1234567890"), ("tiktok", "awtiktokkey123"), ("x", "xClientId12345")):
     r = a.put("/api/apps", json={"platform": pf, "client_id": cid, "client_secret": f"{pf}-secret-value"}, headers=ORIGIN)
     check(f"{pf} app saved", (r.status_code, r.json()[pf]["ready"]), (200, True))
 apps = a.get("/api/apps").json()
@@ -48,7 +48,10 @@ check("secrets are never sent back", any("secret-value" in json.dumps(v) for v i
 check("each platform shows the address to register", apps["tiktok"]["redirect"], BASE + "/oauth/tiktok/callback")
 r = a.put("/api/apps", json={"platform": "tiktok", "client_id": "", "client_secret": "tiktok-secret-value2"}, headers=ORIGIN)
 check("a new secret alone keeps the saved id", accounts.app_keys("tiktok"), ("awtiktokkey123", "tiktok-secret-value2"))
-check("everyone can connect now", b.get("/api/status").json()["connect"], {"youtube": True, "instagram": True, "tiktok": True})
+check("everyone can connect now", b.get("/api/status").json()["connect"], {"youtube": True, "instagram": True, "tiktok": True, "x": True})
+loc = b.get("/oauth/x/start").headers.get("location", "")
+check("X sign-in goes to X with a PKCE check and posting permission",
+      (loc.startswith("https://x.com/i/oauth2/authorize?"), "code_challenge_method=S256" in loc, "media.write" in loc), (True, True, True))
 
 # ---- the platforms, as stand-ins
 class R:

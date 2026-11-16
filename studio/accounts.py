@@ -32,7 +32,9 @@ IG_UPLOAD = "https://rupload.facebook.com/ig-api-upload/v21.0"
 IG_SCOPES = "instagram_business_basic,instagram_business_content_publish"
 TT = "https://open.tiktokapis.com/v2"
 TT_SCOPES = "user.info.basic,video.publish"
-PLATFORM_NAMES = {"youtube": "YouTube", "instagram": "Instagram", "tiktok": "TikTok"}
+X_API = "https://api.x.com/2"
+X_SCOPES = "tweet.read tweet.write users.read media.write offline.access"
+PLATFORM_NAMES = {"youtube": "YouTube", "instagram": "Instagram", "tiktok": "TikTok", "x": "X"}
 
 
 def _dir() -> Path:
@@ -70,8 +72,10 @@ def _write(name, data):
 # name -> (what the platform calls the id, what it calls the secret, .env names for both)
 APPS = {"google": ("Client ID", "Client secret", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"),
         "instagram": ("Instagram app ID", "Instagram app secret", "PEAKCUT_IG_APP_ID", "PEAKCUT_IG_APP_SECRET"),
-        "tiktok": ("Client key", "Client secret", "PEAKCUT_TIKTOK_CLIENT_KEY", "PEAKCUT_TIKTOK_CLIENT_SECRET")}
-APP_FOR = {"youtube": "google", "instagram": "instagram", "tiktok": "tiktok"}
+        "tiktok": ("Client key", "Client secret", "PEAKCUT_TIKTOK_CLIENT_KEY", "PEAKCUT_TIKTOK_CLIENT_SECRET"),
+        "x": ("OAuth 2.0 Client ID", "Client Secret", "PEAKCUT_X_CLIENT_ID", "PEAKCUT_X_CLIENT_SECRET")}
+APP_FOR = {"youtube": "google", "instagram": "instagram", "tiktok": "tiktok", "x": "x"}
+_pkce: dict = {}       # sign-in state -> the secret half of X's PKCE check, until the sign-in comes back
 _apps_seen = {"at": None, "data": {}}
 
 
@@ -183,15 +187,28 @@ def connect_url(platform: str) -> str:
     if platform == "instagram":
         return "https://www.instagram.com/oauth/authorize?" + urlencode({
             "client_id": cid, "redirect_uri": redirect, "response_type": "code", "scope": IG_SCOPES, "state": state})
+    if platform == "x":
+        # X asks for PKCE: a one-time secret kept here, and its hash sent along with the sign-in
+        verifier = secrets.token_urlsafe(48)
+        _pkce[state] = verifier
+        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+        return "https://x.com/i/oauth2/authorize?" + urlencode({
+            "response_type": "code", "client_id": cid, "redirect_uri": redirect, "scope": X_SCOPES, "state": state,
+            "code_challenge": challenge, "code_challenge_method": "S256"})
     return "https://www.tiktok.com/v2/auth/authorize/?" + urlencode({
         "client_key": cid, "redirect_uri": redirect, "response_type": "code", "scope": TT_SCOPES, "state": state})
 
 
 def connect_finish(platform: str, code: str, state: str) -> dict:
+    verifier = _pkce.pop(state or "", None)
     _take_state(state, platform)
     code = (code or "").split("#")[0]           # Instagram adds "#_" to the code
     if not code:
         raise ValueError("The platform did not send a sign-in code. Try again.")
+    if platform == "x":
+        if not verifier:
+            raise ValueError("This sign-in has expired. Press Connect again.")
+        return _x_finish(code, verifier)
     return {"youtube": _youtube_finish, "instagram": _instagram_finish, "tiktok": _tiktok_finish}[platform](code)
 
 
@@ -577,3 +594,74 @@ def tiktok_upload(acc, path: Path, caption: str, privacy: str = "public"):
         acc["detail"] = "Posts are private until this server's TikTok app is reviewed"
         _put(acc)
     return str(ids[0]) if ids else box["publish_id"], url
+
+
+# ------------------------------------------------------------------ X
+# Sign-in is OAuth 2.0 with PKCE; the app's id and secret go in a Basic header. Videos go up in pieces (start,
+# send each piece, finish, wait while X processes it), then a post is made with the video attached.
+def _x_tokens(form: dict) -> dict:
+    cid, secret = app_keys("x")
+    r = httpx.post(f"{X_API}/oauth2/token", data={**form, "client_id": cid}, auth=(cid, secret), timeout=30,
+                   headers={"Content-Type": "application/x-www-form-urlencoded"})
+    return _check(r, "X sign-in").json()
+
+
+def _x_finish(code: str, verifier: str) -> dict:
+    tok = _x_tokens({"code": code, "grant_type": "authorization_code", "redirect_uri": redirect_for("x"),
+                     "code_verifier": verifier})
+    if "media.write" not in str(tok.get("scope", "")) or "tweet.write" not in str(tok.get("scope", "")):
+        raise ValueError("SocialShot needs permission to post and upload videos. Connect again and allow both.")
+    me = _check(httpx.get(f"{X_API}/users/me", headers={"Authorization": f"Bearer {tok['access_token']}"}, timeout=30),
+                "Reading the X account").json().get("data") or {}
+    acc = {"id": f"x_{me.get('id', secrets.token_hex(6))}", "platform": "x", "name": "@" + me.get("username", "account"),
+           "username": me.get("username", ""), "added": time.time(), "access_token": tok["access_token"],
+           "refresh_token": tok.get("refresh_token", ""), "expires": time.time() + int(tok.get("expires_in", 7200)) - 120}
+    if not acc["refresh_token"]:
+        raise ValueError("X did not return a long-lived sign-in. Connect again.")
+    _put(acc)
+    return acc
+
+
+def _x_token(acc) -> str:
+    if acc.get("expires", 0) > time.time():
+        return acc["access_token"]
+    tok = _x_tokens({"grant_type": "refresh_token", "refresh_token": acc["refresh_token"]})
+    # X hands out a new refresh token with each refresh and retires the old one: keep the new one straight away
+    acc.update(access_token=tok["access_token"], refresh_token=tok.get("refresh_token", acc["refresh_token"]),
+               expires=time.time() + int(tok.get("expires_in", 7200)) - 120)
+    _put(acc)
+    return acc["access_token"]
+
+
+X_CHUNK = 4 * 1024 * 1024      # X takes pieces of up to 5 MB
+
+
+def x_upload(acc, path: Path, text: str):
+    h = {"Authorization": f"Bearer {_x_token(acc)}"}
+    size = path.stat().st_size
+    box = _check(httpx.post(f"{X_API}/media/upload/initialize", headers=h, timeout=60, json={
+        "media_type": "video/mp4", "total_bytes": size, "media_category": "tweet_video"}), "Starting the X upload").json()["data"]
+    mid = box["id"]
+    with path.open("rb") as f:
+        n = 0
+        while part := f.read(X_CHUNK):
+            _check(httpx.post(f"{X_API}/media/upload/{mid}/append", headers=h, timeout=900,
+                              data={"segment_index": str(n)}, files={"media": ("clip.mp4", part, "video/mp4")}),
+                   "Uploading to X")
+            n += 1
+    info = _check(httpx.post(f"{X_API}/media/upload/{mid}/finalize", headers=h, timeout=120), "Finishing the X upload").json()["data"]
+    proc = info.get("processing_info")
+    for _ in range(120):                       # X processes the video before it can be posted
+        if not proc or proc.get("state") == "succeeded":
+            break
+        if proc.get("state") == "failed":
+            raise RuntimeError(f"X could not process the video: {(proc.get('error') or {}).get('message', 'no reason given')}")
+        time.sleep(max(1, int(proc.get("check_after_secs", 3))))
+        proc = (_check(httpx.get(f"{X_API}/media/upload", headers=h, timeout=60, params={"command": "STATUS", "media_id": mid}),
+                       "Checking the X upload").json().get("data") or {}).get("processing_info")
+    else:
+        raise RuntimeError("X took too long to process the video.")
+    post = _check(httpx.post(f"{X_API}/tweets", headers=h, timeout=60, json={
+        "text": text[:280], "media": {"media_ids": [mid]}}), "Posting to X").json()["data"]
+    user = acc.get("username") or acc.get("name", "").lstrip("@")
+    return post["id"], f"https://x.com/{user}/status/{post['id']}" if user else ""

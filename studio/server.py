@@ -409,9 +409,10 @@ def brand(name: str):
 
 @app.get("/assets/{name}")
 def asset(name: str):
-    if not re.fullmatch(r"[\w\-]+\.js", name) or not (WEB / name).is_file():
+    if not re.fullmatch(r"[\w\-]+\.(js|css)", name) or not (WEB / name).is_file():
         raise HTTPException(404)
-    return FileResponse(WEB / name, media_type="text/javascript", headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"})
+    kind = "text/css" if name.endswith(".css") else "text/javascript"     # ui.css: the look shared by every page
+    return FileResponse(WEB / name, media_type=kind, headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"})
 
 
 @app.get("/favicon.ico")
@@ -1102,12 +1103,57 @@ def _brand_file() -> Path:
     return config.user_dir(ctx.uid()) / "brand.json"
 
 
+def _logo_file() -> Path:
+    return render.brand_logo_path(ctx.uid())
+
+
 @app.get("/api/brand")
 def brand_get():
     try:
-        return json.loads(_brand_file().read_text(encoding="utf-8"))
+        out = json.loads(_brand_file().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"styles": []}
+        out = {"styles": []}
+    f = _logo_file()
+    out["logo"] = int(f.stat().st_mtime) if f.is_file() else 0      # 0: no logo; otherwise a version for the page's cache
+    return out
+
+
+@app.post("/api/brand/logo")
+async def brand_logo_put(file: UploadFile = File(...)):
+    """A person's logo for their videos. Kept as a PNG of at most 600 px, transparency kept."""
+    data = await file.read(4_000_001)
+    if len(data) > 4_000_000:
+        raise HTTPException(400, "That image is too big. Use one under 4 MB.")
+    from io import BytesIO
+
+    from PIL import Image
+    try:
+        im = Image.open(BytesIO(data))
+        im.load()
+    except Exception:  # noqa: BLE001 - anything Pillow cannot read is not an image we take
+        raise HTTPException(400, "That file isn't an image SocialShot can read. Use a PNG, JPG or WebP.")
+    im = im.convert("RGBA")
+    im.thumbnail((600, 600))
+    f = _logo_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    im.save(f, "PNG")
+    ctx.bump()
+    return {"logo": int(f.stat().st_mtime)}
+
+
+@app.get("/api/brand/logo")
+def brand_logo_get():
+    f = _logo_file()
+    if not f.is_file():
+        raise HTTPException(404, "No logo yet")
+    return FileResponse(f, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@app.delete("/api/brand/logo")
+def brand_logo_del():
+    _logo_file().unlink(missing_ok=True)
+    ctx.bump()
+    return {"logo": 0}
 
 
 @app.put("/api/brand")

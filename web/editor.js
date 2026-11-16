@@ -21,7 +21,13 @@ const HOOK_DEFAULT = {hook_font: "Mazzard H", hook_size: 88, hook_y: null, hook_
   hook_box: "#FFFFFF", hook_ink: "#14100E", hook_op: 100, hook_round: 20, hook_sp: 0,   // its box and text colours, how solid the box is, corners, letter gaps
   sp: 0, wgap: 0, cap_box: "#000000", cap_op: 0, cap_round: 18,             // the captions' letter and word gaps, and a box behind each line (0 = none)
   effect: "none", fade_in: "none", fade_out: "none",                         // and the effects: a colour look, how it starts and ends
-  volume: 100};                                                              // and the sound, in percent of its normal level
+  volume: 100,                                                               // and the sound, in percent of its normal level
+  brand_on: false, brand_logo: true, brand_text: "", brand_pos: "tr",       // and the person's brand: logo and name, where,
+  brand_anim: "float", brand_size: 84, brand_op: 90};                        // how it moves, how big, how solid
+const BRAND_KEYS = ["brand_on", "brand_logo", "brand_text", "brand_pos", "brand_anim", "brand_size", "brand_op"];
+// how the brand moves; the same motions as the render (render.brand_overlay)
+const BRAND_ANIMS = [["none", "Still"], ["float", "Float"], ["slide", "Slide in"], ["drift", "Drift"], ["fade", "Fade in"]];
+const BRAND_POSES = [["tl", "Top left"], ["tc", "Top centre"], ["tr", "Top right"], ["bl", "Bottom left"], ["bc", "Bottom centre"], ["br", "Bottom right"]];
 const RATES = [1, 1.25, 1.5, 2, 0.5];
 // ready-made hook looks: box colour, text colour, how solid the box is (0 = text only, with an outline)
 const HOOK_STYLES = [["white", "White card", {hook_box: "#FFFFFF", hook_ink: "#14100E", hook_op: 100}],
@@ -73,7 +79,7 @@ function sentenceCase(text) {
 const CAP_SHADOW = 4;          // the renderer's caption shadow (render.CAP_SHADOW), in the 1080-wide frame
 const FADE_S = 0.5;
 const keepOwn = L => ({...hookOf(L), effect: L.effect || "none", fade_in: L.fade_in || "none", fade_out: L.fade_out || "none",
-  volume: L.volume ?? 100});   // what a new caption style must not undo
+  volume: L.volume ?? 100, ...Object.fromEntries(BRAND_KEYS.map(k => [k, L[k] ?? HOOK_DEFAULT[k]]))});   // what a new caption style must not undo
 
 /* ---------- the sound: the preview plays through a gain (so it can go above 100%) and two level meters.
    Set up on the first play, as browsers only allow sound after a click. */
@@ -185,7 +191,7 @@ const hookEnd = () => { const d = hookOf(E.look).hook_dur; return d > 0 ? Math.m
 function lookFromStyle(style) {
   const p = PRESETS()[style] || PRESETS().studio || PRESETS().bounce;
   const {label, ...look} = p;
-  return {...look, y: null, hook: true, ...HOOK_DEFAULT};
+  return {...HOOK_DEFAULT, ...look, y: null, hook: true};      // a style's own box and spacing win over the defaults
 }
 // how big a font's letters come out per unit of caption size, as the renderer measures it (server: render.font_em)
 let hookCanvas;
@@ -225,7 +231,7 @@ window.openClip = async function (jid, cid) {
     const [cap, brand] = await Promise.all([api(`/api/jobs/${jid}/clips/${cid}/captions`), api("/api/brand").catch(() => ({styles: []}))]);
     if (E.cid !== cid) return;
     Object.assign(E, {words: clone(cap.words), auto: cap.edited ? [] : clone(cap.words), edited: cap.edited,
-      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], chat: cap.chat || null});
+      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], logoV: brand.logo || 0, chat: cap.chat || null});
   } catch (e) { toast(e.message, "bad"); }
   E.saved = snap(); E.lookKey = JSON.stringify(E.look);
   // A hook made before hooks were written in normal case: offered in normal case, as a change to save
@@ -256,7 +262,8 @@ window.drawClipDlg = function () {          // called on every refresh of the pa
 
 /* ---------- the whole editor */
 // the tools on the left rail open their settings in the panel on the right; the transcript is always under the preview
-const TOOLS = () => [["style", "Captions", ic("cc")], ["text", "Text", TEXT_IC], ["fx", "Effects", FX_IC],
+const BRAND_IC = svg('<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5"/>');
+const TOOLS = () => [["style", "Captions", ic("cc")], ["text", "Text", TEXT_IC], ["brand", "Brand", BRAND_IC], ["fx", "Effects", FX_IC],
   ["audio", "Audio", SOUND(true)], ["trim", "Trim", ic("scissors")], ["post", "Post", ic("send")]];
 const toolOf = tab => tab;
 function draw() {
@@ -375,7 +382,9 @@ function drawPanel() {
     const tile = (key, look, label, del) => { const fc = fontCss(look.font);
       return `<button class="ed-preset ${look.font === L.font && look.base === L.base && look.active === L.active && look.size === L.size && look.upper === L.upper ? "on" : ""}" data-ed="${del ? "brandpick" : "preset"}" data-k="${esc(key)}">
         <span class="ed-ps"><i style="background-image:url('/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}')"></i>
-          <span class="ed-pt" style="font-family:${fc.family};font-weight:${fc.weight};color:${look.base};-webkit-text-stroke:${Math.max(2, look.outline / 2.4).toFixed(1)}px #000">
+          <span class="ed-pt" style="font-family:${fc.family};font-weight:${fc.weight};color:${look.base};${look.cap_op > 0
+            ? `background:${rgba(look.cap_box || "#000000", look.cap_op)};padding:3px 8px;border-radius:6px;-webkit-text-stroke:0`
+            : `-webkit-text-stroke:${look.outline ? Math.max(2, look.outline / 2.4).toFixed(1) : 0}px #000`}">
           ${look.upper ? "CLIP" : "Clip"} <em style="color:${look.active}">${look.upper ? "THIS" : "this"}</em></span></span><b>${esc(label)}</b>
         ${del ? `<i class="ed-x" data-ed="branddel" data-k="${esc(key)}" title="Remove from brand kit">${ic("x")}</i>` : ""}</button>`; };
     const fold = (k, title, note, body) => `<details class="ed-fold" data-fold="${k}" ${E.open?.has(k) ? "open" : ""}><summary>${title}${note ? `<small>${note}</small>` : ""}</summary><div>${body}</div></details>`;
@@ -456,6 +465,35 @@ function drawPanel() {
       </div>
       <div class="ed-card"><div class="ed-brandsave flat"><p class="ed-qt">Save as your brand look</p><p class="ed-help">Keeps the captions and the hook as they are now, to use on any clip.</p>
           <div class="ed-row"><input id="edBrandName" placeholder="Name this look" maxlength="40"><button class="ed-btn" data-ed="brandsave">${ic("plus")}Save</button></div></div></div>`;
+  } else if (E.tab === "brand") {
+    const L = E.look, on = !!L.brand_on;
+    p.innerHTML = head("Brand", "Your logo and name on every clip, so it's always yours, even when it's shared.") + `
+      <div class="ed-card">
+        <div class="ed-h"><b>Show my brand</b><label class="ed-sw2"><input type="checkbox" data-look="brand_on" ${on ? "checked" : ""}><span></span></label></div>
+      </div>
+      <div class="ed-card"><b>Logo</b>
+        <div class="ed-logo">
+          <span class="ed-logo-pv">${E.logoV ? `<img src="/api/brand/logo?v=${E.logoV}" alt="Your logo">` : ic("up")}</span>
+          <div><p>${E.logoV ? "Your logo is saved for every clip." : "PNG with a clear background works best."}</p>
+            <div class="ed-row"><label class="ed-btn">${ic("up")}${E.logoV ? "Replace" : "Upload logo"}<input type="file" accept="image/png,image/jpeg,image/webp" id="edLogoIn" hidden></label>
+              ${E.logoV ? `<button class="ed-btn ghost" data-ed="logodel">Remove</button>` : ""}</div></div>
+        </div>
+        ${E.logoV ? `<label class="ed-ck"><input type="checkbox" data-look="brand_logo" ${L.brand_logo !== false ? "checked" : ""}><span>Show the logo</span></label>` : ""}
+      </div>
+      <div class="ed-card"><b>Name</b>
+        <input class="ed-text" data-look="brand_text" value="${esc(L.brand_text || "")}" maxlength="40" placeholder="@yourname">
+      </div>
+      <div class="ed-card"><b>Where</b>
+        <div class="ed-posgrid">${BRAND_POSES.map(([k, l]) => `<button data-ed="brandpos" data-v="${k}" aria-pressed="${(L.brand_pos || "tr") === k}" aria-label="${l}" title="${l}"><i></i></button>`).join("")}</div>
+      </div>
+      <div class="ed-card"><b>Motion</b>
+        <div class="ed-chips">${BRAND_ANIMS.map(([k, l]) => `<button data-ed="brandanim" data-v="${k}" aria-pressed="${(L.brand_anim || "float") === k}">${l}</button>`).join("")}</div>
+        <p class="ed-help">${{none: "Stays in one place.", float: "Bobs gently up and down.", slide: "Slides in from its side at the start.", drift: "Glides from one side to the other and back, so it's never in one fixed spot.", fade: "Fades in at the start."}[L.brand_anim || "float"]}</p>
+      </div>
+      <div class="ed-card"><b>Size and look</b>
+        ${slider("Size", "brand_size", 40, 200, 2, L.brand_size || 84, L.brand_size || 84)}
+        ${slider("Opacity", "brand_op", 20, 100, 5, L.brand_op ?? 90, (L.brand_op ?? 90) + "%")}
+      </div>`;
   } else if (E.tab === "fx") {
     const L = E.look, cover = `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`;
     const fade = (k, label, opts) => `<p class="ed-grp">${label}</p><div class="ed-fx three">${opts.map(([v, l]) =>
@@ -504,6 +542,7 @@ function drawStage() {
       ${E.view === "live" ? `<img class="ed-bg ${g.layout === "crop" ? "none" : ""}" src="/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}" alt="">
         <video class="ed-fg" id="edVid" src="/media/${E.jid}/${E.cid}/source" playsinline preload="auto" style="height:${g.fg / OUT_H * 100}%"></video>
         <button class="ed-hook" id="edHookBox" data-ed="tab" data-t="text" title="Edit the hook"></button>
+        <button class="ed-brand" id="edBrand" data-ed="tab" data-t="brand" title="Edit your brand" hidden></button>
         <div class="ed-cap" id="edCap"></div><div class="ed-fade" id="edFade"></div>`
       : `<video class="ed-done" id="edVid" src="/media/${E.jid}/${esc(c.file)}?v=${c.version}" playsinline preload="auto"></video>`}
       <div class="ed-making" ${busy ? "" : "hidden"}><i></i>Making your clip…</div>
@@ -585,12 +624,52 @@ function follow(t) {             // when zoomed in, keep the playhead in sight w
   const x = pct(t) / 100 * sc.scrollWidth;
   if (x < sc.scrollLeft + 40 || x > sc.scrollLeft + sc.clientWidth - 80) sc.scrollLeft = x - sc.clientWidth / 3;
 }
+/* the person's brand on the preview: built once per change, then moved every frame exactly like render.brand_overlay */
+function paintBrand(t, phone, k) {
+  const el = $e("#edBrand"); if (!el) return;
+  const L = E.look, text = (L.brand_text || "").trim(), logo = L.brand_logo !== false && E.logoV;
+  const on = !!L.brand_on && !!(text || logo);
+  el.hidden = !on; if (!on) return;
+  const size = (L.brand_size || 84) * k, key = [text, logo, size.toFixed(2), E.logoV].join("|");
+  if (el.dataset.key !== key) {
+    el.dataset.key = key;
+    el.innerHTML = (logo ? `<img src="/api/brand/logo?v=${E.logoV}" alt="" style="height:${size}px">` : "") +
+      (text ? `<span style="font-size:${Math.max(18, size / k * 0.42) * k}px">${esc(text)}</span>` : "");
+    el.style.gap = logo && text ? `${size * 0.22}px` : "0";
+    el.style.padding = `${8 * k}px`;
+  }
+  const W = phone.clientWidth, Hh = phone.clientHeight, w = el.offsetWidth, h = el.offsetHeight, m = 54 * k;
+  const pos = L.brand_pos || "tr", anim = L.brand_anim || "float";
+  let x = pos[1] === "l" ? m : pos[1] === "c" ? (W - w) / 2 : W - w - m;
+  let y = pos[0] === "t" ? (54 + 20) * k : Hh - h - (54 + 60) * k;
+  let a = (L.brand_op ?? 90) / 100;
+  if (anim === "float") y += 10 * k * Math.sin(2 * Math.PI * t / 2.6);
+  else if (anim === "slide") {
+    const s = Math.pow(Math.max(0, 1 - t / 0.7), 3);
+    if (pos[1] === "l") x -= (m + w) * s; else if (pos[1] === "r") x += (m + w) * s;
+    else y += (pos[0] === "t" ? -1 : 1) * ((pos[0] === "t" ? 74 : 114) * k + h) * s;
+  } else if (anim === "drift") x = m + (W - w - 2 * m) * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / 14));
+  else if (anim === "fade") a *= Math.min(1, Math.max(0, t / 0.8));
+  el.style.transform = `translate(${x}px,${y}px)`;
+  el.style.opacity = a;
+}
+async function uploadLogo(file) {
+  if (!file) return;
+  if (file.size > 4e6) return toast("That image is too big. Use one under 4 MB.", "bad");
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const r = await api("/api/brand/logo", {method: "POST", body: fd});
+    E.logoV = r.logo; E.look.brand_on = true; E.look.brand_logo = true; E.lookTouched = true;
+    toast("Logo added", "ok"); after("p"); paintOverlay();
+  } catch (er) { toast(er.message, "bad"); }
+}
 function paintOverlay(t = nowT()) {
   if (E.view !== "live") return;
   const cap = $e("#edCap"), hook = $e("#edHookBox"), phone = $e("#edPhone");
   if (!cap || !phone) return;
   const k = phone.clientWidth / OUT_W, L = E.look, H = hookOf(L), g = geo(E.layout, E.sw, E.sh);
   paintFx(t, phone);
+  paintBrand(t - E.start, phone, k);
   const ls = lines();
   let gi = -1;
   for (let i = 0; i < ls.length; i++) {
@@ -781,6 +860,7 @@ function tourArt(k) {
 }
 function tourShow(i) {
   $e("#edTour")?.remove();
+  try { localStorage.setItem(TOUR_KEY, "1"); } catch {}      // seen once is enough: it won't open by itself again
   const steps = TOUR.filter(s => $e(s.sel));
   if (i >= steps.length) { try { localStorage.setItem(TOUR_KEY, "1"); } catch {} return; }
   const s = steps[i], a = $e(s.sel).getBoundingClientRect();
@@ -1003,6 +1083,14 @@ dlg.addEventListener("click", async e => {
   if (a === "upper") { E.look.upper = d.v === "1"; E.lookTouched = true; after("p"); return showCaptions(); }
   if (a === "colour") { E.look[d.k] = d.v; E.lookTouched = true; after("p"); return d.k.startsWith("hook") ? showHook() : showCaptions(); }
   if (a === "layout") { E.layout = d.v; drawPanel(); return drawStage(); }
+  if (a === "brandpos" || a === "brandanim") {   // where the brand sits, and how it moves: shown straight away
+    E.look[a === "brandpos" ? "brand_pos" : "brand_anim"] = d.v; E.look.brand_on = true; E.lookTouched = true;
+    after("p"); return paintOverlay();
+  }
+  if (a === "logodel") {
+    try { await api("/api/brand/logo", {method: "DELETE"}); E.logoV = 0; toast("Logo removed", "ok"); } catch (er) { toast(er.message, "bad"); }
+    after("p"); return paintOverlay();
+  }
   if (a === "nudge") { setTrim(d.k, E[d.k] + +d.d); return after("pt"); }
   if (a === "toplayhead") { setTrim(d.k, nowT()); return after("pt"); }
 });
@@ -1012,6 +1100,12 @@ dlg.addEventListener("input", e => {
   if (sl) sl.style.setProperty("--p", pctOf(+el.value, +el.min, +el.max));      // the filled part follows the thumb
   if (k) {
     E.lookTouched = true;
+    if (k === "brand_text") {                 // typing a name turns the brand on, and its switch with it
+      E.look.brand_text = el.value.slice(0, 40);
+      if (el.value.trim()) { E.look.brand_on = true; const sw = $e('[data-look="brand_on"]'); if (sw) sw.checked = true; }
+      after(""); return paintOverlay();
+    }
+    if (k === "brand_on" || k === "brand_logo") { E.look[k] = el.checked; after(""); return paintOverlay(); }
     if (k === "font" || k === "hook_font") E.look[k] = el.value;
     else if (COLOUR_KEYS.test(k)) { E.look[k] = el.value.toUpperCase(); el.parentElement.style.background = el.value; }
     else if (k === "hook") { E.look.hook = el.checked; const h = $e("#edHook"); if (h) h.disabled = !el.checked; return after("t"); }
@@ -1049,6 +1143,7 @@ dlg.addEventListener("input", e => {
 });
 dlg.addEventListener("change", e => {
   const el = e.target;
+  if (el.id === "edLogoIn") return uploadLogo(el.files?.[0]);   // a logo picked from the computer
   if (el.dataset.cl) {                   // the Speech cleanup choices: the counts update as they change
     if (el.dataset.cl === "min") E.cl.min = +el.value; else E.cl[el.dataset.cl] = el.checked;
     return drawTx();

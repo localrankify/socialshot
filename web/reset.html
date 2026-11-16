@@ -4,141 +4,118 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reset your SocialShot password</title>
-<meta name="description" content="Reset the password for your SocialShot account.">
+<meta name="description" content="Choose a new password for your SocialShot account.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0C0C0E">
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=3">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?display=swap" rel="stylesheet">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script>document.documentElement.classList.add("js")</script>
+<link rel="stylesheet" href="/assets/ui.css?v=3">
 <style>
-@font-face{font-family:"Apfel Grotezk";src:url("/brand/ApfelGrotezk-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-/* heading font: Mazzard H, on every h1, h2 and h3. Body text stays Apfel Grotezk. */
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Regular.otf") format("opentype");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Medium.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-SemiBold.otf") format("opentype");font-weight:600;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
-:root{--font-head:"Mazzard H","Apfel Grotezk","Segoe UI",system-ui,sans-serif}
-h1,h2,h3{font-family:var(--font-head)}
-:root{--brand:#8B5CF6;--brand-hi:#9D74F8;--ink:#0F0F14;--soft:#F3EEFF;--line-b:#DDD2FE;--deep:#6D3FD9;
-  --frame:#0F0F14;--frame-2:#1F1F23;--frame-text:#F3F1FA;--frame-dim:#9D99B2;
-  --muted:#F6F4FD;--line:#ECE9F6;--line-2:#E1DDF0;--text:#0F0F14;--dim:#5F5C72;--faint:#9D99B2;--bad:#D3343F;--bad-soft:#FDECEE;
-  --r-lg:16px;--r:12px;--r-sm:8px;color-scheme:light}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html{scroll-behavior:smooth}
-body{margin:0;background:#fff;color:var(--text);font:16px/1.55 "Apfel Grotezk","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-h1,h2,h3,p{margin:0}
-a{color:inherit}
-svg{width:18px;height:18px;flex:none;fill:currentColor}
-:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:var(--r);border:1px solid var(--line-2);background:#fff;color:var(--text);
-  font:inherit;font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
-.btn:hover{background:var(--muted);border-color:#D3CEE6}
-.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--ink)}
-.btn.primary:hover{background:var(--brand-hi);border-color:var(--brand-hi)}
-.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}.btn.dark:hover{background:#2A2A2E;border-color:#2A2A2E}
-.btn.sm{height:38px;padding:0 14px;font-size:14px}
-.btn.lg{height:52px;padding:0 26px;font-size:16px}
-.btn:disabled{opacity:.5;cursor:default}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* sign-in, sign-up and reset share this layout: the form on the page, the product beside it */
+body{min-height:100vh;display:grid;grid-template-columns:minmax(420px,1fr) minmax(0,1.12fr);background:var(--s0)}
+.auth{display:flex;flex-direction:column;min-height:100vh;padding:28px 40px}
+.auth-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auth-top img{height:28px;display:block}
+.auth-top a.back{font-size:13px;color:var(--mute);text-decoration:none;transition:color .15s ease}
+.auth-top a.back:hover{color:var(--text)}
+.auth-body{flex:1;display:grid;place-items:center;padding:40px 0}
+.auth-card{width:100%;max-width:380px}
+.auth-card h1{font-size:28px;font-weight:600;letter-spacing:-.025em;line-height:1.15;color:#fff}
+.auth-card .lede{margin:8px 0 28px;color:var(--mute);font-size:15px}
+.auth-card form{display:grid;gap:16px}
+.auth-card .divider{margin:20px 0}
+.auth-card .btn.lg{width:100%}
+.auth-card .btn.lg.primary{margin-top:6px}
+.g{width:18px;height:18px}
+.pwrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.pwrow a{font-size:13px;font-weight:500;color:var(--accent-ink);text-decoration:none}
+.pwrow a:hover{text-decoration:underline;text-underline-offset:3px}
+.pwbox{position:relative;display:block}
+.pwbox input{padding-right:48px}
+.pwbox button{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:6px;background:transparent;color:var(--mute);display:grid;place-items:center;cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.pwbox button:hover{color:var(--text);background:var(--s3)}
+.pwbox button svg{width:17px;height:17px}
+.pwbox button[aria-pressed=true]{color:var(--accent-ink)}
+.notice{display:none}.notice.on{display:block}
+.legal{margin-top:16px;font-size:12.5px;color:var(--faint);text-align:center;line-height:1.5}
+.legal a{color:var(--mute);text-underline-offset:2px}
+.swap{margin-top:28px;padding-top:20px;border-top:1px solid var(--line);text-align:center;color:var(--mute);font-size:14px}
+.swap a{color:var(--text);font-weight:500;text-decoration:none;margin-left:4px}
+.swap a:hover{color:var(--accent-ink)}
+.notice.sent{line-height:1.55}.notice.sent b{color:#fff;font-weight:500}
+.swap a.backlink{display:inline-flex;align-items:center;gap:6px;margin:0}.backlink svg{width:15px;height:15px}
+.auth-foot{display:flex;gap:16px;font-size:12.5px;color:var(--faint)}
+.auth-foot a{color:var(--faint);text-decoration:none}.auth-foot a:hover{color:var(--dim)}
 
-body{min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);background:var(--frame)}
-.side{color:var(--frame-text);padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;min-height:100vh}
-.side img{height:38px}
-.side h1{font-size:clamp(30px,3.2vw,42px);line-height:1.1;letter-spacing:-.03em;font-weight:700;color:#fff;max-width:440px}
-.side h1 em{font-style:normal;color:var(--brand)}
-.side ul{list-style:none;padding:0;margin:28px 0 0;display:flex;flex-direction:column;gap:14px;color:var(--frame-dim);font-size:16px}
-.side li{display:flex;gap:12px;align-items:flex-start}.side li svg{color:var(--brand);margin-top:3px}
-.side small{color:var(--frame-dim);font-size:13px}
-.main{background:#fff;margin:8px 8px 8px 0;border-radius:var(--r-lg);display:grid;place-items:center;padding:32px 20px}
-.card{width:100%;max-width:400px}
-.card h2{font-size:28px;font-weight:700;letter-spacing:-.03em;color:var(--ink)}
-.card>p{color:var(--dim);margin:8px 0 26px}
-form{display:flex;flex-direction:column;gap:16px}
-label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:600;color:var(--dim)}
-input{height:46px;padding:0 14px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:#fff;font:inherit;color:var(--text);outline:none;transition:border-color .15s ease,background-color .15s ease}
-input:hover{border-color:#D3CEE6}input:focus{border-color:var(--brand);background:#fff}
-input:focus-visible{outline:none}
-input::placeholder{color:var(--faint)}
-.btn{width:100%;height:48px}
-.or{display:flex;align-items:center;gap:14px;color:var(--faint);font-size:13px;margin:20px 0}
-.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
-.err{display:none;background:var(--bad-soft);color:var(--bad);padding:11px 14px;border-radius:var(--r);font-size:14px;font-weight:500}
-.err.on{display:block}
-.swap{margin-top:22px;text-align:center;color:var(--dim);font-size:15px}
-.swap a{color:var(--deep);font-weight:600;text-decoration:none}.swap a:hover{text-decoration:underline}
-.hint{font-size:13px;color:var(--faint);font-weight:400}
-.pwrow{display:flex;justify-content:space-between;align-items:baseline}
-.pwrow a{font-size:13px;font-weight:600;color:var(--deep);text-decoration:none}.pwrow a:hover{text-decoration:underline}
-.legal{margin-top:14px;font-size:12px;color:var(--faint);text-align:center;line-height:1.5}
-.legal a{color:var(--dim)}
-.g{width:20px;height:20px}
-.mobile-logo{display:none}
-@media (max-width:860px){body{grid-template-columns:1fr;background:#fff}.side{display:none}.main{margin:0;border-radius:0;min-height:100vh;align-content:center}.mobile-logo{display:block;height:34px;margin-bottom:28px}}
-
-/* SocialShot look: dark buttons with a soft gradient, a small press */
-.btn{font-weight:500;transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .16s cubic-bezier(.23,1,.32,1)}
-.btn:active{transform:scale(.97)}
-.btn:hover{border-color:#D3CEE6}
-.btn.primary,.btn.dark{background:linear-gradient(180deg,#36363B 0%,#0F0F14 100%);border-color:#0F0F14;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
-.btn.primary:hover,.btn.dark:hover{background:linear-gradient(180deg,#44444A 0%,#1E1E21 100%);border-color:#1E1E21}
-.btn.primary:disabled{background:#EEEBF8;border-color:#EEEBF8;color:#9D99B2;box-shadow:none}
-footer.site .fbrand a.fcta,footer.site .fbrand a.fcta:hover{background:#fff;color:#0F0F14}
-
-/* SocialShot: black pill buttons, white pill secondary buttons */
-.btn{border-radius:999px}
-.btn.primary,.btn.dark{background:linear-gradient(180deg,#2A2733 0%,#0F0F14 100%);border-color:#0F0F14;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
-.btn.primary:hover,.btn.dark:hover{background:linear-gradient(180deg,#36323F 0%,#1A1820 100%);border-color:#1A1820}
-.btn:not(.primary):not(.dark):not(.danger):not(.ghost){background:#fff;border-color:#E1DDF0}
-.btn:not(.primary):not(.dark):not(.danger):not(.ghost):hover{background:#F8F6FD;border-color:#D3CEE6}
-
-/* SocialShot: a light side with soft glows instead of the dark block */
-body{background:radial-gradient(40% 50% at 12% 20%,rgba(236,111,214,.22),transparent 72%),radial-gradient(45% 55% at 40% 70%,rgba(139,92,246,.24),transparent 72%),#F7F5FD}
-.side{color:#0F0F14}
-.side h1{color:#0F0F14;font-weight:500;letter-spacing:-.045em}
-.side h1 em{background:linear-gradient(90deg,#7C5CF6,#E86FCF);-webkit-background-clip:text;background-clip:text;color:transparent}
-.side ul,.side small{color:#5F5C72}
-.side small a{color:#5F5C72}
-.side li svg{color:#8B5CF6}
-
-/* SocialShot buttons: the warm gradient with a fine grain, the same as the website */
-:root{--noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");--cta:linear-gradient(180deg,#9D6BFF 0%,#7C3AED 55%,#6320D6 100%)}
-.btn.primary{background:var(--noise),var(--cta);background-blend-mode:overlay,normal;border-color:transparent;color:#FFFFFF;box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
-.btn.primary:hover{background:var(--noise),var(--cta);background-blend-mode:overlay,normal;border-color:transparent;filter:brightness(1.05) saturate(1.05)}
-.btn.primary svg{color:#FFFFFF}
+/* the product side: a panel on the window, the app cropped by its right and bottom edges */
+.show{position:relative;margin:10px 10px 10px 0;border-radius:var(--r-panel);border:1px solid var(--line);overflow:hidden;min-height:calc(100vh - 20px)}
+.show-copy{position:relative;z-index:1;padding:56px 56px 0;max-width:560px}
+.show-copy .pill{height:26px;padding:0 11px;font-size:12px}
+.show-copy .pill .dot{background:var(--good)}
+.show-copy h2{margin-top:18px;font-size:clamp(28px,2.6vw,38px);line-height:1.1;letter-spacing:-.035em;font-weight:600;color:#fff}
+.show-copy p{margin-top:12px;color:var(--mute);font-size:15.5px;max-width:440px}
+.show .shot-wrap{left:56px;top:252px;right:-40px;bottom:-40px}
+.show .shot{--sw:820px}
+.show .shot-sat{left:-34px;top:476px}
+@media (max-width:980px){body{grid-template-columns:1fr}.show{display:none}.auth{padding:22px 20px}}
 </style>
 </head>
 <body>
-<aside class="side">
-  <a href="/" aria-label="SocialShot home"><img src="/brand/logo.svg?v=3" alt="SocialShot"></a>
-  <div>
-    <h1>Clips from every stream, <em>without watching all of it.</em></h1>
-    <ul>
-      <li><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg><span>Records live streams and clips them as they happen</span></li>
-      <li><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg><span>Vertical shorts with word-by-word captions and a hook</span></li>
-      <li><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg><span>3 free clips on every video, no card needed</span></li>
-    </ul>
+<main class="auth">
+  <div class="auth-top"><a href="/" aria-label="SocialShot home"><img src="/brand/logo-light.svg?v=3" alt="SocialShot" width="111" height="28"></a><a class="back" href="/">Back to site</a></div>
+  <div class="auth-body"><div class="auth-card">
+    <h1 id="h">Reset your password</h1><p class="lede" id="p">Enter the email you signed up with and we'll send you a link to choose a new one.</p>
+    <form id="ask" novalidate>
+      <div class="notice bad" id="err" role="alert"></div>
+      <label class="field"><span>Email</span><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+      <button class="btn lg primary" id="go1">Send reset link</button>
+    </form>
+    <div id="sent" hidden><div class="notice ok on sent"><b>Check your inbox.</b> If there's an account for that email, a reset link is on its way. It works for one hour; look in your spam folder if you don't see it.</div></div>
+    <form id="set" novalidate hidden>
+      <div class="notice bad" id="err2" role="alert"></div>
+      <label class="field"><span>New password</span><input id="pw" type="password" autocomplete="new-password" required minlength="8" placeholder="Choose a password"><span class="hint">At least 8 characters.</span></label>
+      <label class="field"><span>Type it again</span><input id="pw2" type="password" autocomplete="new-password" required minlength="8" placeholder="The same password"></label>
+      <button class="btn lg primary" id="go2">Save new password</button>
+    </form>
+    <p class="swap"><a href="/login" class="backlink"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l14 0"/><path d="M5 12l6 6"/><path d="M5 12l6 -6"/></svg>Back to sign in</a></p>
+  </div></div>
+  <div class="auth-foot"><span>© <span id="year"></span> SocialShot</span><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+</main>
+
+<aside class="show surface" aria-label="What SocialShot does">
+  <div class="show-copy">
+    <span class="pill"><i class="dot"></i>Clips while the stream is live</span>
+    <h2>Your best moments, cut and captioned for you.</h2>
+    <p>Paste a link or add a creator. SocialShot finds the moments people react to and hands you vertical clips, ready to post.</p>
   </div>
-  <small>© <span id="year"></span> SocialShot · <a href="/privacy" style="color:inherit">Privacy</a> · <a href="/terms" style="color:inherit">Terms</a></small>
+  <div class="shot-wrap" data-shot aria-hidden="true">
+    <div class="shot">
+      <div class="shot-side"><img src="/brand/favicon.svg?v=3" alt="">
+        <i><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></svg></i>
+        <i><svg class="ti" viewBox="0 0 24 24"><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg></i>
+        <i class="on"><svg class="ti" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg></i>
+      </div>
+      <div class="shot-main">
+        <div class="shot-top"><div><b>Friday stream VOD</b><small>Twitch · 2:14:08</small></div>
+          <span class="shot-status"><span class="work"><i class="shot-spin"></i>Finding the best moments</span><span class="done"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>4 clips ready</span></span></div>
+        <div class="shot-meter"><i></i></div>
+        <div class="shot-grid">
+          <div class="shot-clip" style="--i:0"><div class="vid"><img src="/brand/demo-bounce.jpg" alt=""><span class="score top">94</span><span class="len">0:42</span></div><p>The 1v4 clutch nobody saw coming</p></div>
+          <div class="shot-clip" style="--i:1"><div class="vid"><img src="/brand/demo-hype.jpg" alt=""><span class="score">88</span><span class="len">0:58</span></div><p>Chat loses it at the final boss</p></div>
+          <div class="shot-clip" style="--i:2"><div class="vid"><img src="/brand/demo-clean.jpg" alt=""><span class="score">81</span><span class="len">0:35</span></div><div class="bars"><span class="bar" style="width:86%"></span><span class="bar" style="width:52%"></span></div></div>
+          <div class="shot-clip" style="--i:3"><div class="vid"><img src="/brand/demo-bounce.jpg" alt="" style="object-position:30% 50%"><span class="score">76</span><span class="len">0:51</span></div><div class="bars"><span class="bar" style="width:70%"></span><span class="bar" style="width:44%"></span></div></div>
+          <div class="shot-clip dim" style="--i:4"><div class="vid"><img src="/brand/demo-hype.jpg" alt="" style="object-position:70% 40%"></div></div>
+          <div class="shot-clip dim" style="--i:5"><div class="vid"><img src="/brand/demo-clean.jpg" alt="" style="object-position:20% 60%"></div></div>
+          <div class="shot-clip dim" style="--i:6"><div class="vid"><img src="/brand/demo-bounce.jpg" alt="" style="object-position:80% 30%"></div></div>
+          <div class="shot-clip dim" style="--i:7"><div class="vid"><img src="/brand/demo-hype.jpg" alt="" style="object-position:20% 80%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="shot-sat"><span class="yt"><svg class="ti" viewBox="0 0 24 24"><path d="M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8z"/><path d="M10 9l5 3l-5 3z"/></svg></span><span><b>Posted to YouTube Shorts</b><small>The 1v4 clutch · just now</small></span><span class="tick"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg></span></div>
+  </div>
 </aside>
-<main class="main"><div class="card">
-  <a href="/"><img class="mobile-logo" src="/brand/logo.svg?v=3" alt="SocialShot"></a>
-  <h2 id="h">Reset your password</h2><p id="p">Enter the email you signed up with and we'll send you a link to choose a new password.</p>
-  <form id="ask" novalidate>
-    <div class="err" id="err" role="alert"></div>
-    <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
-    <button class="btn primary" id="go1">Send reset link</button>
-  </form>
-  <div id="sent" hidden><div class="okbox">If there's an account for that email, a reset link is on its way. It works for one hour. Check your spam folder if you don't see it.</div></div>
-  <form id="set" novalidate hidden>
-    <div class="err" id="err2" role="alert"></div>
-    <label>New password<input id="pw" type="password" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
-    <label>Type it again<input id="pw2" type="password" autocomplete="new-password" required minlength="8"></label>
-    <button class="btn primary" id="go2">Save new password</button>
-  </form>
-  <p class="swap"><a href="/login">Back to sign in</a></p>
-</div></main>
-<style>.okbox{background:#E9F6EE;color:#1F7A4D;padding:14px 16px;border-radius:var(--r);font-size:15px;line-height:1.5}</style>
+<script src="/assets/shot.js?v=1" defer></script>
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
 const q = new URLSearchParams(location.search), token = q.get("t");
@@ -146,7 +123,7 @@ const $ = id => document.getElementById(id);
 const fail = (box, m) => { $(box).textContent = m; $(box).classList.add("on"); };
 if (token) {
   $("ask").hidden = true; $("set").hidden = false;
-  $("h").textContent = "Choose a new password"; $("p").textContent = "You'll be signed in, and signed out everywhere else.";
+  $("h").textContent = "Choose a new password"; $("p").textContent = "You'll be signed in here, and signed out everywhere else.";
 }
 $("ask").addEventListener("submit", async e => {
   e.preventDefault(); $("err").classList.remove("on");

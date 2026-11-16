@@ -7,7 +7,7 @@
 <meta name="description" content="SocialShot clips Twitch, Kick and YouTube live streams while they're still live. AI finds the best moments and turns them into captioned vertical Shorts, Reels and TikToks. Start free: 3 clips per video.">
 <link rel="canonical" href="{{SITE}}/">
 <meta name="robots" content="index,follow,max-image-preview:large">
-<meta name="theme-color" content="#1E0B4D">
+<meta name="theme-color" content="#141416">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SocialShot">
 <meta property="og:url" content="{{SITE}}/">
@@ -17,7 +17,6 @@
 <meta name="twitter:title" content="SocialShot: clip live streams while they're still live">
 <meta name="twitter:description" content="AI stream clipper for Twitch, Kick and YouTube. Captioned vertical clips. Start free: 3 clips per video.">
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=3">
-<link rel="preload" as="image" href="/brand/demo-hype.jpg" fetchpriority="high">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SocialShot", "applicationCategory": "MultimediaApplication", "operatingSystem": "Web browser", "url": "{{SITE}}/", "image": "{{SITE}}/brand/logo.svg?v=3", "description": "AI clip maker that turns Twitch, Kick and YouTube live streams and videos into captioned vertical clips for YouTube Shorts, Instagram Reels and TikTok.", "isAccessibleForFree": true, "featureList": ["Clips live streams while they are live", "AI picks the best moments", "Word-by-word captions", "Vertical 9:16 clips", "Twitch, Kick and YouTube", "Posts to YouTube Shorts and Instagram Reels", "3 free clips per video"]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "SocialShot", "url": "{{SITE}}/", "logo": "{{SITE}}/brand/logo.svg?v=3"}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is SocialShot free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, to start. Every video gives you 3 clips for free. When you want more clips from a video, buy credits: 1 credit makes 1 more clip. There is no subscription."}}, {"@type": "Question", "name": "Do I need to install anything?", "acceptedAnswer": {"@type": "Answer", "text": "No. Sign up, paste a link and SocialShot does the rest in your browser. There is nothing to download and no AI key to set up."}}, {"@type": "Question", "name": "How fast are the clips?", "acceptedAnswer": {"@type": "Answer", "text": "A 15-minute video usually comes back in about two minutes. Live streams hand over their first clips while the stream is still going."}}, {"@type": "Question", "name": "Which videos work best?", "acceptedAnswer": {"@type": "Answer", "text": "Anything with people talking and reacting: live streams, gaming VODs, podcasts and interviews, from YouTube, Twitch, Kick or your own files."}}, {"@type": "Question", "name": "Can I change a clip afterwards?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Open any clip in the editor to fix captions, change the font and colours, trim it, and save it again."}}, {"@type": "Question", "name": "Can I clip any streamer?", "acceptedAnswer": {"@type": "Answer", "text": "SocialShot is a tool. You are responsible for having the right to clip and post a creator's content; most clipping programs ask you to follow the creator's own rules."}}]}</script>
@@ -26,403 +25,600 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&family=Anton&family=Montserrat:wght@800&family=Bebas+Neue&family=Bangers&family=Fredoka:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/ui.css?v=3">
 <style>
-@font-face{font-family:"Apfel Grotezk";src:url("/brand/ApfelGrotezk-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-/* heading font: Mazzard H, on every h1, h2 and h3. Body text stays Apfel Grotezk. */
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Regular.otf") format("opentype");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Medium.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-SemiBold.otf") format("opentype");font-weight:600;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
-:root{--font-head:"Mazzard H","Apfel Grotezk","Segoe UI",system-ui,sans-serif}
-h1,h2,h3{font-family:var(--font-head)}
-:root{--ink:#14082B;--text:#1B1230;--dim:#5E5873;--faint:#9690AB;--line:#ECE7F7;--line-2:#E0D9F2;--lav:#F7F4FE;--violet:#7C3AED;--pink:#F062C0;
-  --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --cta:linear-gradient(180deg,#9D6BFF 0%,#7C3AED 55%,#6320D6 100%);--ease:cubic-bezier(.23,1,.32,1);color-scheme:light}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
 html{scroll-behavior:smooth}
 [id]{scroll-margin-top:84px}
-body{margin:0;background:#fff;color:var(--text);font:16px/1.55 "Apfel Grotezk","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-h1,h2,h3,p{margin:0}
-a{color:inherit}
-svg{width:18px;height:18px;flex:none}
-:focus-visible{outline:2px solid var(--violet);outline-offset:3px}
-.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
-.grain{position:relative;isolation:isolate}
-.grain::before{content:"";position:absolute;inset:0;background:var(--noise);opacity:.26;mix-blend-mode:overlay;pointer-events:none;z-index:-1;border-radius:inherit}
-/* buttons */
-.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 22px;border-radius:999px;border:1px solid transparent;font:inherit;font-size:15px;font-weight:500;
-  text-decoration:none;white-space:nowrap;cursor:pointer;transition:transform .16s var(--ease),filter .15s ease,background-color .15s ease,border-color .15s ease}
-.btn:active{transform:scale(.97)}
-.btn.cta{background:var(--noise),var(--cta);background-blend-mode:overlay,normal;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 10px 24px -12px rgba(99,32,214,.7)}
-.btn.cta:hover{filter:brightness(1.08)}
-.btn.ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
-.btn.ghost:hover{background:rgba(255,255,255,.2)}
-.btn.line{background:#fff;border-color:var(--line-2);color:var(--text)}
-.btn.line:hover{border-color:#CDBFF0}
-.btn.sm{height:38px;padding:0 16px;font-size:14px}
-/* header: a floating pill bar */
-header.nav{position:fixed;top:14px;left:0;right:0;z-index:30;pointer-events:none}
-header.nav .bar-in{pointer-events:auto;max-width:980px;margin:0 auto;display:flex;align-items:center;gap:16px;height:60px;padding:0 10px 0 18px;border-radius:999px;
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);transition:background-color .25s ease,border-color .25s ease}
-header.nav .logo img{height:30px;display:block}
-header.nav .logo .dark{display:none}
-header.nav nav{display:flex;gap:2px;flex:1;justify-content:center}
-header.nav nav a{color:rgba(255,255,255,.85);text-decoration:none;font-size:14px;padding:8px 14px;border-radius:999px;transition:background-color .15s ease,color .15s ease}
-header.nav nav a:hover{color:#fff;background:rgba(255,255,255,.14)}
-header.nav .acts{display:flex;gap:6px}
-header.nav .btn{height:40px;padding:0 18px;font-size:14px}
-header.nav.stuck .bar-in{background:rgba(255,255,255,.88);border-color:var(--line)}
-header.nav.stuck .logo .light{display:none}header.nav.stuck .logo .dark{display:block}
-header.nav.stuck nav a{color:var(--dim)}header.nav.stuck nav a:hover{color:var(--text);background:var(--lav)}
-header.nav.stuck .btn.ghost{background:#fff;border-color:var(--line-2);color:var(--text)}
-/* hero: a night sky with an aurora, stars and soft hills */
-.hero{position:relative;overflow:hidden;color:#fff;text-align:center;padding:150px 0 0;
-  background:radial-gradient(30% 34% at 22% 30%,rgba(120,240,214,.35),transparent 70%),radial-gradient(34% 40% at 74% 26%,rgba(240,98,192,.42),transparent 70%),
-    radial-gradient(60% 50% at 50% 12%,rgba(157,107,255,.75),transparent 72%),linear-gradient(180deg,#0E0A33 0%,#2A1478 40%,#5B2BD6 72%,#B9A3FF 100%)}
-.stars{position:absolute;inset:0;pointer-events:none}
-.stars i{position:absolute;left:0;top:0;width:2px;height:2px;border-radius:50%;background:#fff;box-shadow:663px 154px 0 0 rgba(255,255,255,.9),148px 548px 0 0 rgba(255,255,255,.5),1193px 59px 0 .5px rgba(255,255,255,.7),76px 88px 0 0 rgba(255,255,255,.35),143px 246px 0 0 rgba(255,255,255,.35),121px 126px 0 0 rgba(255,255,255,.9),1181px 406px 0 0 rgba(255,255,255,.7),95px 136px 0 0 rgba(255,255,255,.35),295px 553px 0 0 rgba(255,255,255,.5),1147px 185px 0 0 rgba(255,255,255,.7),762px 99px 0 .5px rgba(255,255,255,.9),1155px 61px 0 .5px rgba(255,255,255,.7),1016px 544px 0 0 rgba(255,255,255,.5),953px 464px 0 0 rgba(255,255,255,.5),508px 184px 0 .5px rgba(255,255,255,.7),167px 307px 0 .5px rgba(255,255,255,.35),1792px 351px 0 .5px rgba(255,255,255,.35),589px 74px 0 0 rgba(255,255,255,.35),337px 350px 0 0 rgba(255,255,255,.35),863px 40px 0 .5px rgba(255,255,255,.9),1565px 321px 0 0 rgba(255,255,255,.5),1217px 508px 0 .5px rgba(255,255,255,.35),140px 95px 0 0 rgba(255,255,255,.35),1427px 66px 0 0 rgba(255,255,255,.5),1325px 456px 0 0 rgba(255,255,255,.35),1816px 355px 0 0 rgba(255,255,255,.35),727px 172px 0 .5px rgba(255,255,255,.9),1011px 60px 0 0 rgba(255,255,255,.5),264px 253px 0 0 rgba(255,255,255,.35),1877px 508px 0 0 rgba(255,255,255,.7),919px 411px 0 .5px rgba(255,255,255,.5),1809px 140px 0 0 rgba(255,255,255,.5),1446px 425px 0 0 rgba(255,255,255,.35),472px 154px 0 0 rgba(255,255,255,.7),309px 237px 0 .5px rgba(255,255,255,.7),24px 496px 0 .5px rgba(255,255,255,.7),538px 288px 0 0 rgba(255,255,255,.7),858px 547px 0 0 rgba(255,255,255,.5),257px 527px 0 .5px rgba(255,255,255,.9),935px 401px 0 0 rgba(255,255,255,.35),807px 106px 0 0 rgba(255,255,255,.35),127px 195px 0 0 rgba(255,255,255,.7),902px 166px 0 0 rgba(255,255,255,.5),1230px 53px 0 0 rgba(255,255,255,.9),1160px 154px 0 .5px rgba(255,255,255,.9),744px 26px 0 0 rgba(255,255,255,.7),1257px 385px 0 0 rgba(255,255,255,.5),711px 372px 0 0 rgba(255,255,255,.9),236px 499px 0 0 rgba(255,255,255,.35),990px 319px 0 0 rgba(255,255,255,.7),209px 350px 0 .5px rgba(255,255,255,.5),980px 165px 0 .5px rgba(255,255,255,.9),420px 540px 0 0 rgba(255,255,255,.7),1413px 556px 0 0 rgba(255,255,255,.5),1316px 93px 0 .5px rgba(255,255,255,.5),1061px 375px 0 0 rgba(255,255,255,.5),1580px 228px 0 .5px rgba(255,255,255,.5),1303px 228px 0 .5px rgba(255,255,255,.7),1650px 245px 0 0 rgba(255,255,255,.7),409px 530px 0 0 rgba(255,255,255,.5),1497px 29px 0 0 rgba(255,255,255,.5),967px 265px 0 0 rgba(255,255,255,.5),915px 357px 0 0 rgba(255,255,255,.9),451px 104px 0 0 rgba(255,255,255,.35),402px 345px 0 0 rgba(255,255,255,.35),1278px 1px 0 0 rgba(255,255,255,.5),1637px 86px 0 .5px rgba(255,255,255,.9),1863px 397px 0 .5px rgba(255,255,255,.7),979px 182px 0 0 rgba(255,255,255,.5),177px 405px 0 0 rgba(255,255,255,.35),1522px 86px 0 .5px rgba(255,255,255,.7),348px 130px 0 0 rgba(255,255,255,.7),1209px 476px 0 .5px rgba(255,255,255,.7),1252px 485px 0 .5px rgba(255,255,255,.5),319px 134px 0 0 rgba(255,255,255,.9),1637px 105px 0 .5px rgba(255,255,255,.7),888px 199px 0 0 rgba(255,255,255,.9),515px 217px 0 0 rgba(255,255,255,.7),1564px 333px 0 0 rgba(255,255,255,.35),1708px 134px 0 0 rgba(255,255,255,.5),1838px 469px 0 .5px rgba(255,255,255,.35),1693px 513px 0 0 rgba(255,255,255,.7),1072px 522px 0 0 rgba(255,255,255,.35),1590px 187px 0 .5px rgba(255,255,255,.9),1589px 153px 0 0 rgba(255,255,255,.7),969px 123px 0 .5px rgba(255,255,255,.9),667px 530px 0 .5px rgba(255,255,255,.35),1606px 108px 0 .5px rgba(255,255,255,.9),508px 195px 0 0 rgba(255,255,255,.9),1581px 100px 0 .5px rgba(255,255,255,.35);animation:twinkle 5s ease-in-out infinite}
-.stars i+i{transform:translate(37px,61px);animation-delay:-2.5s;opacity:.6}
-@keyframes twinkle{50%{opacity:.35}}
-.aurora{position:absolute;left:-10%;right:-10%;top:40px;height:320px;pointer-events:none;filter:blur(30px);opacity:.75;
-  background:conic-gradient(from 200deg at 50% 100%,transparent 0deg,rgba(120,240,214,.55) 40deg,rgba(157,107,255,.6) 90deg,rgba(240,98,192,.5) 140deg,transparent 180deg);
-  animation:drift 14s ease-in-out infinite alternate}
-@keyframes drift{to{transform:translateX(4%) skewX(-6deg)}}
-.hero .wrap{position:relative;z-index:2}
-.pill{display:inline-flex;align-items:center;gap:10px;height:34px;padding:0 14px 0 6px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);font-size:14px;color:#fff;text-decoration:none}
-.pill .live{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:#FF3B5C;font-size:12px;font-weight:500}
-.pill .live i{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.3s infinite}
-@keyframes blink{50%{opacity:.3}}
-.hero h1{font-size:clamp(40px,6vw,76px);line-height:1.03;letter-spacing:-.05em;font-weight:500;max-width:900px;margin:22px auto 0}
-.hero .lede{font-size:18px;color:rgba(255,255,255,.82);max-width:560px;margin:16px auto 30px}
-.prompt{max-width:720px;margin:0 auto;text-align:left;background:#fff;border-radius:24px;padding:10px;color:var(--text);box-shadow:0 30px 60px -30px rgba(14,10,51,.6)}
-.prompt textarea{width:100%;height:78px;border:0;outline:0;resize:none;padding:12px 14px;font:inherit;font-size:16px;color:var(--text);background:transparent}
-.prompt textarea::placeholder{color:var(--faint)}
-.prompt .row{display:flex;align-items:center;gap:8px;padding:4px 4px 2px 8px;flex-wrap:wrap}
-.prompt .src{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:var(--lav);color:var(--dim);font-size:13px}
-.prompt .src svg{width:14px;height:14px;color:var(--violet)}
-.prompt .btn{margin-left:auto}
-.ticks{display:flex;justify-content:center;gap:8px 22px;flex-wrap:wrap;margin-top:18px;font-size:14px;color:rgba(255,255,255,.88)}
-.ticks span{display:inline-flex;align-items:center;gap:7px}.ticks svg{width:16px;height:16px;color:#C9F7E8}
-.hills{position:relative;display:block;width:100%;height:auto;margin-top:70px}
-/* sections */
-section{padding:96px 0}
-.head{text-align:center;max-width:660px;margin:0 auto 44px}
-.eyebrow{display:inline-block;font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--violet);margin-bottom:12px}
-h2{font-size:clamp(30px,3.8vw,46px);line-height:1.08;letter-spacing:-.045em;font-weight:500;color:var(--ink)}
-.head p{color:var(--dim);font-size:17px;margin-top:12px}
-.lav{background:var(--lav)}
-/* the feature grid */
-.fgrid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.fx{padding:24px;border-radius:22px;background:var(--lav);border:1px solid var(--line);transition:transform .3s var(--ease),border-color .2s ease,background-color .2s ease}
-@media (hover:hover){.fx:hover{transform:translateY(-3px);border-color:#D9CCF7;background:#fff}}
-.fx i{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;color:#fff;background:var(--noise),var(--cta);background-blend-mode:overlay,normal;margin-bottom:16px}
-.fx i svg{width:20px;height:20px}
-.fx h3{font-size:18px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
-.fx p{color:var(--dim);font-size:14px;margin-top:6px}
-/* alternating rows */
-.rows{display:grid;gap:30px}
-.rowx{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;padding:30px;border-radius:30px;background:#fff;border:1px solid var(--line)}
-.rowx:nth-child(even) .vis{order:-1}
-.rowx .tag{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--violet);margin-bottom:12px}
-.rowx .tag b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#F1EBFF;font-weight:500}
-.rowx h3{font-size:clamp(24px,2.6vw,32px);font-weight:500;letter-spacing:-.035em;line-height:1.12;color:var(--ink)}
-.rowx p{color:var(--dim);font-size:16px;margin-top:12px;max-width:440px}
-.rowx a.more{display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:14px;color:var(--violet);text-decoration:none}
-.vis{position:relative;height:320px;border-radius:22px;overflow:hidden;display:grid;place-items:center;padding:24px;
-  background:radial-gradient(60% 70% at 15% 10%,rgba(240,98,192,.28),transparent 70%),radial-gradient(70% 70% at 90% 90%,rgba(124,58,237,.32),transparent 70%),#EFE8FF}
-.ui{width:100%;max-width:330px;display:grid;gap:9px;padding:16px;border-radius:18px;background:rgba(255,255,255,.85);box-shadow:0 20px 40px -24px rgba(60,30,140,.45)}
-.ui .lab{font-size:12px;color:var(--faint)}
-.ui .f{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--lav);color:var(--dim);font-size:13px}
-.ui .f svg{width:15px;height:15px;color:var(--violet)}
-.ui .r{display:flex;gap:6px}.ui .r span{flex:1;height:32px;border-radius:999px;background:var(--lav);display:grid;place-items:center;font-size:12px;color:var(--dim)}
-.ui .r span.on{background:#14082B;color:#fff}
-.ui .go{height:40px;border-radius:999px;background:var(--noise),var(--cta);background-blend-mode:overlay,normal;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:500}
-.ui .st{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:12px;background:var(--lav);font-size:13px}
-.ui .st i{width:16px;height:16px;border-radius:50%;background:#22C55E;flex:none}
-.ui .st.wait i{background:transparent;border:2px solid #C9BCEB}
-.ui .meter{height:6px;border-radius:999px;background:var(--lav);overflow:hidden}.ui .meter i{display:block;height:100%;width:72%;background:var(--cta);border-radius:999px}
-.vis video{height:250px;aspect-ratio:9/16;border-radius:16px;object-fit:cover;border:4px solid #fff;filter:hue-rotate(240deg) saturate(.95)}
-.chipx{position:absolute;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;background:#fff;font-size:12px;color:var(--text);box-shadow:0 14px 30px -16px rgba(60,30,140,.5)}
-.chipx svg{width:14px;height:14px;color:var(--violet)}
-/* caption styles row, like templates */
+body{background:var(--s1);overflow-x:hidden}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.ic{display:inline-flex}
+
+/* ---------- header: the app's top bar, frosted once the page moves */
+header.nav{position:fixed;inset:0 0 auto;z-index:40;border-bottom:1px solid transparent;transition:background-color .25s ease,border-color .25s ease}
+header.nav.stuck{background:rgba(20,20,22,.8);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);border-color:var(--line)}
+.nav-in{max-width:1180px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:20px}
+.nav-in .logo img{height:26px;display:block}
+.nav-in nav{display:flex;gap:2px;flex:1;justify-content:center}
+.nav-in nav a{height:34px;display:inline-flex;align-items:center;padding:0 12px;border-radius:var(--r);color:var(--dim);font-size:14px;text-decoration:none;transition:background-color .15s ease,color .15s ease}
+.nav-in nav a:hover{background:var(--s2);color:var(--text)}
+.nav-in .acts{display:flex;gap:6px}
+
+/* ---------- hero */
+.hero{position:relative;padding:124px 0 0;text-align:center}
+.hero .pill{height:28px;padding:0 12px;font-size:12.5px;background:var(--s2);border:1px solid var(--line-2);color:var(--text-2)}
+.hero .pill .dot{background:#FF4D5E;animation:live 1.6s ease-in-out infinite}
+@keyframes live{50%{opacity:.35}}
+.hero h1{max-width:900px;margin:22px auto 0;font-size:clamp(40px,6.2vw,72px);line-height:1.02;letter-spacing:-.045em;font-weight:600;color:#fff}
+.hero h1 span{color:var(--mute)}
+.hero .lede{max-width:580px;margin:20px auto 0;color:var(--dim);font-size:18px;line-height:1.5}
+.hero .ctas{display:flex;justify-content:center;gap:10px;margin-top:30px;flex-wrap:wrap}
+.hero .fine{margin-top:16px;font-size:13px;color:var(--mute)}
+.hero .fine b{color:var(--text-2);font-weight:500}
+
+/* the demo: the real dashboard, drawn small, faded out at its foot rather than floating on a plate */
+.demo{position:relative;max-width:1120px;margin:48px auto 0;padding:0 24px}
+.demo-fit{position:relative;height:calc(var(--h) * var(--k))}
+.demo-fit::after{content:"";position:absolute;left:-60px;right:-60px;bottom:-1px;height:24%;z-index:5;pointer-events:none;background:linear-gradient(180deg,rgba(20,20,22,0),var(--s1) 92%)}
+.stage{--k:1;--w:1072px;--h:640px;position:absolute;left:0;top:0;width:var(--w);height:var(--h);transform:scale(var(--k));transform-origin:0 0;text-align:left;font-size:13px}
+.app{position:absolute;inset:0;display:grid;grid-template-columns:212px minmax(0,1fr);background:var(--s0);border:1px solid var(--line-2);border-bottom:0;border-radius:16px 16px 0 0;overflow:hidden}
+.a-side{display:flex;flex-direction:column;gap:2px;padding:14px 10px}
+.a-side .lg{height:22px;margin:4px 6px 16px;display:block}
+.a-new{display:flex;align-items:center;gap:9px;height:38px;padding:0 14px;margin-bottom:10px;border-radius:5px;border:1px solid #7432E6;color:#fff;font-weight:500;font-size:13.5px;
+  background:var(--grain),var(--fill);background-blend-mode:soft-light,normal;background-size:140px 140px,auto;transition:filter .15s ease}
+.a-new svg{width:16px;height:16px}
+.a-new.down{background:var(--grain),var(--fill-press);background-blend-mode:soft-light,normal;background-size:140px 140px,auto}
+.a-nav{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:5px;color:var(--dim);font-size:13.5px;font-weight:500}
+.a-nav svg{width:16px;height:16px;color:var(--mute)}
+.a-nav.on{background:var(--s4);color:#fff}.a-nav.on svg{color:#fff}
+.a-nav em{margin-left:auto;font-style:normal;min-width:18px;height:18px;display:grid;place-items:center;border-radius:999px;background:var(--s3);font-size:10.5px;color:var(--dim)}
+.a-main{position:relative;margin:8px 8px 0 0;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;overflow:hidden;
+  background:var(--page-grain) 0 0/200px 200px,radial-gradient(40% 260px at 22% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 75%),radial-gradient(46% 300px at 72% 0%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 75%),var(--s1)}
+.a-top{display:flex;align-items:center;justify-content:space-between;padding:16px 22px}
+.a-top b{font-family:var(--font-head);font-size:15px;font-weight:600;color:#fff}
+.a-top i{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line-2);border-radius:8px;color:var(--dim)}
+.a-top i svg{width:15px;height:15px}
+.a-body{max-width:640px;margin:0 auto;padding:8px 24px 0}
+.a-h{font-family:var(--font-head);font-size:28px;font-weight:600;letter-spacing:-.03em;color:#fff;text-align:center}
+.a-sub{margin:6px 0 20px;text-align:center;color:var(--mute);font-size:13px}
+.a-tabs{display:flex;gap:2px}
+.a-tab{display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:12px 12px 0 0;color:var(--mute);font-weight:500;font-size:13px}
+.a-tab svg{width:15px;height:15px}
+.a-tab.on{background:var(--s2);color:#fff}
+.a-tab.on svg{color:var(--good)}
+.a-tab .rd{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.a-card{padding:14px;border-radius:0 12px 12px 12px;background:var(--s2)}
+.a-field{display:flex;align-items:center;gap:10px;height:46px;padding:0 6px 0 14px;border-radius:8px;background:var(--s1);border:1px solid var(--line-2);transition:border-color .2s ease}
+.a-field.focus{border-color:var(--accent)}
+.a-field>svg{width:16px;height:16px;color:var(--mute)}
+.a-in{flex:1;min-width:0;position:relative;height:20px;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+.a-in .ph{position:absolute;left:0;color:var(--mute);transition:opacity .15s ease}
+.a-in .tx{color:#fff}
+.a-in .caret{width:1.5px;height:16px;margin-left:1px;background:var(--accent-ink);opacity:0}
+.a-field.focus .caret{animation:caret 1s steps(1) infinite}
+@keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+.a-go{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:5px;background:var(--s3);color:var(--mute);font-weight:600;font-size:13px;border:1px solid transparent;transition:background-color .25s ease,color .25s ease,transform .16s var(--ease)}
+.a-go svg{width:15px;height:15px}
+.a-go.ready{color:#fff;border-color:#7432E6;background:var(--grain),var(--fill);background-blend-mode:soft-light,normal;background-size:140px 140px,auto}
+.a-go.down{transform:scale(.96)}
+.a-row{display:flex;align-items:center;gap:16px;padding:10px 4px 0;color:var(--dim);font-size:12.5px;font-weight:500}
+.a-row span{display:inline-flex;align-items:center;gap:6px}.a-row svg{width:14px;height:14px}
+.a-row span:last-child{margin-left:auto;color:var(--mute)}
+/* the result: a video project that opens under the composer, then its clips */
+.a-res{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s var(--ease)}
+.a-res>div{min-height:0;overflow:hidden}
+.a-res.open{grid-template-rows:1fr}
+.a-job{display:grid;gap:14px;margin-top:16px;padding:14px;border:1px solid var(--line-2);border-radius:12px;background:var(--card)}
+.a-job-top{display:flex;align-items:center;gap:12px}
+.a-job-top .th{width:84px;aspect-ratio:16/9;border-radius:6px;overflow:hidden;flex:none}
+.a-job-top .th img{width:100%;height:100%;object-fit:cover;object-position:50% 72%;display:block}
+.a-job-top b{display:block;font-weight:500;color:#fff;font-size:13.5px}
+.a-job-top small{font-size:12px;color:var(--mute)}
+.a-job-top .shot-status{margin-left:auto}
+.a-clips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.a-clips .shot-clip p{font-size:11.5px}
+.a-clips .post{position:absolute;right:6px;top:6px;display:flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:5px;background:rgba(12,12,14,.82);color:#fff;font-size:10.5px;font-weight:600;transition:background-color .15s ease}
+.a-clips .post svg{width:12px;height:12px}
+.a-clips .post.down{background:var(--accent)}
+/* states, driven by the script; without it the last frame shows */
+.stage .shot-clip{transition:none}
+.stage .shot-clip .vid>*,.stage .shot-clip>p,.stage .shot-clip>.bars{transition:opacity .45s ease calc(var(--i,0) * 110ms),transform .5s var(--ease) calc(var(--i,0) * 110ms)}
+.js .stage:not(.clips) .shot-clip .vid>*,.js .stage:not(.clips) .shot-clip>p{opacity:0;transform:translateY(6px)}
+.js .stage:not(.clips) .shot-clip .vid{animation:skel 1.4s ease-in-out infinite}
+.js .stage:not(.clips) .shot-clip>p{min-height:31px}
+@keyframes skel{50%{background:var(--s4)}}
+.stage .shot-meter i{transform:scaleX(1)}
+.js .stage .shot-meter i{transform:scaleX(.06);transition:transform 2s cubic-bezier(.4,0,.2,1)}
+.js .stage.work .shot-meter i{transform:scaleX(1)}
+.stage .shot-meter{opacity:0}
+.js .stage.work:not(.clips) .shot-meter{opacity:1}
+.js .stage:not(.clips) .shot-status .done{transform:translateY(120%);opacity:0}
+.stage .shot-status .work{transform:translateY(-120%);opacity:0}
+.js .stage:not(.clips) .shot-status .work{transform:none;opacity:1}
+.stage .shot-sat{right:-26px;top:470px;z-index:3}
+.js .stage:not(.posted) .shot-sat{opacity:0;transform:translateY(10px) scale(.97)}
+/* the pointer: a macOS arrow and I-beam, pressed by scaling at its tip */
+.cur{position:absolute;left:0;top:0;z-index:9;width:24px;height:24px;pointer-events:none;transition-property:transform,opacity;transition-timing-function:cubic-bezier(.45,0,.2,1);will-change:transform}
+.cur .press{display:grid;transform-origin:7.5px 5.25px;transition:transform .26s cubic-bezier(.22,1,.36,1)}
+.cur.down .press{transform:scale(.88);transition-duration:.08s}
+.cur svg{grid-area:1/1;width:24px;height:24px;transition:opacity .15s ease}
+.cur .ib{opacity:0}
+.cur.text .ar{opacity:0}.cur.text .ib{opacity:1}
+.html-nojs .cur{display:none}
+/* the phone-width demo: its own layout, not the desktop one squeezed */
+.stage.compact .app{grid-template-columns:1fr;border-radius:16px 16px 0 0}
+.stage.compact .a-side{display:none}
+.stage.compact .a-main{margin:0;border:0;border-radius:0}
+.stage.compact .a-top .a-new{display:flex;height:32px;margin:0;padding:0 12px;font-size:12.5px}
+.a-top .a-new{display:none}
+.stage.compact .a-body{padding:0 14px}
+.stage.compact .a-h{font-size:22px}
+.stage.compact .a-tab:nth-child(2){display:none}
+.stage.compact .a-row span:last-child{display:none}
+.stage.compact .a-clips{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stage.compact .a-clips .shot-clip:nth-child(n+4){display:none}
+.stage.compact .a-job-top .th{display:none}
+.stage.compact .shot-sat{right:14px;left:14px;top:648px}
+.demo-fit.compact::after{display:none}
+
+/* ---------- sections */
+section{padding:112px 0}
+.head{max-width:640px;margin:0 auto 48px;text-align:center}
+.eyebrow{display:inline-block;margin-bottom:14px;font-size:13px;font-weight:500;color:var(--accent-ink)}
+h2.t{font-size:clamp(30px,3.8vw,46px);line-height:1.06;letter-spacing:-.04em;font-weight:600;color:#fff}
+.head p{margin-top:14px;color:var(--mute);font-size:17px}
+
+/* features: one grid of cards, each with a small piece of the product */
+.bento{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.fc{position:relative;display:flex;flex-direction:column;min-height:360px;overflow:hidden;padding:0}
+.fc.w3{grid-column:span 3}.fc.w2{grid-column:span 2}.fc.w4{grid-column:span 4}
+.fc .copy{padding:24px 24px 0;max-width:440px}
+.fc h3{font-size:18px;font-weight:600;letter-spacing:-.02em;color:#fff}
+.fc .copy p{margin-top:6px;color:var(--mute);font-size:14.5px}
+.fc .art{position:relative;flex:1;margin-top:22px;min-height:190px}
+/* live: a stream's chat activity with the moments it clipped */
+.live-box{position:absolute;left:24px;right:-1px;bottom:-1px;top:0;border:1px solid var(--line-2);border-right:0;border-bottom:0;border-radius:12px 0 0 0;background:var(--s1);padding:16px 18px}
+.live-top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.live-top .pill.rec{background:rgba(255,77,94,.14);color:#FF7A86}
+.live-top .pill.rec .dot{background:#FF4D5E;animation:live 1.6s ease-in-out infinite}
+.live-top small{color:var(--mute);font-size:12px}
+.wave{display:flex;align-items:flex-end;gap:3px;height:96px}
+.wave i{flex:1;border-radius:2px 2px 0 0;background:var(--s4)}
+.wave i.hot{background:var(--accent)}
+.wave-axis{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.saved{position:absolute;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:var(--s3);border:1px solid var(--line-3);color:#fff;font-size:11.5px;font-weight:500;white-space:nowrap}
+.saved svg{width:13px;height:13px;color:var(--good)}
+/* moments: three scored rows */
+.mom{position:absolute;left:24px;right:24px;top:0;display:grid;gap:8px}
+.mrow{display:grid;grid-template-columns:52px minmax(0,1fr) 34px;gap:12px;align-items:center;padding:12px;border-radius:10px;background:var(--s1);border:1px solid var(--line)}
+.mrow .tm{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.mrow b{display:block;font-weight:500;font-size:13px;color:#fff;margin-bottom:6px}
+.mrow .sc{height:4px;border-radius:999px;background:var(--s4);overflow:hidden}.mrow .sc i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+.mrow.q .sc i{background:#5A5A63}
+.mrow .n{font-size:13px;font-weight:600;color:#fff;text-align:right;font-variant-numeric:tabular-nums}
+.mrow.q .n{color:var(--mute)}
+/* captions: a phone-shaped clip with its words lighting up as they're said */
+.cap-art{display:flex;justify-content:center}
+.vclip{position:absolute;bottom:-60px;width:190px;aspect-ratio:9/16;border-radius:18px;overflow:hidden;border:1px solid var(--line-2);background:var(--s3)}
+.vclip img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.8);transform:scale(1.6);transform-origin:50% 42%}
+.vclip .words{position:absolute;left:12px;right:12px;top:44%;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 6px;font:800 19px/1.1 "Poppins",sans-serif;color:#fff;paint-order:stroke fill;-webkit-text-stroke:4px #000;text-transform:uppercase}
+.vclip .words span{display:inline-block;transition:transform .2s var(--ease),color .2s ease}
+.vclip .words span.on{color:#FFE500;transform:scale(1.12)}
+/* editor: a timeline with the clip's trim handles */
+.tl{position:absolute;left:24px;right:-1px;bottom:-1px;top:0;border:1px solid var(--line-2);border-right:0;border-bottom:0;border-radius:12px 0 0 0;background:var(--s1);padding:16px 0 0 16px;overflow:hidden}
+.tl-ruler{display:flex;gap:0;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;margin-bottom:10px}
+.tl-ruler span{flex:0 0 70px}
+.tl-track{position:relative;display:flex;gap:4px;height:34px;margin-bottom:8px}
+.tl-track i{flex:none;border-radius:5px;background:var(--s3)}
+.tl-track.cap i{background:color-mix(in srgb,var(--accent) 34%,var(--s2));height:22px;align-self:center}
+.tl-track.vid i{background:linear-gradient(90deg,#3A2A1E,#5A3A22 40%,#2A201A)}
+.tl-sel{position:absolute;top:22px;left:94px;width:168px;bottom:18px;border:2px solid var(--accent-ink);border-radius:7px}
+.tl-sel::before,.tl-sel::after{content:"";position:absolute;top:50%;width:6px;height:22px;margin-top:-11px;border-radius:3px;background:var(--accent-ink)}
+.tl-sel::before{left:-4px}.tl-sel::after{right:-4px}
+.tl-head{position:absolute;top:10px;bottom:0;left:200px;width:2px;background:#fff}
+.tl-head::before{content:"";position:absolute;top:-2px;left:-5px;width:12px;height:12px;border-radius:3px;background:#fff}
+/* posting: a queue of clips going out */
+.queue{position:absolute;left:24px;right:24px;top:0;display:grid;gap:8px}
+.qrow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--s1);border:1px solid var(--line)}
+.qrow .pf{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.qrow .pf svg{width:16px;height:16px}
+.qrow .pf.yt{background:#FF0033}.qrow .pf.tt{background:#000;border:1px solid var(--line-3)}.qrow .pf.ig{background:linear-gradient(45deg,#F58529,#DD2A7B 55%,#8134AF)}
+.qrow b{font-weight:500;font-size:13px;color:#fff}
+.qrow .bar{width:70%;margin-top:6px}
+.qrow small{display:block;font-size:12px;color:var(--mute)}
+
+/* how it works */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;counter-reset:s}
+.step{padding:24px}
+.step .n{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:var(--s3);color:#fff;font-weight:600;font-size:14px;margin-bottom:28px}
+.step h3{font-size:17px;font-weight:600;letter-spacing:-.015em;color:#fff}
+.step p{margin-top:6px;color:var(--mute);font-size:14.5px}
+
+/* caption styles */
 .trow-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:28px}
 .trow-head .head{text-align:left;margin:0}
-.trow{display:flex;gap:16px;overflow-x:auto;padding:4px 24px 12px;margin:0 -24px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.trow{display:flex;gap:12px;overflow-x:auto;padding:4px 24px 14px;margin:0 -24px;scroll-snap-type:x mandatory;scrollbar-width:none}
 .trow::-webkit-scrollbar{display:none}
-.tpl{flex:0 0 200px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px}
-.tpl .shot{position:relative;aspect-ratio:9/16;border-radius:20px;overflow:hidden;background:#15131C;display:flex;align-items:flex-end;justify-content:center;padding-bottom:42px}
-.tpl .shot img{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);object-fit:cover;filter:blur(12px) brightness(.55) hue-rotate(240deg)}
-.tpl .cap{position:relative;font-size:26px;line-height:1;white-space:nowrap;paint-order:stroke fill;-webkit-text-stroke:5px #000}
-.tpl .cap em{display:inline-block;font-style:normal;transform:scale(1.12);margin-left:3px}
-.tpl b{font-weight:500;color:var(--ink)}.tpl small{display:block;color:var(--faint);font-size:13px}
-/* AI showcase band with an editor picture */
-.show{border-radius:36px;padding:72px 24px 0;text-align:center;color:#fff;overflow:hidden;
-  background:radial-gradient(40% 45% at 15% 15%,rgba(240,98,192,.5),transparent 70%),radial-gradient(45% 50% at 85% 20%,rgba(120,240,214,.3),transparent 70%),linear-gradient(180deg,#2A1478,#5B2BD6 60%,#8E63FF)}
-.show h2{color:#fff}.show p{color:rgba(255,255,255,.8);font-size:17px;margin:12px auto 0;max-width:560px}
-.edm{max-width:900px;margin:48px auto 0;border-radius:22px 22px 0 0;background:#0C0C0F;border:1px solid rgba(255,255,255,.14);border-bottom:0;overflow:hidden;text-align:left}
-.edm .top{display:flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.08)}
-.edm .top i{width:10px;height:10px;border-radius:50%;background:#2E2E36}
-.edm .top span{margin-left:auto;height:26px;padding:0 12px;border-radius:999px;background:var(--cta);font-size:12px;display:grid;place-items:center}
-.edm .body{display:grid;grid-template-columns:220px 1fr;height:330px}
-.edm .side{padding:16px;border-right:1px solid rgba(255,255,255,.08);display:grid;gap:10px;align-content:start}
-.edm .side b{font-size:12px;font-weight:500;color:#fff}
-.edm .side .ps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.edm .side .ps span{aspect-ratio:4/5;border-radius:8px;background:linear-gradient(160deg,#3A2E66,#1A1726);display:grid;place-items:end center;padding-bottom:8px;font:11px/1 "Anton",sans-serif;color:#fff}
-.edm .side .ps span:nth-child(1){outline:2px solid #9D6BFF}
-.edm .side .ln{height:30px;border-radius:8px;background:#1B1B21}
-.edm .stage{display:grid;place-items:center;background:radial-gradient(50% 60% at 50% 40%,rgba(157,107,255,.18),transparent 70%)}
-.edm .stage video{height:290px;aspect-ratio:9/16;border-radius:14px;object-fit:cover;filter:hue-rotate(240deg) saturate(.95)}
-.edm .tl{display:flex;gap:6px;padding:12px 16px 18px;border-top:1px solid rgba(255,255,255,.08);background:#141418}
-.edm .tl i{height:26px;border-radius:6px;background:linear-gradient(180deg,#8B7CF6,#6D5BE0)}
-/* product facts */
-.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:20px}
-.fact{border-radius:24px;padding:28px;border:1px solid var(--line);background:#fff}
-.fact b{display:block;font-size:48px;font-weight:500;letter-spacing:-.05em;line-height:1;background:linear-gradient(90deg,#7C3AED,#F062C0);-webkit-background-clip:text;background-clip:text;color:transparent}
-.fact span{display:block;color:var(--dim);margin-top:8px}
+.tpl{flex:0 0 196px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px}
+.tpl .shotx{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:var(--s2);border:1px solid var(--line-2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:42px}
+.tpl .shotx img{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);object-fit:cover;filter:blur(12px) brightness(.55)}
+.tpl .capx{position:relative;font-size:26px;line-height:1;white-space:nowrap;paint-order:stroke fill;-webkit-text-stroke:5px #000}
+.tpl .capx em{display:inline-block;font-style:normal;transform:scale(1.12);margin-left:3px}
+.tpl b{font-weight:500;color:#fff}.tpl small{display:block;color:var(--mute);font-size:13px}
+
 /* pricing */
-.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch}
-.plan{border:1px solid var(--line);border-radius:26px;padding:28px;background:#fff;display:flex;flex-direction:column;gap:14px}
-.plan .pt{display:flex;align-items:center;gap:10px;font-weight:500;color:var(--ink)}
-.plan .pt i{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#F1EBFF;color:var(--violet)}
-.plan .pt i svg{width:16px;height:16px}
-.plan b{font-size:42px;font-weight:500;letter-spacing:-.045em;color:var(--ink);line-height:1}
-.plan b small{font-size:15px;color:var(--dim);letter-spacing:0;margin-left:6px}
-.plan ul{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:10px;color:var(--dim);font-size:15px}
-.plan li{display:flex;gap:10px;align-items:flex-start}.plan li svg{width:17px;height:17px;color:var(--violet);margin-top:3px}
-.plan.hot{border:0;color:#fff;background:radial-gradient(60% 50% at 90% 0%,rgba(240,98,192,.55),transparent 70%),radial-gradient(60% 60% at 0% 100%,rgba(120,240,214,.25),transparent 70%),linear-gradient(160deg,#4C1DB8,#7C3AED)}
-.plan.hot .pt,.plan.hot b{color:#fff}.plan.hot .pt i{background:rgba(255,255,255,.16);color:#fff}.plan.hot ul,.plan.hot b small{color:rgba(255,255,255,.82)}.plan.hot li svg{color:#C9F7E8}
-.plan.hot .btn{background:#fff;color:#4C1DB8}
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+.plan{padding:26px;display:flex;flex-direction:column;gap:16px}
+.plan .pt{display:flex;align-items:center;justify-content:space-between;font-weight:500;color:var(--dim)}
+.plan .big{font-family:var(--font-head);font-size:44px;font-weight:600;letter-spacing:-.04em;color:#fff;line-height:1}
+.plan .big small{font-family:var(--font);font-size:14px;font-weight:400;color:var(--mute);letter-spacing:0;margin-left:8px}
+.plan ul{list-style:none;margin:0;padding:16px 0 0;border-top:1px solid var(--line);display:grid;gap:11px;color:var(--text-2);font-size:14.5px}
+.plan li{display:flex;gap:10px;align-items:flex-start}
+.plan li svg{width:16px;height:16px;margin-top:3px;color:var(--good)}
 .plan .btn{margin-top:auto}
-/* faq: heading on the left, questions on the right */
-.faqx{display:grid;grid-template-columns:.85fr 1.15fr;gap:48px;align-items:start}
+.plan.hot{border-color:var(--accent-line);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 12%,var(--card)),var(--card) 60%)}
+
+/* faq */
+.faqx{display:grid;grid-template-columns:.8fr 1.2fr;gap:56px;align-items:start}
 .faqx .head{text-align:left;margin:0}
-.faqx .head .btn{margin-top:24px}
-.qs{display:grid;gap:10px}
-details{border:1px solid var(--line);border-radius:18px;background:#fff;padding:18px 22px;transition:border-color .2s ease}
-details[open]{border-color:#D9CCF7}
-summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:14px;font-weight:500;color:var(--ink)}
+.faqx .head .btn{margin-top:26px}
+.qs{display:grid;gap:8px}
+details{border:1px solid var(--line-2);border-radius:var(--r-card);background:var(--card);padding:0 20px;transition:border-color .2s ease}
+details[open]{border-color:var(--line-3)}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;min-height:58px;font-weight:500;color:#fff}
 summary::-webkit-details-marker{display:none}
-summary::after{content:"+";font-size:22px;line-height:1;color:var(--violet);transition:transform .25s var(--ease)}
-details[open] summary::after{transform:rotate(45deg)}
-details p{color:var(--dim);font-size:15px;margin-top:10px}
-/* ready to clip */
-.ready{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;border-radius:34px;padding:56px 40px;overflow:hidden;
-  background:radial-gradient(45% 80% at 10% 100%,rgba(240,98,192,.32),transparent 70%),radial-gradient(45% 80% at 90% 0%,rgba(124,58,237,.3),transparent 70%),#F1EBFF}
-.ready .mid{text-align:center;max-width:460px}
-.ready .mid p{color:var(--dim);margin:12px auto 24px;font-size:17px}
-.ready .ph{justify-self:center;width:150px;aspect-ratio:9/16;border-radius:20px;overflow:hidden;border:5px solid #fff;transform:rotate(-7deg);box-shadow:0 26px 50px -26px rgba(60,30,140,.6)}
-.ready .ph.r{transform:rotate(7deg)}
-.ready .ph img{width:100%;height:100%;object-fit:cover;filter:hue-rotate(240deg) saturate(.95)}
-/* footer with a big faded wordmark */
-footer{padding:0 0 0}
-.fbox{border-radius:30px 30px 0 0;background:var(--lav);border:1px solid var(--line);border-bottom:0;padding:48px 40px 0;overflow:hidden}
-.fcols{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:32px}
-.fbrand img{height:30px;display:block;margin-bottom:14px}
-.fbrand p{color:var(--dim);font-size:14px;max-width:300px}
-footer h4{margin:4px 0 14px;font-size:13px;font-weight:500;color:var(--ink)}
+summary svg{width:16px;height:16px;color:var(--mute);transition:transform .25s var(--ease)}
+details[open] summary svg{transform:rotate(45deg)}
+details p{color:var(--mute);font-size:15px;padding-bottom:18px;margin-top:-4px}
+
+/* closing band and footer */
+.closer{position:relative;overflow:hidden;padding:72px 32px;text-align:center}
+.closer h2{max-width:620px;margin:0 auto}
+.closer p{color:var(--mute);margin:14px auto 28px;font-size:17px;max-width:480px}
+.closer .ctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+footer{padding:0 0 32px}
+.fcols{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:32px;padding:48px 0 40px;border-top:1px solid var(--line)}
+.fbrand img{height:26px;display:block;margin-bottom:14px}
+.fbrand p{color:var(--mute);font-size:14px;max-width:300px}
+footer h4{margin:4px 0 14px;font-size:13px;font-weight:500;color:#fff}
 footer ul{list-style:none;padding:0;margin:0;display:grid;gap:10px;font-size:14px}
-footer ul a{color:var(--dim);text-decoration:none;transition:color .15s ease}
-footer ul a:hover{color:var(--violet)}
-.fbottom{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:40px;padding:18px 0;border-top:1px solid var(--line-2);font-size:13px;color:var(--faint)}
-.wordmark{display:block;text-align:center;font-size:clamp(72px,16.5vw,236px);line-height:.78;letter-spacing:-.065em;font-weight:500;margin:10px 0 -.06em;user-select:none;
-  background:linear-gradient(180deg,rgba(124,58,237,.30) 0%,rgba(240,98,192,.12) 70%,rgba(255,255,255,0) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-/* motion */
-.js .rv{opacity:0;transform:translateY(22px);transition:opacity .8s var(--ease),transform .8s var(--ease);transition-delay:var(--d,0s)}
+footer ul a{color:var(--mute);text-decoration:none;transition:color .15s ease}
+footer ul a:hover{color:var(--text)}
+.fbottom{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+
+/* things ease in once as they scroll into view */
+.js .rv{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s)}
 .js .rv.in{opacity:1;transform:none}
-@media (max-width:960px){
-  header.nav nav{display:none}header.nav .bar-in{margin:0 12px;justify-content:space-between}
-  .fgrid6{grid-template-columns:1fr 1fr}.rowx,.faqx{grid-template-columns:1fr}.rowx:nth-child(even) .vis{order:0}.rowx{gap:24px;padding:20px}
-  .plans,.facts{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto}.ready{grid-template-columns:1fr}.ready .ph{display:none}
-  .fcols{grid-template-columns:1fr 1fr}.fbrand{grid-column:1/-1}.edm .body{grid-template-columns:1fr}.edm .side{display:none}section{padding:72px 0}
+
+@media (max-width:1000px){
+  .nav-in nav{display:none}.nav-in{justify-content:space-between}
+  .bento{grid-template-columns:1fr 1fr}.fc.w3,.fc.w2,.fc.w4{grid-column:span 2}
+  .steps,.plans{grid-template-columns:1fr;max-width:520px;margin:0 auto}
+  .faqx{grid-template-columns:1fr;gap:28px}
+  .fcols{grid-template-columns:1fr 1fr}.fbrand{grid-column:1/-1}
   .trow-head{flex-direction:column;align-items:flex-start}
+  section{padding:80px 0}
 }
 @media (max-width:560px){
-  .hero{padding-top:120px}.hero .lede{font-size:16px}header.nav .btn.ghost{display:none}
-  .fgrid6{grid-template-columns:1fr}.prompt .btn{width:100%}.vis{height:280px}.show{border-radius:26px;padding-top:52px}.ready{padding:44px 22px}.fbox{padding:36px 22px 0}
+  .hero{padding-top:104px}.hero .lede{font-size:16px}.nav-in .acts .ghost{display:none}
+  .nav-in{padding:0 16px;gap:12px}.nav-in .acts .btn{height:34px;padding:0 12px;font-size:13px}
+  .hero .pill{height:auto;min-height:28px;padding:6px 12px;white-space:normal;text-align:left;line-height:1.35}
+  .demo{padding:0 12px}
+  .hero .ctas .btn{flex:1}
+  .closer{padding:52px 20px}
+  .fc{min-height:330px}
 }
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.js .rv{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-<header class="nav" id="nav"><div class="bar-in">
-  <a class="logo" href="/" aria-label="SocialShot home"><img class="light" src="/brand/logo-light.svg?v=3" alt="SocialShot"><img class="dark" src="/brand/logo.svg?v=3" alt=""></a>
+<header class="nav" id="nav"><div class="nav-in">
+  <a class="logo" href="/" aria-label="SocialShot home"><img src="/brand/logo-light.svg?v=3" alt="SocialShot" width="103" height="26"></a>
   <nav aria-label="Sections"><a href="#features">Features</a><a href="#how">How it works</a><a href="#styles">Caption styles</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></nav>
-  <div class="acts"><a class="btn ghost" href="/login" data-auth="in">Sign in</a><a class="btn cta" href="/signup" data-auth="up">Start for free</a></div>
+  <div class="acts"><a class="btn ghost" href="/login" data-auth="in">Sign in</a><a class="btn primary" href="/signup" data-auth="up">Start for free</a></div>
 </div></header>
 
 <main>
-<section class="hero grain">
-  <div class="aurora" aria-hidden="true"></div><div class="stars" aria-hidden="true"><i></i><i></i></div>
+<section class="hero surface">
   <div class="wrap">
-    <a class="pill rv" href="#how"><span class="live"><i></i>Live</span>Clips streams while they happen</a>
-    <h1 class="rv" style="--d:.06s">Turn long streams into viral clips in minutes</h1>
-    <p class="lede rv" style="--d:.12s">Paste a link or add a streamer. SocialShot finds the best moments and gives you captioned vertical clips for Shorts, Reels and TikTok.</p>
-    <form class="prompt linkform rv" style="--d:.18s">
-      <textarea name="link" placeholder="Paste a YouTube, Twitch or Kick link, or add a streamer's channel…" aria-label="Video link"></textarea>
-      <div class="row">
-        <span class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>Or upload a file</span>
-        <span class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>8 caption styles</span>
-        <button class="btn cta">Get clips<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      </div>
-    </form>
-    <div class="ticks rv" style="--d:.24s">
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>3 free clips on every video</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>No card needed</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Nothing to install</span>
-    </div>
+    <span class="pill rv"><i class="dot"></i>Clips Twitch, Kick and YouTube streams while they're live</span>
+    <h1 class="rv" style="--d:.05s">Turn long streams into short clips, <span>while you're still live.</span></h1>
+    <p class="lede rv" style="--d:.1s">Paste a link or add a creator. SocialShot finds the moments people react to and gives you captioned vertical clips for Shorts, Reels and TikTok.</p>
+    <div class="ctas rv" style="--d:.15s"><a class="btn lg primary" href="/signup" data-auth="up2">Start for free<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><a class="btn lg outline" href="#how">See how it works</a></div>
+    <p class="fine rv" style="--d:.2s"><b>3 free clips</b> on every video · No card needed · Nothing to install</p>
   </div>
-  <svg class="hills" viewBox="0 0 1440 170" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M0 90C180 40 340 40 520 78s330 60 520 20 300-60 400-40v112H0z" fill="#E9DEFF" fill-opacity=".55"/>
-    <path d="M0 120c220-50 420-40 640-6s420 40 560 6 200-36 240-30v80H0z" fill="#F5F0FF" fill-opacity=".85"/>
-    <path d="M0 150c260-30 520-30 760-8s460 26 680 2v26H0z" fill="#fff"/>
-  </svg>
+
+  <div class="demo rv" style="--d:.25s" aria-hidden="true"><div class="demo-fit" id="fit">
+    <div class="stage" id="stage">
+      <div class="app">
+        <div class="a-side">
+          <img class="lg" src="/brand/logo-light.svg?v=3" alt="">
+          <div class="a-new" data-t="new"><svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>New clip</div>
+          <div class="a-nav on"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></svg>Home</div>
+          <div class="a-nav"><svg class="ti" viewBox="0 0 24 24"><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></svg>Creators</div>
+          <div class="a-nav"><svg class="ti" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg>Videos<em>12</em></div>
+        </div>
+        <div class="a-main">
+          <div class="a-top"><b>Home</b><div class="a-new" data-t="new2"><svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>New clip</div><i><svg class="ti" viewBox="0 0 24 24"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg></i></div>
+          <div class="a-body">
+            <div class="a-h">What do you want to clip today?</div>
+            <div class="a-sub">Paste a link or drop in videos. You get captioned shorts back.</div>
+            <div class="a-tabs"><div class="a-tab on"><svg class="ti" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg>Clip a long video</div><div class="a-tab"><i class="rd"></i>Clip a live stream</div></div>
+            <div class="a-card">
+              <div class="a-field" data-t="field"><svg class="ti" viewBox="0 0 24 24"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg>
+                <div class="a-in"><span class="ph">Paste a YouTube, Twitch or Kick video link</span><span class="tx" id="tx"></span><i class="caret"></i></div>
+                <div class="a-go" data-t="go"><svg class="ti" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg>Make clips</div></div>
+              <div class="a-row"><span><svg class="ti" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>Upload video</span><span><svg class="ti" viewBox="0 0 24 24"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></svg>No creator</span><span>or drop a video file here</span></div>
+            </div>
+            <div class="a-res" id="res"><div>
+              <div class="a-job">
+                <div class="a-job-top"><span class="th"><img src="/brand/demo-bounce.jpg" alt=""></span><div><b>Friday stream VOD</b><small>Twitch · 2:14:08</small></div>
+                  <span class="shot-status"><span class="work"><i class="shot-spin"></i>Finding the best moments</span><span class="done"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>5 clips ready</span></span></div>
+                <div class="shot-meter"><i></i></div>
+                <div class="a-clips">
+                  <div class="shot-clip" style="--i:0"><div class="vid"><img src="/brand/demo-bounce.jpg" alt=""><span class="score top">94</span><span class="post" data-t="post"><svg class="ti" viewBox="0 0 24 24"><path d="M10 14l11 -11"/><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5"/></svg>Post</span><span class="len">0:42</span></div><p>The 1v4 clutch nobody saw coming</p></div>
+                  <div class="shot-clip" style="--i:1"><div class="vid"><img src="/brand/demo-hype.jpg" alt=""><span class="score">88</span><span class="len">0:58</span></div><p>Chat loses it at the final boss</p></div>
+                  <div class="shot-clip" style="--i:2"><div class="vid"><img src="/brand/demo-clean.jpg" alt=""><span class="score">81</span><span class="len">0:35</span></div><div class="bars"><span class="bar" style="width:84%"></span><span class="bar" style="width:50%"></span></div></div>
+                  <div class="shot-clip" style="--i:3"><div class="vid"><img src="/brand/demo-hype.jpg" alt="" style="object-position:20% 70%"><span class="score">77</span><span class="len">0:47</span></div><div class="bars"><span class="bar" style="width:70%"></span><span class="bar" style="width:42%"></span></div></div>
+                  <div class="shot-clip" style="--i:4"><div class="vid"><img src="/brand/demo-clean.jpg" alt="" style="object-position:80% 30%"><span class="score">72</span><span class="len">0:39</span></div><div class="bars"><span class="bar" style="width:78%"></span><span class="bar" style="width:58%"></span></div></div>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+      <div class="shot-sat"><span class="yt"><svg class="ti" viewBox="0 0 24 24"><path d="M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8z"/><path d="M10 9l5 3l-5 3z"/></svg></span><span><b>Posted to YouTube Shorts</b><small>The 1v4 clutch · just now</small></span><span class="tick"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg></span></div>
+      <div class="cur" id="cur"><div class="press">
+        <svg class="ar" viewBox="0 0 32 32" fill="none"><g transform="translate(10 7)"><path d="m6.148 18.473 1.863-1.003 1.615-.839-2.568-4.816h4.332l-11.379-11.408v16.015l3.316-3.221z" fill="#fff"/><path d="m6.431 17 1.765-.941-2.775-5.202h3.604l-8.025-8.043v11.188l2.53-2.442z" fill="#000"/></g></svg>
+        <svg class="ib" viewBox="0 0 24 24" fill="none"><g transform="translate(2.5 -2.75)"><path d="M3 1H7M3 15H7M5 1V15" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M3 1H7M3 15H7M5 1V15" stroke="#000" stroke-width="1" stroke-linecap="round"/></g></svg>
+      </div></div>
+    </div>
+  </div></div>
 </section>
 
 <section id="features">
   <div class="wrap">
-    <div class="head rv"><span class="eyebrow">Features</span><h2>Everything you need to clip</h2><p>From a live stream to a posted Short, in one place.</p></div>
-    <div class="fgrid6">
-      <div class="fx rv"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg></i><h3>Live stream clipping</h3><p>Records a streamer when they go live and clips while it's still on.</p></div>
-      <div class="fx rv" style="--d:.05s"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg></i><h3>AI moment finder</h3><p>Scores every moment by what was said and how people reacted.</p></div>
-      <div class="fx rv" style="--d:.1s"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg></i><h3>Word-by-word captions</h3><p>Captions timed to the voice, with the key word highlighted.</p></div>
-      <div class="fx rv" style="--d:.15s"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg></i><h3>Clip editor</h3><p>Fix captions, trim, and change the look with a live preview.</p></div>
-      <div class="fx rv" style="--d:.2s"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><circle cx="12" cy="16" r="3"/></svg></i><h3>Brand kit</h3><p>Save your fonts and colours once, use them on every clip.</p></div>
-      <div class="fx rv" style="--d:.25s"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m4 12 16-8-6 16-2-6z"/></svg></i><h3>Post everywhere</h3><p>Send clips to Shorts, Reels and TikTok, now or on a schedule.</p></div>
+    <div class="head rv"><span class="eyebrow">Features</span><h2 class="t">Everything between the stream and the post</h2><p>Recording, picking, captions, editing and posting, in one place.</p></div>
+    <div class="bento">
+      <div class="card fc w4 rv">
+        <div class="copy"><h3>Clips live streams as they happen</h3><p>Add a creator once. SocialShot records when they go live and saves a clip each time chat lights up.</p></div>
+        <div class="art"><div class="live-box">
+          <div class="live-top"><span class="pill rec"><i class="dot"></i>Live</span><small>Recording for 1:42:10</small></div>
+          <div class="wave" id="wave"></div>
+          <div class="wave-axis"><span>1:00:00</span><span>1:15:00</span><span>1:30:00</span><span>now</span></div>
+          <span class="saved" style="left:34%;top:52px"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Clip saved</span>
+          <span class="saved" style="left:73%;top:40px"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Clip saved</span>
+        </div></div>
+      </div>
+      <div class="card fc w2 rv" style="--d:.06s">
+        <div class="copy"><h3>Picks what people react to</h3><p>Every moment is scored on what was said and how chat and the room reacted.</p></div>
+        <div class="art"><div class="mom">
+          <div class="mrow"><span class="tm">1:05:12</span><div><b>The 1v4 clutch</b><div class="sc"><i style="width:94%"></i></div></div><span class="n">94</span></div>
+          <div class="mrow"><span class="tm">1:31:40</span><div><b>Chat reacts</b><div class="sc"><i style="width:88%"></i></div></div><span class="n">88</span></div>
+          <div class="mrow q"><span class="tm">0:42:08</span><div><span class="bar" style="width:62%;margin-bottom:8px"></span><div class="sc"><i style="width:61%"></i></div></div><span class="n">61</span></div>
+        </div></div>
+      </div>
+      <div class="card fc w2 rv">
+        <div class="copy"><h3>Word-by-word captions</h3><p>Timed to the voice, with the word being said lit up.</p></div>
+        <div class="art cap-art"><div class="vclip"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><div class="words" id="words"><span>No</span><span>way</span><span class="on">that</span><span>worked</span></div></div></div>
+      </div>
+      <div class="card fc w2 rv" style="--d:.06s">
+        <div class="copy"><h3>A real editor</h3><p>Trim, fix a caption and change the look with a live preview.</p></div>
+        <div class="art"><div class="tl">
+          <div class="tl-ruler"><span>0:00</span><span>0:10</span><span>0:20</span><span>0:30</span><span>0:40</span></div>
+          <div class="tl-track vid"><i style="width:60px"></i><i style="width:190px"></i><i style="width:120px"></i></div>
+          <div class="tl-track cap"><i style="width:40px"></i><i style="width:56px"></i><i style="width:32px"></i><i style="width:70px"></i><i style="width:46px"></i><i style="width:60px"></i></div>
+          <div class="tl-track"><i style="width:250px;height:14px;align-self:center"></i></div>
+          <span class="tl-sel"></span><span class="tl-head"></span>
+        </div></div>
+      </div>
+      <div class="card fc w2 rv" style="--d:.12s">
+        <div class="copy"><h3>Posts on a schedule</h3><p>Send clips to Shorts, Reels and TikTok now, or line them up.</p></div>
+        <div class="art"><div class="queue">
+          <div class="qrow"><span class="pf yt"><svg class="ti" viewBox="0 0 24 24"><path d="M2 8a4 4 0 0 1 4 -4h12a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-12a4 4 0 0 1 -4 -4v-8z"/><path d="M10 9l5 3l-5 3z"/></svg></span><div><b>YouTube Shorts</b><small>Today, 6:00 PM</small></div><span class="pill ok">Posted</span></div>
+          <div class="qrow"><span class="pf tt"><svg class="ti" viewBox="0 0 24 24"><path d="M21 7.917v4.034a9.948 9.948 0 0 1 -5 -1.951v4.5a6.5 6.5 0 1 1 -8 -6.326v4.326a2.5 2.5 0 1 0 4 2v-11.5h4.083a6.005 6.005 0 0 0 4.917 4.917z"/></svg></span><div><b>TikTok</b><small>Today, 8:30 PM</small></div><span class="pill">Scheduled</span></div>
+          <div class="qrow"><span class="pf ig"><svg class="ti" viewBox="0 0 24 24"><path d="M4 4m0 4a4 4 0 0 1 4 -4h8a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-8a4 4 0 0 1 -4 -4z"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M16.5 7.5l0 .01"/></svg></span><div><b>Instagram Reels</b><small>Tomorrow, 12:00 PM</small></div><span class="pill">Scheduled</span></div>
+        </div></div>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="how" class="lav">
+<section id="how" style="padding-top:0">
   <div class="wrap">
-    <div class="head rv"><span class="eyebrow">How it works</span><h2>From stream to clips</h2><p>Three steps, no timeline scrubbing.</p></div>
-    <div class="rows">
-      <div class="rowx rv"><div><span class="tag"><b>1</b>Add your video</span><h3>Paste a link or add a streamer</h3><p>Drop in a YouTube, Twitch or Kick link, upload a file, or add a channel once so SocialShot records when they go live.</p><a class="more" href="/signup">Try it free →</a></div>
-        <div class="vis"><div class="ui"><span class="lab">Video to clips</span>
-          <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>twitch.tv/your-streamer</div>
-          <span class="lab">Caption style</span><div class="r"><span class="on">Bounce</span><span>Hype</span><span>Clean</span></div><div class="go">Make clips</div></div></div></div>
-      <div class="rowx rv"><div><span class="tag"><b>2</b>Let the AI work</span><h3>The best moments, found for you</h3><p>The whole video is transcribed, the strongest moments are scored, and each one is cut to 9:16 with a hook and title written for it.</p></div>
-        <div class="vis"><div class="ui"><span class="lab">Making your clips</span>
-          <div class="st"><i></i>Transcript written</div><div class="st"><i></i>Best moments found</div><div class="st wait"><i></i>Making your clips</div><div class="meter"><i></i></div></div></div></div>
-      <div class="rowx rv"><div><span class="tag"><b>3</b>Edit and share</span><h3>Fine-tune, then post anywhere</h3><p>Change captions, fonts and colours in the editor, then download or post to your connected accounts.</p><a class="more" href="/signup">Start for free →</a></div>
-        <div class="vis"><video class="lazyplay" src="/brand/demo-bounce.mp4" poster="/brand/demo-bounce.jpg" muted loop playsinline preload="none"></video>
-          <span class="chipx" style="left:22px;top:26px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>Download</span>
-          <span class="chipx" style="right:22px;bottom:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m4 12 16-8-6 16-2-6z"/></svg>Posted to Shorts</span></div></div>
+    <div class="head rv"><span class="eyebrow">How it works</span><h2 class="t">From stream to clips in three steps</h2><p>No timeline scrubbing, no watching hours back.</p></div>
+    <div class="steps">
+      <div class="card step rv"><span class="n">1</span><h3>Paste a link or add a creator</h3><p>A YouTube, Twitch or Kick link, a file from your computer, or a channel to record whenever it goes live.</p></div>
+      <div class="card step rv" style="--d:.06s"><span class="n">2</span><h3>The best moments are found</h3><p>The video is transcribed, every moment is scored, and the strongest are cut to 9:16 with a hook and title.</p></div>
+      <div class="card step rv" style="--d:.12s"><span class="n">3</span><h3>Edit, download or post</h3><p>Fix a caption or the look in the editor, then download or post to your connected accounts.</p></div>
     </div>
   </div>
 </section>
 
-<section id="styles">
+<section id="styles" style="padding-top:0">
   <div class="wrap">
-    <div class="trow-head rv"><div class="head"><span class="eyebrow">Caption styles</span><h2>Start from a style</h2><p>Pick a look, make it yours, save it to your brand kit.</p></div><a class="btn line sm" href="/signup">See them all →</a></div>
-    <div class="trow rv"><div class="tpl"><div class="shot"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Poppins',sans-serif;font-weight:800;color:#FFFFFF">CLIP <em style="color:#FFF000">THIS</em></span></div><div><b>Bounce</b><small>Poppins</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Anton',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#FF3C3C">THIS</em></span></div><div><b>Hype</b><small>Anton</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-clean.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Montserrat',sans-serif;font-weight:800;color:#FFFFFF">CLIP <em style="color:#FFE500">THIS</em></span></div><div><b>Bold pop</b><small>Montserrat</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Bebas Neue',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#22E06B">THIS</em></span></div><div><b>Headline</b><small>Bebas Neue</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Bangers',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#FF4FD8">THIS</em></span></div><div><b>Comic</b><small>Bangers</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-clean.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Poppins',sans-serif;font-weight:800;color:#FFFFFF">Clip <em style="color:#FFD76B">this</em></span></div><div><b>Clean</b><small>Poppins</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Fredoka',sans-serif;font-weight:700;color:#FFFFFF">Clip <em style="color:#7CC8FF">this</em></span></div><div><b>Soft</b><small>Fredoka</small></div></div><div class="tpl"><div class="shot"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="cap" style="font-family:'Permanent Marker',sans-serif;font-weight:400;color:#FFFFFF">Clip <em style="color:#FF8B33">this</em></span></div><div><b>Marker</b><small>Permanent Marker</small></div></div></div>
+    <div class="trow-head rv"><div class="head"><span class="eyebrow">Caption styles</span><h2 class="t">Start from a style</h2><p>Pick a look, make it yours, save it to your brand kit.</p></div><a class="btn outline" href="/signup">See them all<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a></div>
+    <div class="trow rv"><div class="tpl"><div class="shotx"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Poppins',sans-serif;font-weight:800;color:#FFFFFF">CLIP <em style="color:#FFF000">THIS</em></span></div><div><b>Bounce</b><small>Poppins</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Anton',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#FF3C3C">THIS</em></span></div><div><b>Hype</b><small>Anton</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-clean.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Montserrat',sans-serif;font-weight:800;color:#FFFFFF">CLIP <em style="color:#FFE500">THIS</em></span></div><div><b>Bold pop</b><small>Montserrat</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Bebas Neue',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#22E06B">THIS</em></span></div><div><b>Headline</b><small>Bebas Neue</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Bangers',sans-serif;font-weight:400;color:#FFFFFF">CLIP <em style="color:#FF4FD8">THIS</em></span></div><div><b>Comic</b><small>Bangers</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-clean.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Poppins',sans-serif;font-weight:800;color:#FFFFFF">Clip <em style="color:#FFD76B">this</em></span></div><div><b>Clean</b><small>Poppins</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Fredoka',sans-serif;font-weight:700;color:#FFFFFF">Clip <em style="color:#7CC8FF">this</em></span></div><div><b>Soft</b><small>Fredoka</small></div></div><div class="tpl"><div class="shotx"><img src="/brand/demo-bounce.jpg" alt="" loading="lazy"><span class="capx" style="font-family:'Permanent Marker',sans-serif;font-weight:400;color:#FFFFFF">Clip <em style="color:#FF8B33">this</em></span></div><div><b>Marker</b><small>Permanent Marker</small></div></div></div>
   </div>
 </section>
 
-<section style="padding-top:0">
+<section id="pricing" style="padding-top:0">
   <div class="wrap">
-    <div class="show grain rv"><span class="eyebrow" style="color:#E3D6FF">Clip editor</span><h2>Powered by AI, finished by you</h2>
-      <p>Every clip opens in a full editor with a live preview, caption presets, fonts and a timeline.</p>
-      <div class="edm" aria-hidden="true"><div class="top"><i></i><i></i><i></i><span>Save and render</span></div>
-        <div class="body"><div class="side"><b>Presets</b><div class="ps"><span>CLIP</span><span>CLIP</span><span>CLIP</span><span>CLIP</span><span>CLIP</span><span>CLIP</span></div><b>Font</b><div class="ln"></div><b>Colours</b><div class="ln"></div></div>
-          <div class="stage"><video class="lazyplay" src="/brand/demo-hype.mp4" poster="/brand/demo-hype.jpg" muted loop playsinline preload="none"></video></div></div>
-        <div class="tl"><i style="flex:2"></i><i style="flex:1"></i><i style="flex:3"></i><i style="flex:1.5"></i><i style="flex:2.5"></i><i style="flex:1"></i></div></div>
-    </div>
-    <div class="facts">
-      <div class="fact rv"><b>8</b><span>caption presets to start from</span></div>
-      <div class="fact rv" style="--d:.06s"><b>17</b><span>fonts, from bold to playful</span></div>
-      <div class="fact rv" style="--d:.12s"><b>3</b><span>free clips on every video</span></div>
-    </div>
-  </div>
-</section>
-
-<section id="pricing" class="lav">
-  <div class="wrap">
-    <div class="head rv"><span class="eyebrow">Pricing</span><h2>Simple pricing</h2><p>No subscription and no seats. Buy credits only when a video deserves more clips.</p></div>
+    <div class="head rv"><span class="eyebrow">Pricing</span><h2 class="t">Pay only for the clips you want</h2><p>No subscription and no seats. Buy credits only when a video deserves more clips.</p></div>
     <div class="plans">
-      <div class="plan rv"><div class="pt"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M3 12h18"/></svg></i>Free</div><b>3<small>clips per video</small></b>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Captioned and scored clips</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>The full clip editor</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>No card needed</li></ul>
-        <a class="btn line" href="/signup">Get started</a></div>
-      <div class="plan hot grain rv" style="--d:.08s"><div class="pt"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg></i>Credits</div><b>1<small>credit = 1 more clip</small></b>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>More clips from any video</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Top up whenever you need</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>No monthly fee</li></ul>
-        <a class="btn" href="/signup">Choose credits</a></div>
-      <div class="plan rv" style="--d:.16s"><div class="pt"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg></i>Included</div><b>All<small>features, every plan</small></b>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Live stream clipping</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Brand kit and caption styles</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>Posting to Shorts, Reels, TikTok</li></ul>
-        <a class="btn line" href="/signup">Create an account</a></div>
+      <div class="card plan rv"><div class="pt">Free</div><div class="big">3<small>clips per video</small></div>
+        <ul><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Captioned and scored clips</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>The full clip editor</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>No card needed</li></ul>
+        <a class="btn lg outline" href="/signup">Get started</a></div>
+      <div class="card plan hot rv" style="--d:.06s"><div class="pt">Credits<span class="pill brand">Most flexible</span></div><div class="big">1<small>credit = 1 more clip</small></div>
+        <ul><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>More clips from any video</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Top up whenever you need</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>No monthly fee</li></ul>
+        <a class="btn lg primary" href="/signup">Choose credits</a></div>
+      <div class="card plan rv" style="--d:.12s"><div class="pt">Included</div><div class="big">All<small>features, every plan</small></div>
+        <ul><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Live stream clipping</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Brand kit and caption styles</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Posting to Shorts, Reels, TikTok</li></ul>
+        <a class="btn lg outline" href="/signup">Create an account</a></div>
     </div>
   </div>
 </section>
 
-<section id="faq">
+<section id="faq" style="padding-top:0">
   <div class="wrap faqx">
-    <div class="head rv"><span class="eyebrow">FAQ</span><h2>Frequently asked questions</h2><p>Everything people ask before their first clip.</p><a class="btn cta" href="/signup">Start for free</a></div>
-    <div class="qs rv"><details><summary>Is SocialShot free?</summary><p>Yes, to start. Every video gives you 3 clips for free. When you want more clips from a video, buy credits: 1 credit makes 1 more clip. There is no subscription.</p></details>
-      <details><summary>Do I need to install anything?</summary><p>No. Sign up, paste a link and SocialShot does the rest in your browser. There is nothing to download and no AI key to set up.</p></details>
-      <details><summary>How fast are the clips?</summary><p>A 15-minute video usually comes back in about two minutes. Live streams hand over their first clips while the stream is still going.</p></details>
-      <details><summary>Which videos work best?</summary><p>Anything with people talking and reacting: live streams, gaming VODs, podcasts and interviews, from YouTube, Twitch, Kick or your own files.</p></details>
-      <details><summary>Can I change a clip afterwards?</summary><p>Yes. Open any clip in the editor to fix captions, change the font and colours, trim it, and save it again.</p></details>
-      <details><summary>Can I clip any streamer?</summary><p>SocialShot is a tool. You are responsible for having the right to clip and post a creator&#x27;s content; most clipping programs ask you to follow the creator&#x27;s own rules.</p></details></div>
+    <div class="head rv"><span class="eyebrow">FAQ</span><h2 class="t">Questions people ask first</h2><p>Everything people ask before their first clip.</p><a class="btn lg primary" href="/signup">Start for free</a></div>
+    <div class="qs rv"><details><summary>Is SocialShot free?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>Yes, to start. Every video gives you 3 clips for free. When you want more clips from a video, buy credits: 1 credit makes 1 more clip. There is no subscription.</p></details>
+      <details><summary>Do I need to install anything?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>No. Sign up, paste a link and SocialShot does the rest in your browser. There is nothing to download and no AI key to set up.</p></details>
+      <details><summary>How fast are the clips?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>A 15-minute video usually comes back in about two minutes. Live streams hand over their first clips while the stream is still going.</p></details>
+      <details><summary>Which videos work best?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>Anything with people talking and reacting: live streams, gaming VODs, podcasts and interviews, from YouTube, Twitch, Kick or your own files.</p></details>
+      <details><summary>Can I change a clip afterwards?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>Yes. Open any clip in the editor to fix captions, change the font and colours, trim it, and save it again.</p></details>
+      <details><summary>Can I clip any streamer?<svg class="ti" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></summary><p>SocialShot is a tool. You are responsible for having the right to clip and post a creator&#x27;s content; most clipping programs ask you to follow the creator&#x27;s own rules.</p></details></div>
   </div>
 </section>
 
 <section style="padding-top:0">
-  <div class="wrap"><div class="ready rv">
-    <span class="ph"><img src="/brand/demo-hype.jpg" alt="" loading="lazy"></span>
-    <div class="mid"><h2>Ready to clip your next stream?</h2><p>Paste a link and see what the AI picks. Your first 3 clips on every video are free.</p>
-      <a class="btn cta" href="/signup" data-auth="up2">Start for free<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
-    <span class="ph r"><img src="/brand/demo-clean.jpg" alt="" loading="lazy"></span>
+  <div class="wrap"><div class="card closer surface rv">
+    <h2 class="t">Ready to clip your next stream?</h2>
+    <p>Paste a link and see what gets picked. Your first 3 clips on every video are free.</p>
+    <div class="ctas"><a class="btn lg primary" href="/signup" data-auth="up3">Start for free<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><a class="btn lg outline" href="/login" data-auth="in">Sign in</a></div>
   </div></div>
 </section>
 </main>
 
-<footer><div class="wrap"><div class="fbox">
+<footer><div class="wrap">
   <div class="fcols">
-    <div class="fbrand"><a href="/" aria-label="SocialShot home"><img src="/brand/logo.svg?v=3" alt="SocialShot" width="119" height="30"></a>
+    <div class="fbrand"><a href="/" aria-label="SocialShot home"><img src="/brand/logo-light.svg?v=3" alt="SocialShot" width="103" height="26"></a>
       <p>AI clipping for Twitch, Kick and YouTube. Captioned vertical clips while the stream is still live.</p></div>
     <div><h4>Product</h4><ul><li><a href="/#features">Features</a></li><li><a href="/#how">How it works</a></li><li><a href="/#styles">Caption styles</a></li><li><a href="/#pricing">Pricing</a></li></ul></div>
     <div><h4>Get started</h4><ul><li><a href="/signup">Create an account</a></li><li><a href="/login">Sign in</a></li><li><a href="/#faq">FAQ</a></li></ul></div>
     <div><h4>Legal</h4><ul><li><a href="/terms">Terms of Service</a></li><li><a href="/privacy">Privacy Policy</a></li><li><a href="/acceptable-use">Acceptable Use</a></li></ul></div>
   </div>
   <div class="fbottom"><span>© <span class="fy"></span> SocialShot</span><span>Made for clippers and creators.</span></div>
-  <span class="wordmark" aria-hidden="true">SocialShot</span>
-</div></div></footer>
+</div></footer>
 
 <script>
 document.querySelectorAll(".fy").forEach(e => e.textContent = new Date().getFullYear());
 const $$ = s => [...document.querySelectorAll(s)];
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const navEl = document.getElementById("nav");
-const onScroll = () => navEl.classList.toggle("stuck", scrollY > 40);
+const onScroll = () => navEl.classList.toggle("stuck", scrollY > 24);
 addEventListener("scroll", onScroll, {passive:true}); onScroll();
+
 // things ease in as they scroll into view; checked on scroll and on a timer, so nothing can stay hidden
 let waiting = $$(".rv");
 function check() {
   const h = innerHeight || document.documentElement.clientHeight;
-  waiting = waiting.filter(e => { if (e.getBoundingClientRect().top < h * .92) { e.classList.add("in"); return false; } return true; });
+  waiting = waiting.filter(e => { if (e.getBoundingClientRect().top < h * .94) { e.classList.add("in"); return false; } return true; });
 }
 addEventListener("scroll", check, {passive:true}); addEventListener("resize", check); addEventListener("load", check);
 const timer = setInterval(() => { check(); if (!waiting.length) clearInterval(timer); }, 400);
 check();
-try {
-  const lz = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.isIntersecting) { v.preload = "auto"; v.play().catch(() => {}); } else v.pause(); }), {threshold:.4});
-  $$("video.lazyplay").forEach(v => lz.observe(v));
-} catch {}
-// the link box: remember the link, then sign up (or go straight in if already signed in)
-let signedIn = false;
-$$(".linkform").forEach(f => {
-  f.addEventListener("submit", e => {
-    e.preventDefault();
-    const v = f.link.value.trim();
-    try { if (v) sessionStorage.setItem("peakcut_link", v); } catch {}
-    location.href = signedIn ? "/app" : "/signup";
-  });
-  f.link.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); f.requestSubmit(); } });
-});
+
+// the chat activity behind the live card: quiet bars with three spikes where clips were saved
+(() => {
+  const w = document.getElementById("wave"); if (!w) return;
+  const hot = {21: 1, 22: 1, 23: 1, 47: 1, 48: 1};
+  let h = "";
+  for (let i = 0; i < 64; i++) {
+    const base = 18 + 14 * Math.sin(i * .55) + 10 * Math.sin(i * 1.7 + 1) + (i * 37 % 11);
+    const v = hot[i] ? 78 + (i % 2) * 14 : Math.max(10, Math.min(58, base));
+    h += `<i class="${hot[i] ? "hot" : ""}" style="height:${v}%"></i>`;
+  }
+  w.innerHTML = h;
+})();
+
+// captions: the lit word moves along as it's "said"
+(() => {
+  const ws = $$("#words span"); if (!ws.length || still) return;
+  let k = 2; setInterval(() => { ws.forEach(s => s.classList.remove("on")); k = (k + 1) % ws.length; ws[k].classList.add("on"); }, 520);
+})();
+
+// the hero demo: the real dashboard, played as a short story.
+// The cursor clicks into the link box, a link is typed, Make clips is pressed, the clips arrive,
+// the first one is posted, then New clip clears it all and it plays again.
+(() => {
+  const fit = document.getElementById("fit"), st = document.getElementById("stage"), cur = document.getElementById("cur");
+  const tx = document.getElementById("tx"), res = document.getElementById("res");
+  const T = k => st.querySelector(`[data-t="${k}"]`), field = T("field"), go = T("go");
+  const LINK = "twitch.tv/videos/2214308417";
+  let k = 1, compact = false, run = 0, playing = false;   // run: which play-through is current; an older one stops at its next step
+
+  function layout() {
+    const w = fit.clientWidth, c = w < 700;
+    if (c !== compact) { compact = c; st.classList.toggle("compact", c); }
+    fit.classList.toggle("compact", c);
+    const W = c ? 400 : 1072, H = c ? 720 : 740;
+    k = Math.min(1, w / W);
+    st.style.setProperty("--w", W + "px"); st.style.setProperty("--h", H + "px"); st.style.setProperty("--k", k);
+    fit.style.setProperty("--h", H + "px"); fit.style.setProperty("--k", k);
+  }
+  layout(); addEventListener("resize", layout);
+
+  const final = () => { st.classList.add("work", "clips", "posted"); res.classList.add("open"); tx.textContent = LINK; field.querySelector(".ph").style.opacity = 0; go.classList.add("ready"); cur.style.opacity = 0; };
+  if (still) return final();
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // where something is on the stage, in the stage's own pixels (the stage is scaled to fit)
+  const at = (el, fx = .5, fy = .5) => {
+    const s = st.getBoundingClientRect(), r = el.getBoundingClientRect();
+    return [(r.left - s.left + r.width * fx) / k, (r.top - s.top + r.height * fy) / k];
+  };
+  let pos = [0, 0];
+  async function move(el, ms = 750, fx, fy) {
+    const [x, y] = at(el, fx, fy), d = Math.hypot(x - pos[0], y - pos[1]);
+    ms = Math.max(380, Math.min(ms, 300 + d * 1.1));
+    cur.style.transitionDuration = ms + "ms, .25s";
+    cur.style.transform = `translate(${x - 7.5}px,${y - 5.25}px)`; pos = [x, y];
+    await sleep(ms + 60);
+  }
+  async function press(el) { cur.classList.add("down"); el && el.classList.add("down"); await sleep(140); cur.classList.remove("down"); el && el.classList.remove("down"); await sleep(120); }
+  function place(x, y) { cur.style.transitionDuration = "0ms"; cur.style.transform = `translate(${x - 7.5}px,${y - 5.25}px)`; pos = [x, y]; }
+
+  async function story(id) {
+    const live = () => id === run;
+    // start: empty composer, the pointer resting low on the right
+    st.classList.remove("work", "clips", "posted"); res.classList.remove("open"); go.classList.remove("ready"); field.classList.remove("focus");
+    tx.textContent = ""; field.querySelector(".ph").style.opacity = 1;
+    const s = st.getBoundingClientRect();
+    place(s.width / k * .78, s.height / k * .86); cur.style.opacity = 1;
+    await sleep(700); if (!live()) return;
+    // into the link box
+    cur.classList.add("text");
+    await move(field, 900, .42, .5); if (!live()) return;
+    await press(); field.classList.add("focus"); field.querySelector(".ph").style.opacity = 0;
+    await sleep(200);
+    for (const ch of LINK) { if (!live()) return; tx.textContent += ch; await sleep(38 + Math.random() * 40); }
+    go.classList.add("ready");
+    await sleep(320); if (!live()) return;
+    // Make clips
+    cur.classList.remove("text");
+    await move(go, 600); if (!live()) return;
+    await press(go); field.classList.remove("focus");
+    res.classList.add("open");
+    await sleep(380); st.classList.add("work");
+    await sleep(2150); if (!live()) return;
+    st.classList.add("clips");
+    // the best clip gets posted
+    await sleep(900); if (!live()) return;
+    await move(T("post"), 800); if (!live()) return;
+    await press(T("post")); st.classList.add("posted");
+    await sleep(2600); if (!live()) return;
+    // New clip clears the composer, which is why it starts over
+    await move(compact ? T("new2") : T("new"), 900); if (!live()) return;
+    await press(compact ? T("new2") : T("new"));
+    st.classList.remove("posted"); await sleep(160);
+    res.classList.remove("open"); st.classList.remove("clips", "work");
+    await sleep(700);
+  }
+  async function loop() { const id = ++run; playing = true; while (id === run) { await story(id); } }
+  final(); // the poster: what shows before it plays, and to anyone who can't see it move
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting && !playing) loop();
+    else if (!e.isIntersecting && playing) { run++; playing = false; final(); }
+  }), {threshold: .2});
+  io.observe(fit);
+})();
+
+// the link box on the page is the app's: sign up, or go straight in if already signed in
 fetch("/api/auth/me").then(r => r.json()).then(d => {
   if (!d.user) return;
-  signedIn = true;
   $$('[data-auth="in"]').forEach(e => e.remove());
   $$('[data-auth="up"]').forEach(e => { e.href = "/app"; e.textContent = "Open SocialShot"; });
-  $$('[data-auth="up2"]').forEach(e => { e.href = "/app"; });
+  $$('[data-auth^="up"]').forEach(e => { e.href = "/app"; });
 }).catch(() => {});
 </script>
 </body>

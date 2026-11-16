@@ -53,6 +53,23 @@ FONTS = {
     "Russo One": {"google": "Russo One", "weight": 400},
     "Bungee": {"google": "Bungee", "weight": 400},
     "Permanent Marker": {"google": "Permanent Marker", "weight": 400},
+    # more Google Fonts for captions: clean modern sans, bold display, a few with character
+    "Outfit": {"google": "Outfit", "weight": 800},
+    "Sora": {"google": "Sora", "weight": 800},
+    "Plus Jakarta Sans": {"google": "Plus Jakarta Sans", "weight": 800},
+    "Manrope": {"google": "Manrope", "weight": 800},
+    "DM Sans": {"google": "DM Sans", "weight": 800},
+    "Urbanist": {"google": "Urbanist", "weight": 800},
+    "Lexend": {"google": "Lexend", "weight": 800},
+    "Space Grotesk": {"google": "Space Grotesk", "weight": 700},
+    "Archivo": {"google": "Archivo", "weight": 800},
+    "Kanit": {"google": "Kanit", "weight": 800},
+    "Unbounded": {"google": "Unbounded", "weight": 800},
+    "Syne": {"google": "Syne", "weight": 800},
+    "Righteous": {"google": "Righteous", "weight": 400},
+    "Chakra Petch": {"google": "Chakra Petch", "weight": 700},
+    "Paytone One": {"google": "Paytone One", "weight": 400},
+    "Black Han Sans": {"google": "Black Han Sans", "weight": 400},
 }
 
 # Ready-made caption looks for the editor. A look is everything about the captions a person can change.
@@ -66,6 +83,17 @@ PRESETS = {
     "comic": {"label": "Comic", "font": "Bangers", "size": 150, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 2, "outline": 8},
     "soft": {"label": "Soft", "font": "Fredoka", "size": 112, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 6},
     "marker": {"label": "Marker", "font": "Permanent Marker", "size": 120, "base": "#FFFFFF", "active": "#FF8B33", "upper": False, "per": 3, "outline": 6},
+    # newer looks, with Google Fonts; some sit on a box (cap_box / cap_op) instead of an outline
+    "minimal": {"label": "Minimal", "font": "Outfit", "size": 98, "base": "#FFFFFF", "active": "#A3E635", "upper": False, "per": 3, "outline": 2},
+    "boxed": {"label": "Boxed", "font": "Plus Jakarta Sans", "size": 96, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 0,
+              "cap_box": "#000000", "cap_op": 72},
+    "paper": {"label": "Paper", "font": "Sora", "size": 92, "base": "#141416", "active": "#7C3AED", "upper": False, "per": 3, "outline": 0,
+              "cap_box": "#FFFFFF", "cap_op": 100},
+    "podcast": {"label": "Podcast", "font": "Manrope", "size": 92, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 3},
+    "tech": {"label": "Tech", "font": "Space Grotesk", "size": 104, "base": "#FFFFFF", "active": "#22E06B", "upper": False, "per": 3, "outline": 4},
+    "street": {"label": "Street", "font": "Kanit", "size": 136, "base": "#FFFFFF", "active": "#FF3C3C", "upper": True, "per": 2, "outline": 7},
+    "loud": {"label": "Loud", "font": "Unbounded", "size": 100, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 2, "outline": 6},
+    "neon": {"label": "Neon", "font": "Lexend", "size": 108, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 3, "outline": 5},
 }
 _HEX = re.compile(r"#[0-9A-Fa-f]{6}")
 
@@ -113,11 +141,89 @@ def clean_look(look) -> dict | None:
             "sp": _num(look.get("sp"), -4, 24, 0), "wgap": _num(look.get("wgap"), 0, 80, 0),
             "cap_box": _hex(look.get("cap_box"), "#000000"), "cap_op": _num(look.get("cap_op"), 0, 100, 0),
             "cap_round": _num(look.get("cap_round"), 0, 60, 18),
+            # the person's brand on the video: their logo and name, where it sits, how big, how solid, how it moves
+            "brand_on": bool(look.get("brand_on", False)), "brand_logo": bool(look.get("brand_logo", True)),
+            "brand_text": re.sub(r"[\x00-\x1f\x7f]", "", str(look.get("brand_text") or ""))[:40],
+            "brand_pos": look["brand_pos"] if look.get("brand_pos") in BRAND_POS else "tr",
+            "brand_anim": look["brand_anim"] if look.get("brand_anim") in BRAND_ANIM else "float",
+            "brand_size": _num(look.get("brand_size"), 40, 200, 84), "brand_op": _num(look.get("brand_op"), 20, 100, 90),
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
             "fade_out": look["fade_out"] if look.get("fade_out") in FADES else "none",
             "volume": _volume(look.get("volume"))}       # the sound, in percent of the normal level: 0 is silent, 200 twice as loud
+
+
+BRAND_POS = ("tl", "tc", "tr", "bl", "bc", "br")
+BRAND_ANIM = ("none", "float", "slide", "drift", "fade")
+BRAND_MARGIN = 54
+
+
+def brand_logo_path(uid: str) -> Path:
+    """Where a person's logo is kept (a PNG they uploaded in the editor)."""
+    return config.user_dir(uid) / "brand" / "logo.png"
+
+
+def brand_badge(look: dict, logo_path: str, out: Path):
+    """Draws the brand as one picture: the logo, then the name beside it in white with a soft shadow, at the
+    chosen size and see-through level. Returns the file, or None when there is nothing to show."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    size, text = look["brand_size"], look["brand_text"].strip()
+    logo = None
+    if look["brand_logo"] and logo_path and Path(logo_path).is_file():
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            logo = logo.resize((max(1, round(logo.width * size / logo.height)), size), Image.LANCZOS)
+        except Exception:  # noqa: BLE001 - a broken logo file: show the name alone
+            logo = None
+    if not logo and not text:
+        return None
+    font = ImageFont.truetype(str(_PATHS.get("Mazzard H") or _PATHS["Poppins ExtraBold"]), max(18, round(size * 0.42)))
+    tw = th = 0
+    if text:
+        box = font.getbbox(text)
+        tw, th = box[2] - box[0], box[3] - box[1]
+    gap = round(size * 0.22) if logo and text else 0
+    pad = 8
+    w = (logo.width if logo else 0) + gap + tw + pad * 2
+    h = max(size if logo else 0, th) + pad * 2
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    x = pad
+    if logo:
+        img.alpha_composite(logo, (x, (h - logo.height) // 2))
+        x += logo.width + gap
+    if text:
+        ty = (h - th) // 2 - font.getbbox(text)[1]
+        shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(shadow).text((x + 2, ty + 3), text, font=font, fill=(0, 0, 0, 150))
+        img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(3)))
+        ImageDraw.Draw(img).text((x, ty), text, font=font, fill=(255, 255, 255, 255))
+    if look["brand_op"] < 100:
+        img.putalpha(img.getchannel("A").point(lambda v: round(v * look["brand_op"] / 100)))
+    img.save(out, "PNG")
+    return out
+
+
+def brand_overlay(look: dict) -> tuple[str, str]:
+    """ffmpeg pieces that lay the badge on the video and move it: (what the badge picture goes through, the overlay).
+    The same motions are drawn in the editor's preview (editor.js, brandXY)."""
+    m, pos, anim = BRAND_MARGIN, look["brand_pos"], look["brand_anim"]
+    xs = {"l": f"{m}", "c": "(W-w)/2", "r": f"W-w-{m}"}
+    ys = {"t": f"{m + 20}", "b": f"H-h-{m + 60}"}
+    x, y = xs[pos[1]], ys[pos[0]]
+    pre = "format=rgba"
+    if anim == "float":                                    # a slow up-and-down, like it is resting on water
+        y = f"{y}+10*sin(2*PI*t/2.6)"
+    elif anim == "slide":                                  # comes in from its own side in the first 0.7 s
+        k = "pow(max(0,1-t/0.7),3)"
+        x = {"l": f"{m}-({m}+w)*{k}", "c": x, "r": f"W-w-{m}+({m}+w)*{k}"}[pos[1]]
+        if pos[1] == "c":
+            y = f"{y}-({m + 20}+h)*{k}" if pos[0] == "t" else f"{y}+({m + 60}+h)*{k}"
+    elif anim == "drift":                                  # glides from one side to the other and back, every 14 s
+        x = f"{m}+(W-w-{2 * m})*(0.5-0.5*cos(2*PI*t/14))"
+    elif anim == "fade":                                   # fades in at the start
+        pre += ",fade=t=in:st=0:d=0.8:alpha=1"
+    return pre, f"overlay=x='{x}':y='{y}':shortest=1:format=auto"
 
 
 def _hex(v, default) -> str:
@@ -545,7 +651,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
     hook_font = hook_size = None
     hook_show = 0.0
-    hk = None
+    hk = brand = None
     if look:                                    # changed in the editor: its own font, colours, size and place
         style = look_style(look)
         if look["y"] is not None:
@@ -554,6 +660,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
             hook_y = round(H * look["hook_y"] / 100)
         hook_font, hook_size, hook_show = ensure_font(look["hook_font"]), look["hook_size"], look["hook_dur"]
         hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp")}
+        brand = look if look["brand_on"] else None
         if not look["hook"]:
             hook = ""
     # Speech cleanup: the parts taken out are dropped from picture and sound, and the captions, the hook and the
@@ -575,20 +682,30 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     fx = effect_filters(look, out_end - start)
     work = Path(tempfile.mkdtemp(prefix="pk"))
     try:
-        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel)
+        badge = brand_badge(brand, clip.get("logo_path", ""), work / "badge.png") if brand else None
+        return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel,
+                          brand_overlay(brand) if badge else None)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", ""), sel="", asel="") -> dict:
+def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", ""), sel="", asel="",
+               brand=None) -> dict:
     global _qsv_ok
     (work / f"{name}.ass").write_text(ass, encoding="utf-8")
     (work / "f").mkdir()
     for f in [*config.FONTS_DIR.glob("*.ttf"), *config.FONTS_DIR.glob("*.otf")]:
         shutil.copyfile(f, work / "f" / f.name)
     pre, post, audio = fx
-    fc = _filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
-    base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src),
+    if brand:                                  # the brand badge goes on top of the captions, then the fades
+        bpre, bover = brand
+        fc = (_filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f[vc];"
+              f"[1:v]{bpre}[lg];[vc][lg]{bover}{',' + post if post else ''}[v]")
+        extra = ["-loop", "1", "-framerate", str(config.OUT_FPS), "-i", "badge.png"]
+    else:
+        fc = _filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
+        extra = []
+    base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src), *extra,
             "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", asel + "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else ""),
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
