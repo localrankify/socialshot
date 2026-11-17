@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SocialShot</title>
-<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=4">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Archivo+Black&family=Anton&family=Poppins:wght@800&display=swap" rel="stylesheet">
@@ -4269,12 +4269,116 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .pc-find .jmore{margin-top:8px}
 .pc-err{margin:6px 0 0;font-size:12px;color:#FCA5A5;line-height:1.45}
 .pc-none{display:flex;align-items:center}
+/* ---- editor panels, second pass: one card per job, the action inside it, calm empty states */
+.ed .ed-panel .ed-cfoot{margin:-2px 2px 10px;font-size:11.5px;color:#71717A}
+/* Trim */
+.ed-trim2{display:grid;gap:12px}
+.ed-tlen{display:flex;align-items:baseline;justify-content:space-between}
+.ed-tlen span{font-size:12.5px;color:#A1A1AA}
+.ed-tlen b{font-size:22px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ed-trange{position:relative;height:8px;border-radius:4px;background:#26262B;overflow:hidden}
+.ed-trange i{position:absolute;top:0;bottom:0;border-radius:4px;background:#FACC15;min-width:3px}
+.ed-trange-l{display:flex;justify-content:space-between;margin-top:-6px;font-size:11px;color:#71717A;font-variant-numeric:tabular-nums}
+.ed-trow{display:grid;grid-template-columns:44px 1fr auto auto;align-items:center;gap:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)}
+.ed-tl{font-size:12.5px;color:#A1A1AA}
+.ed-trow>b{font-size:15px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.ed-step{display:inline-flex;padding:2px;gap:2px;border-radius:9px;background:#26262B}
+.ed-step button{height:28px;min-width:42px;padding:0 6px;border:0;border-radius:7px;background:transparent;color:#D4D4D8;font:inherit;font-size:11.5px;font-weight:600;
+  font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-step button:hover{background:#34343A;color:#fff}
+.ed-step button:active{transform:scale(.96)}
+.ed-tph{width:32px;height:32px;border-radius:9px;background:#26262B}
+.ed-tph svg{width:15px;height:15px}
+/* Speech cleanup */
+.ed-cres{display:grid;gap:10px}
+.ed-cnum{display:flex;align-items:baseline;gap:8px}
+.ed-cnum b{font-size:22px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.ed-cnum span{font-size:12.5px;color:#A1A1AA}
+.ed-cbar2{height:6px;border-radius:3px;background:rgba(239,68,68,.35);overflow:hidden}
+.ed-cbar2 i{display:block;height:100%;border-radius:3px;background:#4ADE80}
+.ed-cres .ed-help{margin:0}
+.ed-cgo{justify-content:center;width:100%;height:38px;gap:8px}
+.ed-cgo svg{width:16px;height:16px}
+.ed-cempty,.ed-zempty{display:flex;align-items:flex-start;gap:12px}
+.ed-cempty b,.ed-zempty b{display:block;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-cempty .ed-help,.ed-zempty .ed-help{margin:4px 0 0}
+.ed-cok,.ed-zeic{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:rgba(74,222,128,.1);color:#4ADE80}
+.ed-cok svg,.ed-zeic svg{width:17px;height:17px}
+.ed-cdone{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#A1A1AA}
+.ed-cdone b{color:#F4F4F5;font-variant-numeric:tabular-nums;margin-left:4px}
+/* Zoom moments, none yet */
+.ed-zeic{background:rgba(245,158,11,.1);color:#FBBF24}
+.ed-zeact{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.ed-zeact span{font-size:11.5px;color:#71717A}
+.ed-zeact kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin:0 2px;border-radius:5px;background:#26262B;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.4);color:#E4E4E7;font:600 10.5px/1 inherit}
+/* the logo, once uploaded */
+.ed-logo2{display:flex;align-items:center;gap:12px;padding:10px;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.ed-logo2-pv{flex:none;width:48px;height:48px;display:grid;place-items:center;border-radius:9px;
+  background:repeating-conic-gradient(#2A2A2F 0 25%,#232327 0 50%) 0 0/12px 12px}
+.ed-logo2-pv img{max-width:40px;max-height:40px;object-fit:contain}
+.ed-logo2-t{flex:1;min-width:0;display:grid;gap:2px}
+.ed-logo2-t b{font-size:12.5px;font-weight:600;color:#F4F4F5}
+.ed-logo2-t small{font-size:11.5px;color:#8E8E96}
+.ed-logo2 label.ed-btn{cursor:pointer}
+.ed-logo2 .ed-ib{width:30px;height:30px}
+/* save as a brand look */
+.ed-save{display:grid;gap:12px}
+.ed-saveh{display:flex;align-items:flex-start;gap:10px}
+.ed-saveh b{display:block;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-saveh small{display:block;margin-top:2px;font-size:11.5px;color:#8E8E96;line-height:1.4}
+.ed-saveic{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#26262B;color:#D4D4D8}
+.ed-saveic svg{width:15px;height:15px}
+.ed-savein{display:flex;align-items:center;gap:4px;padding:4px 4px 4px 12px;border-radius:10px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+  transition:box-shadow .15s ease}
+.ed-savein:focus-within{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.ed .ed-savein input{flex:1;min-width:0;height:32px;padding:0;border:0;background:transparent;color:#F4F4F5;font:inherit;font-size:13px;outline:0;box-shadow:none}
+.ed-savein .ed-btn{height:32px;padding:0 14px}
+/* the script panel: tabs, then search and the word count; search opens full width; the tools in a bar at the bottom */
+.ed .ed-txcard{grid-template-rows:auto minmax(0,1fr) auto}
+.ed .ed-txhead.compact{gap:10px;padding:12px 12px 10px}
+.ed .ed-txhead.compact .ed-txrow{gap:6px}
+.ed .ed-txmeta{flex:none;margin-left:2px;text-align:right}
+.ed-qbtn{margin-left:auto;width:30px!important;height:30px!important;border-radius:8px}
+.ed-qbtn svg{width:15px;height:15px}
+.ed-qbtn.on{background:var(--e3);color:var(--tx)}
+.ed .ed-qfull{width:100%;height:36px;padding:0 4px 0 12px;border-radius:9px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.ed .ed-qfull:focus-within{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.ed-qfull small{margin-right:2px}
+.ed-qx{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:#71717A;cursor:pointer}
+.ed-qx:hover{background:var(--e3);color:var(--tx)}
+.ed-qx svg{width:13px;height:13px}
+.ed-txfoot{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:6px;border-top:1px solid var(--ln);background:var(--e1)}
+.ed-tf{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:48px;border:0;border-radius:8px;background:transparent;
+  color:#A1A1AA;font:inherit;font-size:11px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-tf svg{width:16px;height:16px}
+.ed-tf:hover{background:var(--e3);color:#F4F4F5}
+.ed-tf.on{color:var(--tx);background:var(--e2)}
+.ed-tf:disabled{opacity:.55;cursor:progress}
+.ed-tf.busy svg{animation:jspin 1s linear infinite}
+@media (prefers-reduced-motion:reduce){.ed-tf.busy svg{animation:none}}
+/* "Save as a brand look": its own bar at the bottom of the panel, not one more setting */
+.ed-savebar{position:sticky;bottom:-24px;z-index:3;margin:14px -14px -24px;padding:10px 12px 14px;border-top:1px solid var(--ln);
+  background:color-mix(in srgb,var(--e1) 92%,transparent);backdrop-filter:blur(8px)}
+.ed-savego{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:11px;background:#1C1C20;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.ed-savego:hover{background:#222227;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent)}
+.ed-savego .ed-saveic{background:color-mix(in srgb,var(--accent) 16%,#1C1C20);color:var(--accent)}
+.ed-savet{flex:1;min-width:0;display:grid;gap:1px}
+.ed-savet b{font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-savet small{font-size:11.5px;color:#8E8E96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-savearr{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;color:#A1A1AA}
+.ed-savearr svg{width:14px;height:14px}
+.ed-savego:hover .ed-savearr{color:#fff}
+.ed-savebar.open{display:grid;gap:6px}
+.ed-savenote{font-size:11px;color:#71717A;padding-left:2px}
+.ed-savebar .ed-savein{padding-right:2px}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <aside class="side" aria-label="Sidebar">
-    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=5" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=4" alt="SocialShot">
+    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=6" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=5" alt="SocialShot">
       <span class="sh-acts"><button class="icon-btn sb-open" data-act="sbopen" aria-label="Search your videos" title="Search (Ctrl K)"></button>
       <button class="icon-btn collapse" data-act="collapse" id="collapseBtn" aria-label="Collapse sidebar"></button></span></div>
     <div id="sbsearch"></div>
@@ -5868,7 +5972,7 @@ function emptyState({label, title, text, actions = [], key = ""}) {
   return `<div class="es" data-es="${esc(key)}">
     <div class="es-fold" aria-hidden="true"><i class="es-back"></i>
       <span class="es-paper"><b>${esc(label)}</b><i></i><i></i></span>
-      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=4" alt="">SocialShot</span></span></div>
+      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=5" alt="">SocialShot</span></span></div>
     <h3>${esc(title)}</h3><p>${text}</p>
     ${actions.length ? `<div class="es-acts">${actions.map(a => `<button class="btn ${a.primary ? "primary" : ""}" data-act="${a.act}"${a.data ? " " + a.data : ""}>${a.icon ? ic(a.icon) : ""}${esc(a.label)}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -6892,6 +6996,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=100"></script>
+<script src="/assets/editor.js?v=104"></script>
 </body>
 </html>

@@ -192,7 +192,7 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <meta name="twitter:title" content="{E(title)}">
 <meta name="twitter:description" content="{E(desc)}">
 <meta name="twitter:image" content="{img}">
-<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=4">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=5">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/ui.css?v=3">
 <link rel="stylesheet" href="/assets/site.css?v=13">
@@ -469,7 +469,7 @@ def build():
                + '<article class="post"><div class="wrap"><div class="pwrap"><div class="pmain">'
                f'<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/blog">Blog</a><span>/</span><b>{E(b["tag"])}</b></nav>'
                f'<h1>{E(b["h1"])}</h1><p class="lede">{E(b["excerpt"])}</p>'
-               f'<div class="meta"><span class="by"><img src="/brand/favicon.svg?v=4" alt="">SocialShot team</span><i></i>'
+               f'<div class="meta"><span class="by"><img src="/brand/favicon.svg?v=5" alt="">SocialShot team</span><i></i>'
                f'<span>{short(b["date"])}</span><i></i><span>{b["read"]} min read</span></div>'
                f'<figure class="cover"><img src="/brand/{b["image"]}.jpg" alt="{E(b.get("alt", ""))}" width="1200" height="675" fetchpriority="high" style="object-position:{b.get("pos", "50% 35%")}"></figure>'
                f'<div class="prose">{body}</div>'
