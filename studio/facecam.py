@@ -86,3 +86,23 @@ def find(src, start: float, end: float, aspect: float = 1080 / 960):
     x = min(max(0.0, cx - bw / 2), W - bw)
     y = min(max(0.0, cy - bh / 2), H - bh)
     return [round(x / W, 4), round(y / H, 4), round(bw / W, 4), round(bh / H, 4)]
+
+
+def face_point(src, start: float, end: float):
+    """Where the main face is during start..end, for a zoom: its middle as (x, y) fractions of the picture, or None.
+    Four frames are checked; the biggest face in each counts, and their middles are averaged (faces far from the
+    others are left out, so one wrong find doesn't pull the zoom away)."""
+    pts = []
+    for i in range(4):
+        img = _frame(Path(src), start + (end - start) * (i + 0.5) / 4)
+        if img is None:
+            continue
+        faces = _faces(img)
+        if faces:
+            x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+            pts.append(((x + w / 2) / img.shape[1], (y + h * 0.45) / img.shape[0]))
+    if not pts:
+        return None
+    mx, my = sorted(p[0] for p in pts)[len(pts) // 2], sorted(p[1] for p in pts)[len(pts) // 2]
+    near = [p for p in pts if abs(p[0] - mx) < 0.15 and abs(p[1] - my) < 0.15] or pts
+    return round(float(sum(p[0] for p in near) / len(near)), 4), round(float(sum(p[1] for p in near) / len(near)), 4)

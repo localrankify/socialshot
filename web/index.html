@@ -3637,6 +3637,401 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
   .cs{grid-template-columns:1fr;gap:12px}.cs-nav{position:static;display:flex;overflow-x:auto;scrollbar-width:none;gap:2px}.cs-nav button{flex:none}
   .cs-nav button.on::before{left:12px;right:12px;top:auto;bottom:3px;width:auto;height:2px}}
 @media (max-width:560px){.cs-seg{display:flex;width:100%}.cs-seg label{flex:1}.cs-seg span{padding:0 6px}.cs-rng{width:100%}.cs-rng input{flex:1;width:auto}}
+/* ---------- editor: Frame view, post card, templates */
+.ed-fwrap{display:flex;flex-direction:column;gap:10px;width:100%;max-width:min(100%,calc((100cqh - 150px) * 16 / 9));margin:auto 0;min-height:0}
+.ed-fview{position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;touch-action:none;user-select:none;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.ed-fvid{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:var(--fx,contrast(1))}
+.ed-fview .ed-rg span{font-size:11.5px}
+.ed-rg.frame{border-color:var(--accent);background:transparent;outline:9999px solid rgba(0,0,0,.5)}
+.ed-rg.frame span{background:var(--accent);color:#fff}
+.ed-fview .ed-rg.game{outline:9999px solid rgba(0,0,0,.3)}
+.ed-fview .ed-rg .rz{width:16px;height:16px;right:-8px;bottom:-8px}
+.ed-fpre{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:4px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:#141417}
+.ed-fpre>button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:7px;background:transparent;border:0;font-size:12px;font-weight:500;color:#A1A1AA}
+.ed-fpre>button svg{width:16px;height:16px}
+.ed-fpre>button:hover{background:#1F1F23;color:#F4F4F5}
+.ed-fpre>button[aria-pressed=true]{background:#26262B;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.ed-fpre .grow{flex:1}
+.ed-fhelp{margin:0;font-size:12px;color:#8E8E96}
+.ed-fgb{z-index:0}
+.ed-post{position:absolute;inset:0;overflow:hidden}
+.ed-post>span{position:absolute;white-space:nowrap;font-family:Inter,system-ui,sans-serif}
+.ed-pav{display:grid;place-items:center;border-radius:50%;overflow:hidden;background:#1D9BF0;color:#fff}
+.ed-pav img{width:100%;height:100%;object-fit:cover}
+.ed-pav b{font-family:Inter,system-ui,sans-serif;font-weight:700;line-height:1}
+.ed-pnm{display:flex;align-items:center;font-weight:700}
+.ed-phd,.ed-ptx{font-weight:400}
+.ed-layacts{margin-bottom:12px}.ed-layacts .ed-btn{flex:1;justify-content:center}
+.ed-tpbtn svg{width:15px;height:15px}
+/* the post card in the small layout and template tiles */
+.lp-card{position:absolute;inset:0;display:flex;flex-direction:column;gap:5%;padding:22% 9% 0;background:#fff}
+.lp-card.dark{background:#000}
+.lp-card i{flex:none;border-radius:3px;background-color:#D7DBDF}
+.lp-card.dark i{background-color:#2F3336}
+.lp-card .lp-cav{width:16%;aspect-ratio:1;border-radius:50%;background-color:#1D9BF0!important}
+.lp-card .lp-cln{height:4%;width:90%}.lp-card .lp-cln.s{width:60%}
+.lp-card .lp-cv{width:100%;aspect-ratio:16/9;border-radius:5px;background-size:cover;background-position:center}
+.lp-card .lp-ccap{height:4%;width:50%;margin:4% auto 0;background-color:#1D9BF0!important}
+/* the templates window */
+.ed-tplw{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.55);animation:rise .2s ease both}
+.ed-tplbox{width:min(760px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;display:grid;gap:14px;padding:18px;border:1px solid var(--ln2);border-radius:16px;background:#1C1C1F;color:var(--tx)}
+.ed-tplbox header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ed-tplbox h3{font-size:17px;font-weight:600;color:#fff}
+.ed-tplbox header p{margin-top:2px;font-size:12.5px;color:#8E8E96}
+.ed-tpl-cats{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.ed-tpl-cats button{flex:none;height:30px;padding:0 12px;border-radius:8px;font-size:12.5px;font-weight:500;color:#A1A1AA;background:transparent;border:1px solid transparent}
+.ed-tpl-cats button:hover{color:#F4F4F5;background:#232327}
+.ed-tpl-cats button[aria-selected=true]{color:#fff;background:#26262B;border-color:rgba(255,255,255,.1)}
+.ed-tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ed-tpl{display:flex;flex-direction:column;gap:4px;padding:8px 8px 10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:#18181B;text-align:left;color:#D4D4D8;transition:background .15s,border-color .15s}
+.ed-tpl:hover{background:#1F1F23;border-color:rgba(255,255,255,.14)}
+.ed-tpl[aria-pressed=true]{border-color:var(--accent)}
+.ed-tpl-pv{display:grid;place-items:center;height:180px;border-radius:9px;background:#0F0F12}
+.ed-tpl-pv .lp-ph{width:auto;height:100%;max-height:none;max-width:100%}
+.ed-tpl b{margin-top:6px;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-tpl small{font-size:11px;line-height:1.35;color:#8E8E96}
+@media (max-width:560px){.ed-tpl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ed-tpl-pv{height:150px}}
+.ed-undo{display:inline-flex;align-items:center;gap:2px;margin:0 4px}
+.ed-undo .ed-ib:disabled{opacity:.35;cursor:default}
+.ed-keysbox{width:min(460px,100%)}
+.ed-keys{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;align-items:center;margin:0}
+.ed-keys dt{display:flex;gap:4px}
+.ed-keys dd{margin:0;font-size:13px;color:#D4D4D8}
+.ed-keys kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:6px;border:1px solid rgba(255,255,255,.12);border-bottom-width:2px;background:#232327;font:500 11.5px/1 Inter,system-ui,sans-serif;color:#F4F4F5}
+.ed-mlist{display:grid;gap:2px;margin:10px 0}
+.ed-mrow{position:relative;display:flex;align-items:center;gap:10px;height:38px;padding:0 34px 0 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:#D4D4D8;font-size:13px;text-align:left}
+.ed-mrow svg{width:16px;height:16px;flex:none;color:#8E8E96}
+.ed-mrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-mrow small{font:500 11.5px/1 Inter,system-ui,sans-serif;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-mrow:hover{background:#1F1F23}
+.ed-mrow[aria-checked=true]{background:#1E1618;border-color:var(--accent);color:#fff}
+.ed-mrow .ed-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:22px;height:22px;border-radius:6px;color:#8E8E96}
+.ed-mrow .ed-x:hover{background:#2A2A2F;color:#fff}
+.ed-mrow .ed-x svg{width:13px;height:13px}
+.ed-ck span small{display:block;font-size:11.5px;color:#8E8E96;margin-top:1px}
+.ed-btn.sm{height:28px;padding:0 10px;font-size:12px}
+.ed-seg.wrap{flex-wrap:wrap}
+.ed-colf{flex:1}
+.ed-swc{position:relative;display:block;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.12);overflow:hidden}
+.ed-swc input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* the preview switch (Live, Frame, Saved) in the header, beside the save state */
+.ed .ed-hviews{display:inline-flex;gap:2px;padding:3px;margin-left:4px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#141417}
+.ed .ed-hviews button{height:28px;padding:0 10px 0 8px;border-radius:7px;font-size:12.5px}
+.ed .ed-hviews button svg{width:15px;height:15px}
+.ed .ed-hviews button span{display:inline}
+.ed .ed-hviews button[aria-pressed=true]{background:#2A2A2F;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+@media (max-width:1100px){.ed .ed-hviews button span{display:none}.ed .ed-hviews button{width:32px;padding:0;justify-content:center}}
+/* Frame view: the settings panel steps aside so the whole picture can be framed at full size */
+@media (min-width:1101px){
+  .ed.framing .ed-body .ed-panel{display:none}
+  .ed.framing .ed-body .ed-center{grid-column:2 / 4;grid-row:1}
+  .ed.framing .ed-body .ed-txcard{grid-column:4;grid-row:1}}
+@media (min-width:761px) and (max-width:1100px){
+  .ed.framing .ed-body .ed-panel,.ed.framing .ed-body .ed-txcard{display:none}
+  .ed.framing .ed-body .ed-center{grid-column:2 / 4;grid-row:1 / 3}}
+.ed.framing .ed-rail [aria-selected=true]{background:transparent}
+/* tooltips in the editor's header open downwards, so the top of the window never cuts them off */
+.ed .ed-top .ed-tip::after{bottom:auto;top:calc(100% + 8px);transform:translate(-50%,-3px);z-index:40}
+.ed .ed-top .ed-tip:hover::after,.ed .ed-top .ed-tip:focus-visible::after{transform:translate(-50%,0)}
+.ed .ed-top{position:relative;z-index:6}
+/* the save state in the header: quiet text with a small mark, no coloured box */
+.ed .ed-pill{height:24px;padding:0 4px;background:transparent;color:#8E8E96;font-size:12px;font-weight:500;gap:7px}
+.ed .ed-pill.ok{color:#8E8E96;background:transparent}.ed .ed-pill.ok svg{color:#4ADE80}
+.ed .ed-pill.draft{color:#A1A1AA;background:transparent}
+.ed .ed-pill.draft i{width:6px;height:6px;border-radius:50%;background:#F5B83D}
+.ed .ed-pill.busy{color:#D4D4D8;background:transparent}
+/* a render in progress, over the live preview: a small badge in the corner, so editing carries on */
+.ed-making.badge{inset:auto;top:10px;right:10px;flex-direction:row;gap:8px;padding:6px 10px;border-radius:8px;background:rgba(10,10,12,.72);font-size:12px;z-index:5}
+.ed-making.badge i{width:12px;height:12px;border-width:1.5px}
+/* the volume: the speaker button in the toolbar, and an upright slider that opens above it on hover */
+.ed .ed-bar .ed-vol{display:inline-flex;padding:0;gap:0}
+.ed .ed-volbtn svg{width:16px;height:16px}
+.ed .ed-volbtn[aria-pressed=true]{color:#F87171}
+.ed-volpop{position:absolute;z-index:45;display:flex;flex-direction:column;align-items:center;gap:10px;width:52px;padding:12px 0 10px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#1C1C1F;
+  transform:translate(-50%,calc(-100% + 4px));opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease}
+.ed-volpop.on{opacity:1;pointer-events:auto;transform:translate(-50%,-100%)}
+.ed-volpop::after{content:"";position:absolute;left:-8px;right:-8px;top:100%;height:14px}
+.ed-volpop output{font:600 11.5px/1 Inter,system-ui,sans-serif;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.ed .ed-volpop input{writing-mode:vertical-lr;direction:rtl;width:4px;height:112px;margin:2px 0;padding:0;border:0;border-radius:2px;min-height:0;
+  background:linear-gradient(0deg,#E4E4E7 var(--p,50%),#3F3F46 var(--p,50%));-webkit-appearance:none;appearance:none;cursor:pointer}
+.ed .ed-volpop input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border:0;border-radius:50%;background:#fff}
+.ed .ed-volpop input::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:#fff}
+.ed-volpop .ed-link{font-size:11px;color:#8E8E96}
+.ed-volpop .ed-link:hover{color:#fff}
+/* the finished export: the file playing beside what it is */
+.ed-ex:has(.ed-exdone){width:min(560px,100%)}
+.ed-exdone{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:18px;align-items:start}
+.ed-expv{width:100%;max-height:360px;border-radius:12px;overflow:hidden;background:#000;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.ed-expv video,.ed-expv img{display:block;width:100%;height:100%;object-fit:contain}
+.ed-exinfo{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ed-exok{display:flex;align-items:center;gap:7px;margin:0;font-size:12.5px;font-weight:500;color:#4ADE80}
+.ed-exok svg{width:14px;height:14px}
+.ed-exinfo>b{font-size:14px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-exinfo dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:2px 0 4px;font-size:12.5px}
+.ed-exinfo dt{color:#8E8E96}.ed-exinfo dd{margin:0;color:#E4E4E7;font-variant-numeric:tabular-nums}
+.ed-exacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+@media (max-width:520px){.ed-exdone{grid-template-columns:1fr}.ed-expv{max-width:220px;margin:0 auto}}
+/* the layout picker: five small phones, three across, the name under each; what the chosen one does in one line below */
+.ed .ed-lays2{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.ed .ed-lays2 button{position:relative;align-items:center;gap:6px;padding:6px 6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:#161619;transition:background .15s,border-color .15s}
+.ed .ed-lays2 button:hover{background:#1D1D21;border-color:rgba(255,255,255,.12)}
+.ed .ed-lays2 button[aria-pressed=true]{background:#1D1A1C;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ed .ed-lays2 .lp-ph{width:auto;height:96px;max-height:none;aspect-ratio:9/16;border-radius:7px;margin:0 auto}
+.ed .ed-lays2 b{margin:0;font-size:11.5px;font-weight:500;line-height:1.2;color:#D4D4D8;text-align:center}
+.ed .ed-lays2 button[aria-pressed=true] b{color:#fff}
+.ed .ed-lays2 small{display:none}
+.ed .ed-lays2 .ed-pck{top:4px;right:4px;width:16px;height:16px}
+.ed .ed-laynote{margin:0 0 14px;font-size:12px;line-height:1.4;color:#8E8E96}
+/* while a clip renders: a band of small square dots in the accent colour sweeps down the preview, a bright line
+   at its leading edge, like the picture is being scanned. Pointer events pass through, so editing carries on. */
+.ed-scan{position:absolute;inset:0;z-index:4;overflow:hidden;pointer-events:none}
+.ed-scan[hidden]{display:none}
+.ed-scan::before{content:"";position:absolute;inset:0;background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.ed-scan i{position:absolute;left:0;right:0;top:0;height:42%;transform:translateY(-100%);
+  background-image:radial-gradient(color-mix(in srgb,var(--accent) 70%,transparent) 0 1px,transparent 1.25px),linear-gradient(to bottom,transparent,color-mix(in srgb,var(--accent) 16%,transparent));
+  background-size:7px 7px,100% 100%;
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 70%,#000);mask-image:linear-gradient(to bottom,transparent,#000 70%,#000);
+  animation:edScan 2.4s cubic-bezier(.45,0,.35,1) infinite}
+.ed-scan i::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);opacity:.9}
+@keyframes edScan{from{transform:translateY(-100%)}to{transform:translateY(240%)}}
+@media (prefers-reduced-motion:reduce){.ed-scan i{animation:none;transform:none;height:100%;opacity:.35}}
+/* the toolbar under the preview, compact: 40 px tall, 30 px buttons, a little room at the ends */
+.ed .ed-center .ed-bar{height:40px;padding:0 4px;gap:1px;border-radius:11px}
+.ed .ed-center .ed-bar button,.ed .ed-center .ed-bar .ed-aspbtn{height:30px;min-width:30px;padding:0 7px;border-radius:7px}
+.ed .ed-center .ed-bar .ed-bar-lbl{gap:6px;font-size:12.5px}
+.ed .ed-center .ed-bar svg{width:16px;height:16px}
+.ed .ed-center .ed-bar .ed-bar-sep{height:18px;margin:0 4px}
+/* header: close, the clip's title, then the tools; Export and Render on the right */
+.ed .ed-top{grid-template-columns:minmax(0,1fr) auto}
+.ed .ed-left{min-width:0;gap:8px}
+.ed .ed-left>*{flex:none}
+.ed .ed-left .ed-name{flex:0 1 auto;min-width:60px;max-width:min(340px,30vw);text-align:left}
+.ed .ed-left .ed-name b{max-width:none;font-size:13.5px}
+.ed .ed-hsep{width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 2px}
+@media (max-width:760px){
+  .ed .ed-top{grid-template-columns:minmax(0,1fr) auto}
+  .ed .ed-left .ed-name{max-width:none;flex:1 1 auto}
+  .ed .ed-left [data-ed=tour],.ed .ed-left .ed-undo,.ed .ed-hsep{display:none}}
+/* a narrow preview: Templates shows just its icon, so it never runs into the shape button */
+@container (max-width:620px){.ed .ed-center .ed-bar .ed-tpbtn{font-size:0;gap:0;padding:0 7px}}
+/* the view switch, centred over the preview column (placed by placeViews), compact */
+.ed .ed-top>.ed-hviews{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;padding:2px;gap:1px;border-radius:9px}
+.ed .ed-top>.ed-hviews button{height:26px;padding:0 9px 0 7px;font-size:12px;border-radius:7px;gap:5px}
+.ed .ed-top>.ed-hviews button svg{width:14px;height:14px}
+.ed .ed-acts #edState{margin-right:6px}
+@media (max-width:1100px){.ed .ed-top>.ed-hviews button{width:30px;padding:0;justify-content:center}
+  .ed .ed-acts #edState .ed-pill{font-size:0;gap:0;padding:0 6px}.ed .ed-acts #edState .ed-pill svg,.ed .ed-acts #edState .ed-pill i{flex:none}}
+@media (max-width:760px){
+  .ed .ed-top{grid-template-columns:minmax(0,1fr) auto auto}
+  .ed .ed-top>.ed-hviews{position:static;transform:none;order:0}
+  .ed .ed-acts #edState{display:none}}
+/* the social watermark: on the video, in the Brand panel's preview, and its icon picker */
+.ed-brand .wm{text-align:left;line-height:normal;white-space:nowrap}
+.ed-wmpv{display:grid;place-items:center;min-height:96px;margin-top:10px;padding:14px;border-radius:10px;
+  background:linear-gradient(135deg,#2A3B2C,#3A2F45);border:1px solid rgba(255,255,255,.08);overflow:hidden}
+.ed-wmpv>span{font-size:12px;color:rgba(255,255,255,.6)}
+.ed-wmicons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.ed-wmicons button{display:grid;place-items:center;height:38px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:#18181B;color:#A1A1AA;font-size:11.5px}
+.ed-wmicons button:hover{background:#1F1F23}
+.ed-wmicons button[aria-pressed=true]{border-color:var(--accent);background:#1E1618;color:#fff}
+.ed-wmicons svg{height:18px;width:auto;max-width:28px}
+.ed-wmicons img{height:20px;width:auto;max-width:28px;border-radius:4px}
+/* Media: the library grid, pictures on the video and on the timeline, the outro */
+.ed-medgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0 6px}
+.ed-medgrid.sm{grid-template-columns:repeat(5,minmax(0,1fr));margin:6px 0 0}
+.ed-med{position:relative;display:grid;place-items:center;aspect-ratio:1;border-radius:9px;border:1px solid rgba(255,255,255,.08);
+  background:repeating-conic-gradient(#202024 0 25%,#18181B 0 50%) 0 0/12px 12px;overflow:hidden;color:#A1A1AA;font-size:11px;cursor:pointer}
+.ed-med:hover{border-color:rgba(255,255,255,.2)}
+.ed-med[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ed-med img,.ed-med video{width:100%;height:100%;object-fit:contain}
+.ed-med em{position:absolute;right:3px;bottom:3px;padding:1px 4px;border-radius:4px;background:rgba(0,0,0,.7);font:500 10px/1.3 Inter,sans-serif;color:#fff;font-style:normal}
+.ed-med .ed-x{position:absolute;top:3px;right:3px;display:none;place-items:center;width:18px;height:18px;border-radius:5px;background:rgba(0,0,0,.7);color:#fff}
+.ed-med .ed-x svg{width:11px;height:11px}
+.ed-med:hover .ed-x{display:grid}
+.ed-med.add{background:#18181B;border-style:dashed}
+.ed-med.add svg{width:16px;height:16px}
+.ed-piclist{display:grid;gap:2px;margin-bottom:8px}
+.ed-picrow{display:flex;align-items:center;gap:10px;height:40px;padding:0 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:#D4D4D8;font-size:12.5px;text-align:left}
+.ed-picrow img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#202024}
+.ed-picrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-picrow small{font:500 11px/1 Inter,sans-serif;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-picrow:hover{background:#1F1F23}
+.ed-picrow[aria-pressed=true]{background:#1E1618;border-color:var(--accent)}
+.ed-picset{display:grid;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}
+.ed-pics{position:absolute;inset:0;z-index:2;pointer-events:none}
+.ed-pic{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:move;touch-action:none}
+.ed-pic img{display:block;width:100%;height:auto;user-select:none}
+.ed-pic.sel{outline:1.5px solid var(--accent);outline-offset:2px}
+.ed-pic .rz{position:absolute;right:-7px;bottom:-7px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:nwse-resize}
+.ed-th.pics{height:30px}.ed-lane.pics{height:30px}
+.ed-picbar{position:absolute;top:4px;bottom:4px;display:flex;align-items:center;gap:4px;padding:0 4px;border-radius:6px;overflow:hidden;cursor:grab;
+  background:color-mix(in srgb,#38BDF8 22%,#26262B);box-shadow:inset 0 0 0 1px color-mix(in srgb,#38BDF8 45%,transparent)}
+.ed-picbar.on{box-shadow:inset 0 0 0 1.5px #fff}
+.ed-picbar img{height:18px;width:auto;border-radius:3px}
+.ed-picbar .pe{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}.ed-picbar .pe.l{left:0}.ed-picbar .pe.r{right:0}
+.ed-outro{position:absolute;inset:0;z-index:6}
+.ed-outro.in{animation:edOutroIn .35s ease both}
+@keyframes edOutroIn{from{opacity:0}to{opacity:1}}
+.ed-outro-c{position:absolute;inset:0;overflow:hidden;display:grid;place-items:center}
+.ed-outro-c video,.ed-outro-c>img:not(.op){width:100%;height:100%;object-fit:contain}
+.ed-outro-c .op{position:absolute;left:50%;transform:translateX(-50%);object-fit:contain}
+.ed-outro-c b,.ed-outro-c span{position:absolute;left:0;right:0;text-align:center;transform:translateY(-50%);font-family:Inter,system-ui,sans-serif;white-space:nowrap}
+.ed-outro-c b{font-weight:700}.ed-outro-c span{font-weight:500}
+.ed-outro-pv{display:flex;align-items:flex-end;gap:12px;margin:10px 0}
+.ed-outro-ph{position:relative;width:120px;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.ed-seg.sm button{height:24px;padding:0 10px;font-size:11.5px}
+.ed-note{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px 10px;border-radius:8px;background:#18181B;border:1px solid rgba(255,255,255,.08);font-size:12px;color:#A1A1AA}
+.ed-note svg{width:14px;height:14px;flex:none}
+.ed-note.ok{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.25);color:#86EFAC}
+/* the hook's emoji: the picker in the Text panel, and the pictures inside the hook */
+.ed-hook .emj,.ed-chip .emj,.ed-hchip .emj{display:inline-block;height:1.04em;width:auto;vertical-align:-.14em;margin:0 .02em}
+.ed-hook.perline{line-height:1.5}
+.ed-hook .hl{display:inline-block;margin:.04em 0}
+.ed-hookin{position:relative}
+.ed-hookin textarea{padding-right:92px}
+.ed-emjbtn{position:absolute;right:8px;top:8px;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px 0 6px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.1);background:#1F1F23;color:#E4E4E7;font-size:12px;font-weight:500}
+.ed-emjbtn .emj{width:16px;height:16px}
+.ed-emjbtn:hover,.ed-emjbtn.on{background:#2A2A2F;border-color:rgba(255,255,255,.18)}
+.ed-emj{margin-top:10px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:#141417}
+.ed-emjcats{display:flex;gap:4px;margin:8px 0 6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.06)}
+.ed-emjcats button{display:grid;place-items:center;width:32px;height:30px;border-radius:7px;border:0;background:transparent}
+.ed-emjcats button[aria-selected=true]{background:#2A2A2F}
+.ed-emjcats .emj{width:20px;height:20px}
+.ed-emjgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;max-height:196px;overflow-y:auto}
+.ed-emjgrid button{display:grid;place-items:center;aspect-ratio:1;border-radius:8px;border:0;background:transparent;transition:background .12s,transform .12s}
+.ed-emjgrid button:hover{background:#26262B;transform:scale(1.08)}
+.ed-emjgrid .emj{width:70%;height:70%;object-fit:contain}
+.ed-emjnote{margin:6px 0 0;font-size:10.5px;color:#6B6B73}
+/* picture rows with their own replace and remove; the outro's block after the clip on the timeline */
+.ed-picrow{display:flex;align-items:center;gap:2px;height:auto;padding:2px 4px 2px 2px}
+.ed-picrow.on{background:#1E1618;border-color:var(--accent)}
+.ed-picrow.swap{border-color:#38BDF8;border-style:dashed}
+.ed-picpick{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:36px;padding:0 6px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left}
+.ed-picpick img{width:28px;height:28px;object-fit:contain;border-radius:5px;background:#202024}
+.ed-picpick span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-picpick small{font:500 11px/1 Inter,sans-serif;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-picrow .ed-ib.sm{width:28px;height:28px;color:#8E8E96}
+.ed-picrow .ed-ib.sm:hover{color:#fff;background:#2A2A2F}
+.ed-picrow .ed-ib.sm svg{width:15px;height:15px}
+.ed-outchip{position:absolute;top:6px;bottom:6px;z-index:3;display:flex;align-items:center;padding:0 8px;border-radius:0 7px 7px 0;
+  background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--accent) 55%,#18181B) 0 6px,color-mix(in srgb,var(--accent) 40%,#18181B) 6px 12px);
+  border:1px solid color-mix(in srgb,var(--accent) 70%,transparent);color:#fff;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden}
+/* the side panel's header, compact: a smaller mark, the title and one line under it */
+.ed .ed-panel>.ed-hero{padding:10px 14px 10px;gap:10px;margin-bottom:10px}
+.ed .ed-panel>.ed-hero .ed-hero-ic{width:30px;height:30px;border-radius:8px}
+.ed .ed-panel>.ed-hero .ed-hero-ic svg{width:16px;height:16px}
+.ed .ed-panel>.ed-hero h3{font-size:13.5px;line-height:1.25}
+.ed .ed-panel>.ed-hero p{margin-top:1px;font-size:11.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* the floating post card in the preview, and its settings */
+.ed-pbk{position:absolute;inset:0}
+.ed-pbk.blur{inset:-8%;background-size:cover;background-position:center;filter:blur(22px) brightness(.8) saturate(1.1)}
+.ed-ppanel{position:absolute}
+.ed-post .ed-ptx .emj{display:inline-block;height:1.08em;width:auto;vertical-align:-.16em}
+.ed-ctiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ed-ctile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 6px 7px;border-radius:9px;border:1px solid rgba(255,255,255,.07);background:#161619;color:#A1A1AA;font-size:11px;font-weight:500}
+.ed-ctile:hover{background:#1D1D21;color:#E4E4E7}
+.ed-ctile[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:#fff}
+.ed-ctile-pv{position:relative;width:100%;height:46px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);overflow:hidden}
+.ed-ctile-pv i{position:absolute;left:7px;top:7px;width:10px;height:10px;border-radius:50%}
+.ed-ctile-pv b{position:absolute;left:21px;top:8px;width:38%;height:3px;border-radius:2px}
+.ed-ctile-pv b.s{top:14px;width:24%;opacity:.8}
+.ed-ctile-pv em{position:absolute;left:7px;right:7px;bottom:6px;height:16px;border-radius:3px;background:linear-gradient(135deg,#4B6B8A,#2E3E52)}
+.ed-gradsw{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:4px 0 8px}
+.ed-gradsw button{aspect-ratio:1;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
+.ed-gradsw button[aria-pressed=true]{box-shadow:0 0 0 2px #18181B,0 0 0 3.5px var(--accent)}
+/* Frame view: the picture starts at the left edge and takes the height the toolbar leaves (the toolbar hides; its
+   layouts are in the row under the picture) */
+.ed.framing .ed-center .ed-bar{display:none}
+.ed.framing .ed-stage{align-items:flex-start;justify-content:flex-start;padding:16px 20px}
+.ed.framing .ed-fwrap{max-width:min(100%,calc((100cqh - 84px) * 16 / 9));margin:0}
+/* zoom moments: the aim dot and grain on the preview, the timeline's Zooms row */
+.ed-zdot{position:absolute;z-index:7;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25);
+  box-shadow:0 0 0 2px var(--accent);cursor:move;touch-action:none;pointer-events:auto}
+.ed-zdot::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#fff}
+.ed-zgrain{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:overlay;opacity:.9}
+.ed-th.zooms,.ed-lane.zooms{height:30px}
+.ed-zbar{position:absolute;top:4px;bottom:4px;display:flex;align-items:center;padding:0 9px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;
+  background:color-mix(in srgb,#F59E0B 24%,#26262B);box-shadow:inset 0 0 0 1px color-mix(in srgb,#F59E0B 50%,transparent);color:#FDE68A;font-size:11px;font-weight:600}
+.ed-zbar.on{box-shadow:inset 0 0 0 1.5px #fff;color:#fff}
+.ed-zbar .pe{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}.ed-zbar .pe.l{left:0}.ed-zbar .pe.r{right:0}
+.ed-zi{display:grid;place-items:center;width:28px;height:28px;border-radius:6px;background:#2A2A2F;font:600 10.5px/1 Inter,sans-serif;font-style:normal;color:#FDE68A}
+/* the side panel scrolls without showing a scroll bar */
+.ed .ed-panel{scrollbar-width:none}.ed .ed-panel::-webkit-scrollbar{display:none}
+/* Customize: compact and open. The weight/style row, tighter sections, labels beside dropdowns. */
+.ed-typerow .ed-fl{display:flex;align-items:baseline;gap:6px}
+.ed-typerow .ed-fl em{font-style:normal;font-weight:500;color:#E4E4E7;font-size:12px}
+.ed-typectl{display:flex;align-items:center;gap:4px;padding:3px;border-radius:9px;background:var(--e2)}
+.ed-wt2{display:flex;flex:1;gap:2px}
+.ed-wt2 button,.ed-tog{flex:1;height:30px;min-width:0;border:0;border-radius:7px;background:transparent;color:#8E8E96;transition:background .12s,color .12s}
+.ed-wt2 button b{font-size:13px;line-height:1}
+.ed-wt2 button:hover,.ed-tog:hover{background:#26262B;color:#E4E4E7}
+.ed-wt2 button[aria-pressed=true],.ed-tog[aria-pressed=true]{background:#33333A;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.ed-tog{flex:none;width:30px;font:600 14px/1 Georgia,serif}
+.ed-tog u{font-family:Inter,sans-serif;font-size:13px}
+.ed-typesep{width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 2px}
+.ed .ed-fold>summary{padding:10px 2px}
+.ed .ed-fold>div{gap:8px;padding:0 2px 12px}
+.ed .ed-fold .ed-f{gap:5px;font-size:12px}
+.ed .ed-fold label.ed-f:has(>select){display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:10px}
+.ed .ed-fold label.ed-f>select{height:34px}
+.ed .ed-fold .ed-sl{height:36px}
+.ed .ed-fold .ed-seg button{height:28px}
+/* the post card can be dragged on the preview; its corner handle resizes it */
+.ed-post{cursor:move}
+.ed-post .ed-pbk{cursor:default}
+.ed-crz{position:absolute;z-index:4;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:nwse-resize;
+  opacity:0;transition:opacity .15s}
+.ed-phone:hover .ed-crz{opacity:1}
+/* Schedule, redone: one calendar grid with thin day lines, compact posts with a status edge, a dense list of ready
+   clips, and a one-line notice. Empty days stay empty; a drop hint shows only while a clip is dragged over. */
+.sc-note{padding:8px 10px 8px 12px;margin-bottom:12px;font-size:12.5px}
+.sc-note svg{width:16px;height:16px}
+.sc-wrap{grid-template-columns:250px minmax(0,1fr);gap:12px}
+.sc-tray{padding:10px;gap:8px;border-radius:12px;background:#151518}
+.sc-trayh{padding:2px 4px}
+.sc-search{height:32px}
+.sc-list{gap:2px}
+.sc-clip{position:relative;align-items:center;gap:10px;padding:6px 6px 6px 6px;border:1px solid transparent;border-radius:9px;background:transparent}
+.sc-clip:hover{background:#1D1D21;border-color:transparent}
+.sc-cov{width:34px;border-radius:5px}
+.sc-ct{gap:2px}
+.sc-ct b{font-size:12.5px;font-weight:500}
+.sc-ct small{font-size:11px;font-variant-numeric:tabular-nums}
+.sc-sch{flex:none;display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:#71717A;cursor:pointer}
+.sc-sch svg{width:16px;height:16px}
+.sc-clip:hover .sc-sch{color:#E4E4E7;background:#2A2A2F}
+.sc-sch:hover{color:#fff!important;background:var(--accent)!important}
+.sc-tip{display:none}
+.sc-cal{padding:10px 0 0;border-radius:12px;background:#151518;overflow:hidden}
+.sc-cal .sc-bar{padding:0 12px;margin-bottom:10px}
+.sc-nav b{min-width:0;font-size:14.5px;text-align:left;padding:0 4px}
+.sc-week{gap:0;min-height:520px;border-top:1px solid var(--line)}
+.sc-day{border:0;border-radius:0;background:transparent;border-left:1px solid var(--line)}
+.sc-day:first-child{border-left:0}
+.sc-day.today{border-color:var(--line);background:color-mix(in srgb,var(--accent) 4%,transparent)}
+.sc-day.past{opacity:1}
+.sc-day.past .sc-dh{opacity:.55}
+.sc-dh{flex-direction:column;align-items:flex-start;gap:2px;padding:10px 10px 8px}
+.sc-dh span{font-size:10.5px}
+.sc-dh b{display:grid;place-items:center;min-width:28px;height:28px;margin-left:-4px;border-radius:50%;font-size:15px}
+.sc-day.today .sc-dh b{background:var(--accent);color:#fff}
+.sc-dl{gap:4px;padding:6px}
+.sc-over{border-color:var(--line)!important;background:color-mix(in srgb,var(--accent) 10%,transparent)!important}
+.sc-day.sc-over .sc-dl::after{content:"Drop to plan here";display:block;padding:10px 4px;border-radius:7px;text-align:center;font-size:11px;color:#E4E4E7;border:1px dashed var(--accent)}
+.sc-post{position:relative;gap:3px;padding:6px 7px 7px 9px;border:0;border-radius:7px;background:#202024;overflow:hidden}
+.sc-post::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.sc-post.posted::before{background:#4ADE80}.sc-post.failed::before{background:#F87171}.sc-post.posting::before{background:#FACC15}
+.sc-post:hover{border:0;background:#26262B}
+.sc-post.failed{border:0;background:#22191A}
+.sc-pt{justify-content:flex-start;gap:5px}
+.sc-pt .mk svg{width:13px;height:13px;display:block;border-radius:3px}
+.sc-time{font-size:11px}
+.sc-st{margin-left:auto;padding:0;background:none!important;font-size:10px}
+.sc-pttl{font-size:11.5px;font-weight:500;line-height:1.3;color:#D4D4D8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:1250px){.sc-week{grid-template-columns:repeat(7,minmax(112px,1fr));overflow-x:auto}}
+@media (max-width:900px){.sc-week{grid-template-columns:repeat(7,minmax(120px,1fr));min-height:360px}}
+@media (max-width:560px){.sc-week{grid-template-columns:repeat(7,minmax(130px,1fr))}}
 </style>
 </head>
 <body>
@@ -4382,18 +4777,16 @@ const schPlatMark = k => (typeof APP_MARK !== "undefined" && APP_MARK[k]) || "";
 function schPostCard(p, tz) {
   const st = {scheduled: ["Scheduled", ""], posting: ["Posting now", "warn"], posted: ["Posted", "ok"], failed: ["Failed", "bad"], cancelled: ["Cancelled", ""]}[p.status] || [p.status, ""];
   const drag = p.status === "scheduled" ? `draggable="true" data-drag="post:${esc(p.id)}"` : "";
-  return `<div class="sc-post ${esc(p.status)}" ${drag} data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)}">
-    <div class="sc-pt"><span class="sc-time">${hmIn(p.due_at * 1000, tz)}</span><span class="sc-st ${st[1]}">${st[0]}</span></div>
-    <div class="sc-pb">${p.cover ? `<img src="/media/${esc(p.job)}/${esc(p.cover)}?v=${p.version || 0}" alt="" loading="lazy">` : `<span class="sc-noimg"></span>`}
-      <b>${esc(p.title)}</b></div>
-    <div class="sc-pf"><span class="mk">${schPlatMark(p.platform)}</span><span>${esc(p.account_name || "")}${p.account ? "" : " · not connected"}</span></div></div>`;
+  return `<div class="sc-post ${esc(p.status)}" ${drag} data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)} · ${esc(st[0])}${p.account ? "" : " · account not connected"}">
+    <div class="sc-pt"><span class="mk">${schPlatMark(p.platform)}</span><span class="sc-time">${hmIn(p.due_at * 1000, tz)}</span>${p.status !== "scheduled" ? `<span class="sc-st ${st[1]}">${st[0]}</span>` : ""}</div>
+    <b class="sc-pttl">${esc(p.title)}</b></div>`;
 }
 function schClipCard(r) {
   const ps = (S.sched?.posts || []).filter(p => p.job === r.job && p.clip === r.clip && ["scheduled", "posting", "posted"].includes(p.status));
-  return `<div class="sc-clip" draggable="true" data-drag="clip:${esc(r.job)}|${esc(r.clip)}">
-    <span class="sc-cov">${r.cover ? `<img src="/media/${esc(r.job)}/${esc(r.cover)}?v=${r.version || 0}" alt="" loading="lazy">` : ""}<span class="du">${fmt(r.length)}</span></span>
-    <span class="sc-ct"><b title="${esc(r.title)}">${esc(r.title)}</b><small>${esc(r.creator_name || "No creator")}${ps.length ? ` · <em>${ps.length} planned</em>` : ""}</small>
-      <button class="btn sm" data-act="schnew" data-j="${esc(r.job)}" data-c="${esc(r.clip)}">${ic("calendar")}Schedule</button></span></div>`;
+  return `<div class="sc-clip" draggable="true" data-drag="clip:${esc(r.job)}|${esc(r.clip)}" title="Drag onto a day, or press the calendar">
+    <span class="sc-cov">${r.cover ? `<img src="/media/${esc(r.job)}/${esc(r.cover)}?v=${r.version || 0}" alt="" loading="lazy">` : ""}</span>
+    <span class="sc-ct"><b title="${esc(r.title)}">${esc(r.title)}</b><small>${fmt(r.length)} · ${esc(r.creator_name || "No creator")}${ps.length ? ` · <em>${ps.length} planned</em>` : ""}</small></span>
+    <button class="sc-sch" data-act="schnew" data-j="${esc(r.job)}" data-c="${esc(r.clip)}" aria-label="Schedule this clip" title="Schedule">${ic("calendar")}</button></div>`;
 }
 function drawSchedule() {
   const box = $("#sched"); if (!box) return;
@@ -4404,7 +4797,7 @@ function drawSchedule() {
   const conn = d.accounts.length;
   const tzSel = `<label class="sc-tz" title="Every time on this page is shown in this time zone">${ic("globe")}<select data-act="schtz" aria-label="Time zone">${TZ_LIST.map(([z, l]) =>
     `<option value="${esc(z)}" ${z === tz ? "selected" : ""}>${esc(l)} · ${esc(tzShort(z))}</option>`).join("")}${TZ_LIST.some(x => x[0] === tz) ? "" : `<option selected value="${esc(tz)}">${esc(tz)}</option>`}</select></label>`;
-  const banner = !conn ? `<div class="sc-note">${ic("plug")}<span><b>No posting accounts connected yet.</b> You can still plan posts now; connect the accounts in Settings before they're due and they go out on time.</span><button class="btn sm" data-act="go" data-v="settings" data-tab="apps">Connect accounts</button></div>`
+  const banner = !conn ? `<div class="sc-note">${ic("plug")}<span><b>No accounts connected.</b> Plan now; connect them before posts are due.</span><button class="btn sm" data-act="go" data-v="settings" data-tab="apps">Connect</button></div>`
     : d.paused ? `<div class="sc-note">${ic("pause")}<span><b>Posting is paused.</b> Planned posts wait until you resume.</span><button class="btn sm" data-act="pause">Resume posting</button></div>` : "";
   const tray = `<aside class="sc-tray" data-drop="ready"><div class="sc-trayh"><b>Ready to post</b><span>${d.ready.length}</span></div>
     <label class="sc-search">${ic("search")}<input id="schQ" value="${esc(S.schQ || "")}" placeholder="Find a clip" aria-label="Find a clip"></label>
@@ -4422,8 +4815,8 @@ function drawSchedule() {
       <div class="sc-week">${days.map(day => {
         const list = (byDay[day] || []).sort((a, b) => a.due_at - b.due_at), past = day < today;
         return `<div class="sc-day ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}">
-          <div class="sc-dh"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b>${list.length ? `<em>${list.length}</em>` : ""}</div>
-          <div class="sc-dl">${list.map(p => schPostCard(p, tz)).join("") || (past ? "" : `<p class="sc-drop">Drop a clip here</p>`)}</div></div>`; }).join("")}</div></section>`;
+          <div class="sc-dh"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b></div>
+          <div class="sc-dl">${list.map(p => schPostCard(p, tz)).join("")}</div></div>`; }).join("")}</div></section>`;
   } else {
     const planned = new Set(d.posts.filter(p => ["scheduled", "posting", "posted"].includes(p.status)).map(p => p.job + "|" + p.clip));
     const cols = [["scheduled", "Scheduled", d.posts.filter(p => p.status === "scheduled" || p.status === "posting")],
@@ -6170,6 +6563,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=61"></script>
+<script src="/assets/editor.js?v=87"></script>
 </body>
 </html>

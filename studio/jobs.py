@@ -515,6 +515,10 @@ def render_one(job, clip, words):
         near = [dict(w, s=w["s"] - off, e=w["e"] - off) for w in (raw if typed else roman.words(raw))]
         logo = render.brand_logo_path(job.get("user") or ctx.uid())
         local["logo_path"] = str(logo) if logo.is_file() else ""
+        local["card_name"] = str(job.get("uploader") or job.get("creator_name") or "")[:40]   # the post card's name when none is typed
+        local["media_dir"] = str(config.user_dir(job.get("user") or ctx.uid()) / "media")    # pictures and the outro file
+        mid = render.clean_music((clip.get("look") or {}).get("music"))["id"]     # background music from the owner's library
+        local["music_path"] = str(render.music_path(job.get("user") or ctx.uid(), mid)) if mid else ""
         # split face cam with no box placed yet: find the streamer's face cam once, and keep it on the clip
         if clip.get("layout") == "split" and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
             try:

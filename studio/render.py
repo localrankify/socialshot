@@ -171,6 +171,15 @@ PRESETS = {
     "vogue": {"label": "Vogue", "font": "Bodoni Moda", "size": 116, "base": "#FFFFFF", "active": "#F5D0A9", "upper": False, "per": 3, "outline": 2},
     "gummy": {"label": "Gummy", "font": "Sour Gummy", "size": 116, "base": "#FFFFFF", "active": "#FF8BD1", "upper": False, "per": 3, "outline": 4},
     "neon": {"label": "Neon", "font": "Lexend", "size": 108, "base": "#FFFFFF", "active": "#FF4FD8", "upper": False, "per": 3, "outline": 3},
+    # words on a soft rounded box behind each line, the spoken word in colour (the "subtitle pill" look)
+    "pill": {"label": "Pill", "font": "Inter", "size": 84, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 4, "outline": 0,
+             "cap_box": "#111114", "cap_op": 62, "cap_round": 22, "weight": 700},
+    "pillpop": {"label": "Pill pop", "font": "Montserrat", "size": 92, "base": "#FFFFFF", "active": "#22E06B", "upper": False, "per": 3, "outline": 0,
+                "cap_box": "#000000", "cap_op": 78, "cap_round": 14, "weight": 800},
+    "pilllight": {"label": "Pill light", "font": "Plus Jakarta Sans", "size": 86, "base": "#141416", "active": "#E11D48", "upper": False, "per": 4,
+                  "outline": 0, "cap_box": "#FFFFFF", "cap_op": 94, "cap_round": 22, "weight": 700},
+    "glassbox": {"label": "Glass box", "font": "Manrope", "size": 88, "base": "#FFFFFF", "active": "#7CC8FF", "upper": False, "per": 4, "outline": 0,
+                 "cap_box": "#0B0B0F", "cap_op": 42, "cap_round": 28, "weight": 700},
 }
 _HEX = re.compile(r"#[0-9A-Fa-f]{6}")
 
@@ -228,6 +237,10 @@ def clean_look(look) -> dict | None:
             "hook_box": _hex(look.get("hook_box"), "#FFFFFF"), "hook_ink": _hex(look.get("hook_ink"), "#14100E"),
             "hook_op": _num(look.get("hook_op"), 0, 100, 100), "hook_round": _num(look.get("hook_round"), 0, 60, HOOK["radius"]),
             "hook_sp": _num(look.get("hook_sp"), -4, 24, 0),
+            # the hook's letters (as typed, CAPITALS, Title Case, lower) and its box: fitted to the text, the full
+            # width of the frame, one box per line, or none (the text with an outline)
+            "hook_case": look["hook_case"] if look.get("hook_case") in ("asis", "upper", "title", "lower") else "asis",
+            "hook_banner": look["hook_banner"] if look.get("hook_banner") in ("fit", "full", "line", "none") else "fit",
             # the captions: extra room between letters and between words, and a box behind each line (0 = no box)
             "sp": _num(look.get("sp"), -4, 24, 0), "wgap": _num(look.get("wgap"), 0, 80, 0),
             "cap_box": _hex(look.get("cap_box"), "#000000"), "cap_op": _num(look.get("cap_op"), 0, 100, 0),
@@ -242,8 +255,25 @@ def clean_look(look) -> dict | None:
             "brand_pos": look["brand_pos"] if look.get("brand_pos") in BRAND_POS else "tr",
             "brand_anim": look["brand_anim"] if look.get("brand_anim") in BRAND_ANIM else "float",
             "brand_size": _num(look.get("brand_size"), 40, 200, 84), "brand_op": _num(look.get("brand_op"), 20, 100, 90),
+            # the social watermark (brand_kind "social"): a small header line, a platform icon (or the logo) with the
+            # handle, and a hashtag line under a dashed rule, in one font and colour
+            "brand_kind": "social" if look.get("brand_kind") == "social" else "badge",
+            "brand_head": _line(look.get("brand_head"), 40), "brand_handle": _line(look.get("brand_handle"), 40),
+            "brand_icon": look["brand_icon"] if look.get("brand_icon") in WM_ICONS else "youtube",
+            "brand_tag": _line(look.get("brand_tag"), 40), "brand_tag_on": bool(look.get("brand_tag_on", False)),
+            "brand_font": look["brand_font"] if look.get("brand_font") in FONTS else "Inter",
+            "brand_color": _hex(look.get("brand_color"), "#FFFFFF"),
             "aspect": look["aspect"] if look.get("aspect") in ASPECTS else "9:16",     # the clip's shape
             "split": clean_split(look.get("split")),           # the split layout's stream and face cam parts
+            # the part of the picture shown (Frame view), for every layout but split; None is the whole picture
+            "frame": _region(look["frame"], [0, 0, 1, 1]) if isinstance(look.get("frame"), list) else None,
+            "card": clean_card(look.get("card")),              # the post card layout's account, words and look
+            "music": clean_music(look.get("music")),           # a track from the music library under the clip
+            "outro": clean_outro(look.get("outro")),           # a few seconds after the clip: a card or a file
+            "overlays": clean_overlays(look.get("overlays")),  # pictures placed on the video for a while
+            "zooms": clean_zooms(look.get("zooms")),           # moments the video punches in, on a face, with a look
+            # Blurred fill and Zoomed: what is behind the video, room around it, and its corners
+            "bg": clean_bg(look.get("bg")), "pad": _num(look.get("pad"), 0, 140, 0), "vradius": _num(look.get("vradius"), 0, 60, 0),
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
@@ -265,6 +295,14 @@ def brand_badge(look: dict, logo_path: str, out: Path):
     """Draws the brand as one picture: the logo, then the name beside it in white with a soft shadow, at the
     chosen size and see-through level. Returns the file, or None when there is nothing to show."""
     from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    if look.get("brand_kind") == "social":
+        img = social_badge(look, logo_path)
+        if img is None:
+            return None
+        if look["brand_op"] < 100:
+            img.putalpha(img.getchannel("A").point(lambda v: round(v * look["brand_op"] / 100)))
+        img.save(out, "PNG")
+        return out
     size, text = look["brand_size"], look["brand_text"].strip()
     logo = None
     if look["brand_logo"] and logo_path and Path(logo_path).is_file():
@@ -299,6 +337,646 @@ def brand_badge(look: dict, logo_path: str, out: Path):
         img.putalpha(img.getchannel("A").point(lambda v: round(v * look["brand_op"] / 100)))
     img.save(out, "PNG")
     return out
+
+
+# ---------------------------------------------------------------- the post card layout ("card")
+# The clip shown inside a social post, like a screenshot of an X post: the account's picture, name, blue check and
+# handle, the post's words, then the video with rounded corners and the captions under it. The editor draws the
+# same card from the same numbers (editor.js, cardGeo), so the preview and the saved clip match.
+# kind: how the account line reads. "x": name, check, then @handle under it. "linkedin": name, check, then the
+# headline (the handle field) and "1h". "threads": the handle alone in bold with the check, and "1h" beside it.
+CARD_THEMES = {"light": {"bg": "#FFFFFF", "ink": "#0F1419", "sub": "#536471", "acc": "#1D9BF0", "kind": "x"},
+               "dark": {"bg": "#000000", "ink": "#E7E9EA", "sub": "#71767B", "acc": "#1D9BF0", "kind": "x"},
+               "linkedin": {"bg": "#FFFFFF", "ink": "#191919", "sub": "#666666", "acc": "#0A66C2", "kind": "linkedin"},
+               "threads": {"bg": "#FFFFFF", "ink": "#000000", "sub": "#999999", "acc": "#0095F6", "kind": "threads"},
+               "threads_dark": {"bg": "#101010", "ink": "#F3F5F7", "sub": "#777777", "acc": "#0095F6", "kind": "threads"}}
+CARD_BLUE = "#1D9BF0"
+
+
+def card_account(card: dict) -> tuple:
+    """(the bold line, the grey line under it or beside it) for the card's style. Same in editor.js (cardAccount)."""
+    th = CARD_THEMES[card["theme"]]
+    name = card["name"] or "SocialShot"
+    handle = card["handle"] or re.sub(r"[^a-z0-9_]", "", name.lower()) or "socialshot"
+    if th["kind"] == "linkedin":
+        return name, f"{card['handle'] or 'Creator'} · 1h"
+    if th["kind"] == "threads":
+        return handle, "1h"
+    return name, "@" + handle
+
+
+def clean_card(v) -> dict:
+    v = v if isinstance(v, dict) else {}
+    txt = lambda k, n: re.sub(r"[\x00-\x1f\x7f]", " ", str(v.get(k) or "")).strip()[:n]   # noqa: E731
+    return {"theme": v["theme"] if v.get("theme") in CARD_THEMES else "light", "name": txt("name", 40),
+            "handle": txt("handle", 30).lstrip("@"), "text": txt("text", 220), "verified": bool(v.get("verified", True)),
+            "radius": _num(v.get("radius"), 0, 60, 28), "avatar": "initial" if v.get("avatar") == "initial" else "logo",
+            # behind the card: nothing (the card fills the frame), a gradient with fine grain, or the video blurred.
+            # With a backdrop the card floats as a rounded panel with a soft shadow.
+            "back": v["back"] if v.get("back") in ("none", "gradient", "blur") else "gradient",
+            "g1": _hex(v.get("g1"), "#0F172A"), "g2": _hex(v.get("g2"), "#334155"), "grain": bool(v.get("grain", True)),
+            # where and how big: moved by dx/dy (% of the frame) and scaled (% of its normal size) by dragging it in the
+            # editor; pad is the room inside the floating card
+            "scale": _num(v.get("scale"), 50, 130, 100), "dx": _num(v.get("dx"), -60, 60, 0), "dy": _num(v.get("dy"), -60, 60, 0),
+            "pad": _num(v.get("pad"), 16, 90, 40)}
+
+
+# ---------------------------------------------------------------- background music
+# A track from the person's music library (uploaded in the editor, kept as AAC under their folder) mixed under the
+# clip. "duck" lowers the music while someone speaks (the voice drives a compressor on the music), so words stay
+# clear. The music is evened out like the voice, then set to `vol` percent of it.
+_MUSIC_ID = re.compile(r"^[a-f0-9]{8,24}$")
+
+
+def clean_bg(v) -> dict:
+    """Behind the video in Blurred fill and Zoomed: a blurred copy of it (the default), one colour, or a gradient
+    from the first colour at the top to the second at the bottom."""
+    v = v if isinstance(v, dict) else {}
+    return {"kind": v["kind"] if v.get("kind") in ("blur", "color", "gradient") else "blur",
+            "c1": _hex(v.get("c1"), "#111114"), "c2": _hex(v.get("c2"), "#3A1C24")}
+
+
+def bg_picture(bg: dict, out: Path):
+    """The gradient behind the video, as a picture the size of the frame."""
+    from PIL import Image
+    Wd, Hd = _wh()
+    a, b = (tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in (bg["c1"], bg["c2"]))
+    col = Image.new("RGB", (1, 256))
+    for y in range(256):
+        col.putpixel((0, y), tuple(round(a[i] + (b[i] - a[i]) * y / 255) for i in range(3)))
+    col.resize((Wd, Hd), Image.BILINEAR).save(out, "PNG")
+
+
+def round_mask(w: int, h: int, radius: int, out: Path):
+    """A white rounded rectangle on black: the shape that rounds a video's corners."""
+    from PIL import Image, ImageDraw
+    m = Image.new("L", (w * 2, h * 2), 0)
+    ImageDraw.Draw(m).rounded_rectangle((0, 0, w * 2 - 1, h * 2 - 1), radius=radius * 2, fill=255)
+    m.resize((w, h), Image.LANCZOS).save(out, "PNG")
+
+
+def music_path(uid: str, mid: str) -> Path:
+    return config.user_dir(uid) / "music" / f"{mid}.m4a"
+
+
+def media_path(uid: str, mid: str) -> Path:
+    """A picture (PNG) or short video (MP4) from the person's media library."""
+    d = config.user_dir(uid) / "media"
+    png = d / f"{mid}.png"
+    return png if png.is_file() else d / f"{mid}.mp4"
+
+
+# ---------------------------------------------------------------- outro: a few seconds after the clip
+# Either a card (a canvas colour, a picture, a title and a line under it) drawn here, or a picture or video from the
+# media library. The music rises into it (music "rise"). The editor draws the same card from outro_geometry.
+OUTRO_BG = {"black": "#0E0E10", "white": "#FFFFFF", "gray": "#2A2A2E"}
+
+
+def clean_outro(v) -> dict:
+    v = v if isinstance(v, dict) else {}
+    pic, f = str(v.get("pic") or ""), str(v.get("file") or "")
+    try:
+        secs = max(1.5, min(8.0, float(v.get("secs") or 3)))
+    except (TypeError, ValueError):
+        secs = 3.0
+    return {"on": bool(v.get("on")), "kind": "file" if v.get("kind") == "file" else "card", "secs": round(secs, 1),
+            "bg": _hex(v.get("bg"), OUTRO_BG["black"]), "pic": pic if pic == "logo" or _MUSIC_ID.match(pic) else "",
+            "pic_size": _num(v.get("pic_size"), 60, 600, 270), "pic_round": _num(v.get("pic_round"), 0, 50, 0),
+            "title": _line(v.get("title"), 60), "sub": _line(v.get("sub"), 60), "file": f if _MUSIC_ID.match(f) else ""}
+
+
+def outro_geometry(Wd, Hd, o: dict, has_pic: bool) -> dict:
+    """Where the outro card's picture, title and line go (centred as one block). Same in editor.js (outroGeo)."""
+    u = min(Wd, Hd * 9 / 16) / 1080
+    ps = round(o["pic_size"] * u) if has_pic else 0
+    parts = [ps] if has_pic else []
+    if o["title"]:
+        parts.append(round(64 * u))
+    if o["sub"]:
+        parts.append(round(44 * u))
+    gaps = {"pic": round(36 * u), "text": round(10 * u)}
+    total = sum(parts) + (gaps["pic"] if has_pic and (o["title"] or o["sub"]) else 0) + (gaps["text"] if o["title"] and o["sub"] else 0)
+    y = (Hd - total) / 2
+    g = {"u": u, "ps": ps, "pic_y": round(y)}
+    y += ps + (gaps["pic"] if has_pic and (o["title"] or o["sub"]) else 0)
+    g["title_y"] = round(y + 32 * u)                 # the middle of each text line
+    y += (round(64 * u) + (gaps["text"] if o["sub"] else 0)) if o["title"] else 0
+    g["sub_y"] = round(y + 22 * u)
+    return g
+
+
+def _ink_for(bg: str) -> tuple:
+    """Text colours that read on a canvas: dark on light ones, white on dark ones."""
+    r, gg, b = (int(bg[i:i + 2], 16) for i in (1, 3, 5))
+    light = 0.299 * r + 0.587 * gg + 0.114 * b > 150
+    return ("#111114", "#55555C") if light else ("#FFFFFF", "#A1A1AA")
+
+
+def outro_card(o: dict, pic_path: str, out: Path):
+    from PIL import Image, ImageDraw, ImageFont
+    Wd, Hd = _wh()
+    pic = None
+    if pic_path and Path(pic_path).is_file():
+        try:
+            pic = Image.open(pic_path).convert("RGBA")
+        except Exception:  # noqa: BLE001
+            pic = None
+    g = outro_geometry(Wd, Hd, o, pic is not None)
+    img = Image.new("RGB", (Wd, Hd), o["bg"])
+    ink, sub = _ink_for(o["bg"])
+    if pic is not None:
+        ps = g["ps"]
+        pic.thumbnail((ps, ps), Image.LANCZOS)
+        mask = Image.new("L", (pic.width * 4, pic.height * 4), 0)
+        rad = min(pic.width, pic.height) * 4 * o["pic_round"] / 100
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, pic.width * 4 - 1, pic.height * 4 - 1), radius=rad, fill=255)
+        mask = mask.resize(pic.size, Image.LANCZOS)
+        alpha = Image.composite(pic.getchannel("A"), Image.new("L", pic.size, 0), mask)
+        img.paste(pic.convert("RGB"), (round((Wd - pic.width) / 2), g["pic_y"] + round((ps - pic.height) / 2)), alpha)
+    d = ImageDraw.Draw(img)
+    u = g["u"]
+    if o["title"]:
+        d.text((Wd / 2, g["title_y"]), o["title"], font=ImageFont.truetype(_font_file("Inter", 700), round(52 * u)), fill=ink, anchor="mm")
+    if o["sub"]:
+        d.text((Wd / 2, g["sub_y"]), o["sub"], font=ImageFont.truetype(_font_file("Inter", 500), round(34 * u)), fill=sub, anchor="mm")
+    img.save(out, "PNG")
+
+
+# ---------------------------------------------------------------- zoom moments
+# The video (not the captions, hook, pictures or brand) punches in on a point for a moment, easing in and out, with
+# its own look. x/y is the point in % of the frame. The editor shows the same zoom (editor.js, zoomAt) and the same
+# looks (ZOOM_FX there).
+ZOOM_FX = {"none": "", "bw": "hue=s=0", "warm": "colorbalance=rs=.12:gs=.03:bs=-.1", "cool": "colorbalance=rs=-.08:bs=.12",
+           "punch": "eq=contrast=1.22:saturation=1.4", "vintage": "curves=preset=vintage", "grain": "noise=alls=22:allf=t"}
+ZOOM_EASE = 0.25
+
+
+def clean_zooms(v) -> list:
+    out = []
+    for z in (v if isinstance(v, list) else [])[:12]:
+        if not isinstance(z, dict):
+            continue
+        try:
+            a, b = float(z.get("a")), float(z.get("b"))
+        except (TypeError, ValueError):
+            continue
+        if b - a < 0.3:
+            continue
+        pct = lambda k, d: max(0.0, min(100.0, float(z.get(k, d))))   # noqa: E731
+        out.append({"a": round(a, 2), "b": round(b, 2), "s": round(max(1.1, min(3.0, float(z.get("s") or 1.8))), 2),
+                    "x": round(pct("x", 50), 2), "y": round(pct("y", 40), 2),
+                    "fx": z["fx"] if z.get("fx") in ZOOM_FX else "none", "ease": bool(z.get("ease", True))})
+    out.sort(key=lambda z: z["a"])
+    return out
+
+
+def zoom_filter(zooms: list, W: int, H: int, fps: int) -> str:
+    """The zooms as one zoompan step (how far in at each moment and where), then each zoom's look for its time.
+    `zooms`: [(from, to, strength, x 0-1, y 0-1, look, ease)] in seconds of the finished clip."""
+    ramp = lambda a, b, e: (f"max(0,min(1,min((it-{a:.2f})/{e},({b:.2f}-it)/{e})))" if e else f"between(it,{a:.2f},{b:.2f})")   # noqa: E731
+    z = "1+" + "+".join(f"({s - 1:.3f})*{ramp(a, b, ZOOM_EASE if ease else 0)}" for a, b, s, x, y, fx, ease in zooms)
+    fx_ = "0.5"
+    fy_ = "0.5"
+    for a, b, s, x, y, fx, ease in reversed(zooms):     # the point of whichever zoom is on (the middle otherwise)
+        fx_ = f"if(between(it,{a - 0.01:.2f},{b + 0.01:.2f}),{x:.4f},{fx_})"
+        fy_ = f"if(between(it,{a - 0.01:.2f},{b + 0.01:.2f}),{y:.4f},{fy_})"
+    # the window stays inside the picture: its middle is kept at least half a window from each edge
+    xs = f"max(0,min(iw-iw/zoom,({fx_})*iw-iw/zoom/2))"
+    ys = f"max(0,min(ih-ih/zoom,({fy_})*ih-ih/zoom/2))"
+    out = f"zoompan=z='{z}':x='{xs}':y='{ys}':d=1:s={W}x{H}:fps={fps}"
+    for a, b, s, x, y, fx, ease in zooms:
+        if ZOOM_FX.get(fx):
+            out += f",{ZOOM_FX[fx]}:enable='between(t,{a:.2f},{b:.2f})'"
+    return out
+
+
+# ---------------------------------------------------------------- pictures placed on the video
+def clean_overlays(v) -> list:
+    """Up to 8 pictures from the media library: where (the middle, in % of the frame), how wide (% of the frame's
+    width), from and to (seconds of the video) and how solid."""
+    out = []
+    for o in (v if isinstance(v, list) else [])[:8]:
+        if not isinstance(o, dict) or not _MUSIC_ID.match(str(o.get("id") or "")):
+            continue
+        try:
+            a, b = float(o.get("a")), float(o.get("b"))
+        except (TypeError, ValueError):
+            continue
+        if b - a < 0.2:
+            continue
+        pct = lambda k, lo, hi, d: max(lo, min(hi, float(o.get(k, d))))   # noqa: E731
+        out.append({"id": o["id"], "x": round(pct("x", 0, 100, 50), 2), "y": round(pct("y", 0, 100, 50), 2),
+                    "w": round(pct("w", 3, 100, 30), 2), "a": round(a, 2), "b": round(b, 2), "op": _num(o.get("op"), 10, 100, 100)})
+    return out
+
+
+def clean_music(v) -> dict:
+    v = v if isinstance(v, dict) else {}
+    mid = str(v.get("id") or "")
+    try:
+        at = max(0.0, min(3600.0, float(v.get("at") or 0)))
+    except (TypeError, ValueError):
+        at = 0.0
+    try:
+        peak_at = None if v.get("peak_at") in (None, "") else max(0.0, min(3600.0, float(v["peak_at"])))
+    except (TypeError, ValueError):
+        peak_at = None
+    return {"id": mid if _MUSIC_ID.match(mid) else "", "vol": _num(v.get("vol"), 0, 100, 25), "duck": bool(v.get("duck", True)),
+            "loop": bool(v.get("loop", True)), "fade": bool(v.get("fade", True)), "at": round(at, 2),
+            # the rise into the outro: from `vol` to `peak` over `rise` seconds, ending as the outro starts. `peak_at`
+            # is the moment in the song (its drop) that should land right on the outro; it sets where the song starts.
+            "peak": _num(v.get("peak"), 0, 100, 100), "rise": _secs(v.get("rise"), 0, 10, 3),
+            "peak_at": None if peak_at is None else round(peak_at, 2)}
+
+
+def _secs(v, lo, hi, default) -> float:
+    try:
+        return round(max(lo, min(hi, float(v))), 1)
+    except (TypeError, ValueError):
+        return default
+
+
+def music_graph(m: dict, idx: int, dur: float, voice: str, main: float = 0.0) -> str:
+    """The sound step with music: the clip's own sound (already evened out, as `voice` says) and the track mixed under
+    it, ducked while someone talks. `main` is where the outro starts (0: no outro); the music rises into it. Ends as [a]."""
+    fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
+    v, p = m["vol"] / 100, m["peak"] / 100
+    level = f"volume={v:.2f}"
+    if main and m["rise"] and p != v:            # the rise: a straight climb that finishes as the outro begins
+        t0, t1 = max(0.0, main - m["rise"]), main
+        level = f"volume='if(lt(t,{t0:.2f}),{v:.2f},if(lt(t,{t1:.2f}),{v:.2f}+({p - v:.2f})*(t-{t0:.2f})/{max(.01, t1 - t0):.2f},{p:.2f}))':eval=frame"
+    elif main:
+        level = f"volume='if(lt(t,{main:.2f}),{v:.2f},{p:.2f})':eval=frame"
+    mus = [fmt, f"atrim=0:{dur:.2f}", "asetpts=PTS-STARTPTS", "loudnorm=I=-14:TP=-2:LRA=11", level]
+    if m["fade"]:
+        mus += ["afade=t=in:st=0:d=0.6", f"afade=t=out:st={max(0.0, dur - 1.5):.2f}:d=1.5"]
+    g = f"[0:a]{voice},{fmt}[vo];[{idx}:a]{','.join(mus)}[mz];"
+    if m["duck"]:
+        g += ("[vo]asplit=2[v1][v2];[mz][v2]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=400[md];"
+              "[v1][md]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[a]")
+    else:
+        g += "[vo][mz]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[a]"
+    return g
+
+
+def card_lines(text: str, width: float, size: float) -> list:
+    """The post's words cut into lines by a simple count of letters, the same way in the editor, at most 4 lines."""
+    per = max(8, int(width / (size * 0.5)))
+    lines, cur = [], ""
+    for w in text.split():
+        if cur and len(cur) + 1 + len(w) > per:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    if cur:
+        lines.append(cur)
+    if len(lines) > 4:
+        lines = lines[:4]
+        lines[3] = lines[3][: max(1, per - 1)].rstrip() + "…"
+    return lines
+
+
+def card_geometry(Wd, Hd, fw, fh, text, floating=False, scale=100, dx=0, dy=0, pad=40) -> dict:
+    """Where everything on the post card goes, in pixels of a Wd x Hd frame. fw x fh is the shape of the video.
+    `floating`: the card is a panel on a backdrop, so its content sits further in and `box` is the panel.
+    scale (%), dx and dy (% of the frame) and pad (the panel's inner room) come from the editor."""
+    side = min(Wd, Hd * 9 / 16) * scale / 100
+    u = side / 1080
+    m = (40 + pad) * u if floating else 64 * u
+    cw = side - 2 * m
+    x0 = (Wd - cw) / 2
+    A, ts, lh = 112 * u, 46 * u, 62 * u
+    lines = card_lines(text, cw, ts)
+    vw = int(cw / 2) * 2
+    vh = min(int(vw * fh / max(1, fw) / 2) * 2, int(Hd * 0.52 / 2) * 2)
+    head = A + 36 * u + len(lines) * lh
+    total = head + 40 * u + vh + 260 * u
+    y0 = max(48 * u, (Hd - total) / 2)
+    x0 += Wd * dx / 100                          # moved in the editor
+    y0 += Hd * dy / 100
+    vy = int((y0 + head + 40 * u) / 2) * 2
+    vx = int(x0 / 2) * 2
+    g = {"u": u, "x0": x0, "y0": y0, "cw": cw, "A": A, "ts": ts, "lh": lh, "lines": lines,
+         "vx": vx, "vy": vy, "vw": vw, "vh": vh, "cap": round(vy + vh + 120 * u)}
+    if floating:                                 # the panel: `pad` round the content, down past the captions
+        p = pad * u
+        g["box"] = [round(x0 - p), round(y0 - p), round(x0 + cw + p), round(g["cap"] + 110 * u)]
+    return g
+
+
+def _card_backdrop(card: dict, Wd: int, Hd: int):
+    """Behind a floating post card: a gradient from the top-left colour to the bottom-right one with fine grain,
+    or nothing (see-through) when the blurred video goes there instead."""
+    from PIL import Image
+    if card["back"] == "blur":
+        return Image.new("RGBA", (Wd, Hd), (0, 0, 0, 0))
+    a, b = (tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in (card["g1"], card["g2"]))
+    small = Image.new("RGB", (64, 64))
+    for yy in range(64):
+        for xx in range(64):
+            t = (xx + yy) / 126
+            small.putpixel((xx, yy), tuple(round(a[k] + (b[k] - a[k]) * t) for k in range(3)))
+    img = small.resize((Wd, Hd), Image.BICUBIC).convert("RGBA")
+    if card["grain"]:                            # fine film grain, so the colour doesn't look flat
+        noise = Image.effect_noise((Wd // 2, Hd // 2), 64).resize((Wd, Hd), Image.NEAREST).convert("RGBA")
+        noise.putalpha(22)
+        img.alpha_composite(noise)
+    return img
+
+
+def _rich_text(img, d, x, base, text, font, fill, size):
+    """A line of text with its emoji drawn as Fluent 3D pictures, the text's baseline at `base`."""
+    from . import emoji as _em
+    from PIL import Image
+    pos = 0
+    for a, b, k in _em.find(text) + [(len(text), len(text), None)]:
+        seg = text[pos:a]
+        if seg:
+            d.text((x, base), seg, font=font, fill=fill, anchor="ls")
+            x += d.textlength(seg, font=font)
+        if k:
+            f = _em.picture(k)
+            e = round(size * 1.08)
+            if f:
+                pic = Image.open(f).convert("RGBA").resize((e, e), Image.LANCZOS)
+                img.alpha_composite(pic, (round(x), round(base - size * 0.92)))
+            x += e + size * 0.08
+        pos = b
+
+
+def _font_file(key: str, weight: int) -> str:
+    """A font file for drawing with Pillow: the Google font in that weight, else the bundled bold one."""
+    try:
+        f = FONTS.get(key) or {}
+        ensure_font(key, weight)
+        slug = re.sub(r"[^a-z0-9]+", "-", f["google"].lower()).strip("-")
+        for w in (weight, f.get("weight")):
+            p = config.FONTS_DIR / f"g-{slug}-{w}.ttf"
+            if p.is_file():
+                return str(p)
+    except Exception:  # noqa: BLE001 - no internet for the font: the bundled one
+        pass
+    return str(_PATHS["Poppins ExtraBold"])
+
+
+def card_images(card: dict, g: dict, logo_path: str, bg_out: Path, mask_out: Path):
+    """The card behind the video (the whole frame) and the shape that rounds the video's corners."""
+    from PIL import Image, ImageDraw, ImageFont
+    Wd, Hd = _wh()
+    th = CARD_THEMES[card["theme"]]
+    u, x0, y0, A = g["u"], g["x0"], g["y0"], g["A"]
+    if g.get("box"):                             # the card as a panel on its backdrop
+        img = _card_backdrop(card, Wd, Hd)
+        bx = g["box"]
+        rad = round(44 * u)
+        shadow = Image.new("RGBA", (Wd, Hd), (0, 0, 0, 0))
+        ImageDraw.Draw(shadow).rounded_rectangle((bx[0], bx[1] + round(18 * u), bx[2], bx[3] + round(18 * u)), radius=rad, fill=(0, 0, 0, 120))
+        from PIL import ImageFilter
+        img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(round(28 * u))))
+        panel = Image.new("RGBA", (Wd, Hd), (0, 0, 0, 0))
+        pd = ImageDraw.Draw(panel)
+        pd.rounded_rectangle(bx, radius=rad, fill=th["bg"])
+        pd.rounded_rectangle(bx, radius=rad, outline=(255, 255, 255, 26) if th["kind"] != "linkedin" and th["bg"] != "#FFFFFF" else (0, 0, 0, 20), width=max(1, round(2 * u)))
+        img.alpha_composite(panel)
+    else:
+        img = Image.new("RGBA", (Wd, Hd), th["bg"])
+    d = ImageDraw.Draw(img)
+    bold, regular = ImageFont.truetype(_font_file("Inter", 700), round(42 * u)), ImageFont.truetype(_font_file("Inter", 400), round(36 * u))
+    body = ImageFont.truetype(_font_file("Inter", 400), round(g["ts"]))
+    a = round(A)
+    pic = None
+    if card["avatar"] == "logo" and logo_path and Path(logo_path).is_file():
+        try:
+            pic = Image.open(logo_path).convert("RGBA")
+            s = min(pic.size)
+            pic = pic.crop(((pic.width - s) // 2, (pic.height - s) // 2, (pic.width + s) // 2, (pic.height + s) // 2)).resize((a, a), Image.LANCZOS)
+        except Exception:  # noqa: BLE001 - a broken logo: the first letter instead
+            pic = None
+    ring = Image.new("L", (a * 4, a * 4), 0)
+    ImageDraw.Draw(ring).ellipse((0, 0, a * 4 - 1, a * 4 - 1), fill=255)
+    ring = ring.resize((a, a), Image.LANCZOS)
+    if pic is None:
+        pic = Image.new("RGBA", (a, a), th["acc"])
+        letter = (card["name"] or "S")[:1].upper()
+        lf = ImageFont.truetype(_font_file("Inter", 700), round(a * 0.44))
+        ImageDraw.Draw(pic).text((a / 2, a / 2), letter, font=lf, fill="#FFFFFF", anchor="mm")
+    img.paste(pic.convert("RGB"), (round(x0), round(y0)), ring)
+    nx, mid = x0 + A + 24 * u, y0 + A / 2
+    name, sub = card_account(card)
+    one = th["kind"] == "threads"                 # Threads: one line, the handle with "1h" beside it
+    ny = mid + 14 * u if one else mid - 4 * u
+    d.text((nx, ny), name, font=bold, fill=th["ink"], anchor="ls")
+    end = nx + d.textlength(name, font=bold)
+    if card["verified"]:
+        bx = end + 10 * u
+        r = 19 * u
+        cy = ny - 15 * u
+        d.ellipse((bx, cy - r, bx + 2 * r, cy + r), fill=th["acc"])
+        d.line([(bx + r * 0.55, cy + r * 0.02), (bx + r * 0.88, cy + r * 0.36), (bx + r * 1.48, cy - r * 0.34)],
+               fill="#FFFFFF", width=max(2, round(5 * u)), joint="curve")
+        end = bx + 2 * r
+    if one:
+        d.text((end + 14 * u, ny), sub, font=regular, fill=th["sub"], anchor="ls")
+    else:
+        d.text((nx, mid + 40 * u), sub, font=regular, fill=th["sub"], anchor="ls")
+    ty = y0 + A + 36 * u
+    for i, line in enumerate(g["lines"]):
+        _rich_text(img, d, x0, ty + i * g["lh"] + g["ts"], line, body, th["ink"], g["ts"])
+    (img if card["back"] == "blur" and g.get("box") else img.convert("RGB")).save(bg_out, "PNG")
+    vw, vh, rad = g["vw"], g["vh"], round(card["radius"] * u)
+    mask = Image.new("L", (vw * 2, vh * 2), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, vw * 2 - 1, vh * 2 - 1), radius=rad * 2, fill=255)
+    mask.resize((vw, vh), Image.LANCZOS).save(mask_out, "PNG")
+
+
+WM_ICONS = ("none", "logo", "youtube", "tiktok", "instagram", "x", "twitch", "kick")
+
+
+def _path_polys(d: str) -> list:
+    """An SVG path (M L H V C S Z, absolute and relative) as lists of points, one per piece, curves in short steps."""
+    toks = re.findall(r"[MmLlHhVvCcSsZz]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?", d)
+    polys, cur, i, cmd = [], [], 0, ""
+    x = y = sx = sy = 0.0
+    last_c = None
+    num = lambda: float(toks[i])   # noqa: E731
+
+    def bez(p0, p1, p2, p3):
+        return [((1 - t) ** 3 * p0[0] + 3 * (1 - t) ** 2 * t * p1[0] + 3 * (1 - t) * t * t * p2[0] + t ** 3 * p3[0],
+                 (1 - t) ** 3 * p0[1] + 3 * (1 - t) ** 2 * t * p1[1] + 3 * (1 - t) * t * t * p2[1] + t ** 3 * p3[1])
+                for t in (k / 12 for k in range(1, 13))]
+    while i < len(toks):
+        if toks[i].isalpha():
+            cmd = toks[i]
+            i += 1
+            if cmd in "Zz":
+                if cur:
+                    polys.append(cur)
+                cur, x, y = [], sx, sy
+                continue
+        rel = cmd.islower()
+        c = cmd.upper()
+        if c == "M":
+            nx, ny = num(), float(toks[i + 1])
+            i += 2
+            x, y = (x + nx, y + ny) if rel else (nx, ny)
+            if cur:
+                polys.append(cur)
+            cur, sx, sy = [(x, y)], x, y
+            cmd = "l" if rel else "L"              # more pairs after a move are lines
+            last_c = None
+        elif c == "L":
+            nx, ny = num(), float(toks[i + 1])
+            i += 2
+            x, y = (x + nx, y + ny) if rel else (nx, ny)
+            cur.append((x, y))
+            last_c = None
+        elif c == "H":
+            x = x + num() if rel else num()
+            i += 1
+            cur.append((x, y))
+            last_c = None
+        elif c == "V":
+            y = y + num() if rel else num()
+            i += 1
+            cur.append((x, y))
+            last_c = None
+        elif c in "CS":
+            n = 6 if c == "C" else 4
+            v = [float(t) for t in toks[i:i + n]]
+            i += n
+            if rel:
+                v = [v[k] + (x if k % 2 == 0 else y) for k in range(n)]
+            if c == "C":
+                p1, p2, p3 = (v[0], v[1]), (v[2], v[3]), (v[4], v[5])
+            else:
+                p1 = (2 * x - last_c[0], 2 * y - last_c[1]) if last_c else (x, y)
+                p2, p3 = (v[0], v[1]), (v[2], v[3])
+            cur += bez((x, y), p1, p2, p3)
+            last_c, (x, y) = p2, p3
+        else:
+            i += 1                                  # a command this drawer doesn't know: skip its number
+    if cur:
+        polys.append(cur)
+    return polys
+
+
+def draw_mark(k: str, h: int):
+    """A platform icon `h` pixels tall, drawn large and scaled down so its edges are smooth."""
+    from PIL import Image, ImageDraw
+    from .marks import MARK_PATHS
+    S = 4
+    if k == "instagram":                            # the gradient tile, rounded square and lens, as editor.js draws it
+        n = h * S
+        grad = Image.new("RGB", (n, n))
+        stops = [(0, (255, 215, 118)), (.1, (243, 165, 84)), (.45, (241, 63, 121)), (.75, (192, 45, 176)), (1, (92, 75, 223))]
+        px = grad.load()
+        for yy in range(0, n, 2):
+            for xx in range(0, n, 2):
+                t = min(1.0, ((xx / n - .28) ** 2 + (yy / n - 1.08) ** 2) ** .5 / 1.4)
+                a, b = next((stops[j], stops[j + 1]) for j in range(len(stops) - 1) if stops[j + 1][0] >= t)
+                f = (t - a[0]) / max(1e-6, b[0] - a[0])
+                c = tuple(round(a[1][q] + (b[1][q] - a[1][q]) * f) for q in range(3))
+                for dy in (0, 1):
+                    for dx in (0, 1):
+                        if xx + dx < n and yy + dy < n:
+                            px[xx + dx, yy + dy] = c
+        img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+        mask = Image.new("L", (n, n), 0)
+        u = n / 28
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, n - 1, n - 1), radius=7 * u, fill=255)
+        img.paste(grad, (0, 0), mask)
+        d = ImageDraw.Draw(img)
+        w = max(1, round(1.8 * u))
+        d.rounded_rectangle((7 * u, 7 * u, 21 * u, 21 * u), radius=4.2 * u, outline="#FFFFFF", width=w)
+        d.ellipse((10.7 * u, 10.7 * u, 17.3 * u, 17.3 * u), outline="#FFFFFF", width=w)
+        d.ellipse((17.2 * u, 8.7 * u, 19.3 * u, 10.8 * u), fill="#FFFFFF")
+        return img.resize((h, h), Image.LANCZOS)
+    if k == "youtube":                              # the red rounded badge and the white play mark (24 x 17)
+        sc = h * S / 17
+        img = Image.new("RGBA", (round(24 * sc), h * S), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle((0, 0, 24 * sc - 1, 17 * sc - 1), radius=4.2 * sc, fill="#FF0033")
+        d.polygon([(9.55 * sc, 4.89 * sc), (15.82 * sc, 8.46 * sc), (9.55 * sc, 12.03 * sc)], fill="#FFFFFF")
+        return img.resize((round(24 * sc / S), h), Image.LANCZOS)
+    m = MARK_PATHS.get(k)
+    if not m:
+        return None
+    vx, vy, vw, vh = m["vb"]
+    sc = h * S / vh
+    img = Image.new("RGBA", (round(vw * sc), h * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for path, fill, tx, ty in m["paths"]:
+        for poly in _path_polys(path):
+            if len(poly) > 2:
+                d.polygon([((px_ + tx - vx) * sc, (py_ + ty - vy) * sc) for px_, py_ in poly], fill=fill)
+    return img.resize((max(1, round(vw * sc / S)), h), Image.LANCZOS)
+
+
+def _line(v, n: int) -> str:
+    return re.sub(r"[\x00-\x1f\x7f]", "", str(v or "")).strip()[:n]
+
+
+def social_geometry(s: int) -> dict:
+    """Sizes in the social watermark, from its size setting. The same numbers in editor.js (wmGeo)."""
+    return {"pad": 8, "hs": round(s * 0.36), "ts": round(s * 0.5), "ic": round(s * 0.6), "gs": round(s * 0.44), "g": round(s * 0.12)}
+
+
+def social_badge(look: dict, logo_path: str):
+    """The social watermark as one picture: header, icon and handle, then a dashed rule and the hashtag."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    q = social_geometry(look["brand_size"])
+    col = look["brand_color"]
+    f_head = ImageFont.truetype(_font_file(look["brand_font"], 500), q["hs"])
+    f_bold = ImageFont.truetype(_font_file(look["brand_font"], 700), q["ts"])
+    f_tag = ImageFont.truetype(_font_file(look["brand_font"], 700), q["gs"])
+    head, handle = look["brand_head"], look["brand_handle"]
+    tag = look["brand_tag"] if look["brand_tag_on"] else ""
+    icon = None
+    k = look["brand_icon"]
+    try:
+        if k == "logo" and logo_path and Path(logo_path).is_file():
+            icon = Image.open(logo_path).convert("RGBA")
+            icon = icon.resize((max(1, round(icon.width * q["ic"] / icon.height)), q["ic"]), Image.LANCZOS)
+        elif k not in ("none", "logo"):
+            icon = draw_mark(k, q["ic"])
+    except Exception:  # noqa: BLE001 - an unreadable icon: the handle alone
+        icon = None
+    if not (head or handle or tag or icon):
+        return None
+    meas = ImageDraw.Draw(Image.new("L", (1, 1)))
+    tw = lambda t, f: meas.textlength(t, font=f) if t else 0   # noqa: E731
+    row_w = (icon.width if icon else 0) + (q["g"] if icon and handle else 0) + tw(handle, f_bold)
+    w = round(max(tw(head, f_head), row_w, tw(tag, f_tag))) + q["pad"] * 2
+    lh_head, lh_row, lh_tag = round(q["hs"] * 1.25), max(q["ic"], round(q["ts"] * 1.25)), round(q["gs"] * 1.25)
+    h = q["pad"] * 2 + (lh_head if head else 0) + ((q["g"] // 2) if head and (handle or icon) else 0) + (lh_row if handle or icon else 0) \
+        + ((2 + q["g"] * 2 + lh_tag) if tag else 0)
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ink = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(ink)
+    x, y = q["pad"], q["pad"]
+    if head:
+        d.text((x, y + lh_head / 2), head, font=f_head, fill=col, anchor="lm")
+        y += lh_head + ((q["g"] // 2) if handle or icon else 0)
+    if handle or icon:
+        cx = x
+        if icon:
+            ink.alpha_composite(icon, (cx, round(y + (lh_row - icon.height) / 2)))
+            cx += icon.width + (q["g"] if handle else 0)
+        if handle:
+            d.text((cx, y + lh_row / 2), handle, font=f_bold, fill=col, anchor="lm")
+        y += lh_row
+    if tag:
+        y += q["g"]
+        for dx in range(x, w - q["pad"], 8):                  # a dashed rule, like the reference
+            d.line([(dx, y), (min(dx + 4, w - q["pad"]), y)], fill=col + "99", width=2)
+        y += 2 + q["g"]
+        d.text((x, y + lh_tag / 2), tag, font=f_tag, fill=col, anchor="lm")
+    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))            # a soft shadow under the words, so they read on any picture
+    shadow.putalpha(ink.getchannel("A").point(lambda v: round(v * 0.55)))
+    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(3)), (0, 0))
+    img.alpha_composite(ink)
+    return img
 
 
 def brand_overlay(look: dict) -> tuple[str, str]:
@@ -543,7 +1221,7 @@ def install_fonts():
 
 
 LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fill", "crop": "Fill the screen (centre crop)",
-           "split": "Split: the stream on top, the face cam below"}
+           "split": "Split: the stream on top, the face cam below", "card": "Post card: the clip inside a social post"}
 # The split layout cuts two parts out of the source: the gameplay (or whatever is on stream) and the streamer's face
 # cam, and stacks them. Each part is [left, top, width, height] as fractions of the source picture. Most streamers
 # keep their face cam in the bottom-right corner, so that's where it starts; the editor can move both.
@@ -639,10 +1317,11 @@ def geometry(src_w, src_h, layout, split=None):
         return layout, gh, seam - round(H * 0.045), seam     # both in the middle: hook just above, captions on the seam
     if src_h * W >= src_w * H and layout != "crop":
         layout = "crop"  # as tall as the frame or taller: nothing to gain from a blurred fill
+    iw = W - 2 * getattr(_frame, "pad", 0)      # room left and right of the video (Blurred fill and Zoomed)
     if layout == "blur":
-        fg_h = min(H, int(round(W * src_h / src_w / 2)) * 2)
+        fg_h = min(H, int(round(iw * src_h / src_w / 2)) * 2)
     elif layout == "zoom":
-        fg_h = min(H, round(H * 1000 / 1920 / 2) * 2 if W < H else H)
+        fg_h = min(H, int(round((H * 1000 / 1920 if W < H else H) * iw / W / 2)) * 2)
     else:
         fg_h = H
     top = (H - fg_h) // 2
@@ -660,13 +1339,26 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
     W, _ = _wh()
     f, size = _Font.get(font or HOOK["font"]), size or HOOK["size"]
     sp, op = hk.get("hook_sp", 0), hk.get("hook_op", 100)
+    banner = hk.get("hook_banner", "fit")
+    if banner == "none":
+        op = 0                                    # no box: the text gets its outline, as with a see-through box
+    _frame.hook_emoji = []
     out = 0
     if show and show < dur:
         dur, out = show, 250                      # gone after `show` seconds, with a short fade
+    hook = _case(hook, hk.get("hook_case", "asis"))
+    # each emoji becomes one stand-in letter; it is measured and written as a gap as wide as the emoji, and the
+    # emoji's picture is laid in that gap (see _render_clip)
+    from . import emoji as _em
+    keys = []
+    for a, b, k in reversed(_em.find(hook)):
+        hook = hook[:a] + _EMJ + hook[b:]
+        keys.insert(0, k)
     words = hook.split()
     if not words:
         return []
-    wid = lambda t, z: f.width(t, z) + sp * max(0, len(t) - 1)                       # noqa: E731
+    gap_n = lambda z: max(1, round(f.em(z) * 1.08 / max(1, f.width(" ", z) + sp)))     # noqa: E731 - spaces per emoji
+    wid = lambda t, z: f.width(t.replace(_EMJ, " " * gap_n(z)), z) + sp * max(0, len(t.replace(_EMJ, " " * gap_n(z))) - 1)   # noqa: E731
     lines = [" ".join(words)]
     # one line, made a little smaller if it has to; only a hook too long to stay readable that way (under 60% of its
     # size) goes onto two lines, split where they come out most even
@@ -681,6 +1373,8 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
         widest = max(wid(l, size) for l in lines)
     line_h = f.em(size) * 1.16
     bw, bh = widest + 2 * HOOK["pad_x"], line_h * len(lines) + 2 * HOOK["pad_y"]
+    if banner == "full":
+        bw = W                                    # the box runs the full width of the frame
     # across: where it was dragged in the editor (its middle), kept fully inside the frame; the middle otherwise
     cx = W / 2 if hk.get("hook_x") is None else W * hk["hook_x"] / 100
     cx = max(bw / 2 + 12, min(W - bw / 2 - 12, cx)) if bw < W - 24 else W / 2
@@ -688,16 +1382,47 @@ def _hook_events(hook, dur, y, font=None, size=None, show=0.0, hk=None):
     span = f"{_ts(0)},{_ts(dur)}"
     ink = _bgr(hk["hook_ink"]) if "hook_ink" in hk else HOOK["ink"]
     ev = []
-    if op > 0:
-        box = _rounded(x0, y0, x0 + bw, y0 + bh, hk.get("hook_round", HOOK["radius"]))
-        fill = _bgr(hk["hook_box"]) if "hook_box" in hk else HOOK["box"]
+    fill = _bgr(hk["hook_box"]) if "hook_box" in hk else HOOK["box"]
+    if op > 0 and banner == "line":               # one box for each line, fitted to it
+        for i, line in enumerate(lines):
+            lw = wid(line, size) + 2 * HOOK["pad_x"]
+            ly = y - line_h * (len(lines) - 1) / 2 + i * line_h
+            box = _rounded(cx - lw / 2, ly - line_h / 2 - HOOK["pad_y"] * 0.45, cx + lw / 2, ly + line_h / 2 + HOOK["pad_y"] * 0.45,
+                           hk.get("hook_round", HOOK["radius"]))
+            ev.append(f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,{out})\\c&H{fill}&\\1a&H{_alpha(op)}&\\p1}}{box}{{\\p0}}")
+    elif op > 0:
+        box = _rounded(x0, y0, x0 + bw, y0 + bh, 0 if banner == "full" else hk.get("hook_round", HOOK["radius"]))
         ev.append(f"Dialogue: 3,{span},Hook,,0,0,0,,{{\\an7\\pos(0,0)\\fad(160,{out})\\c&H{fill}&\\1a&H{_alpha(op)}&\\p1}}{box}{{\\p0}}")
     edge = "" if op >= 35 else f"\\bord{max(3, size // 22)}\\3c&H000000&\\shad{CAP_SHADOW}\\4c&H000000&\\4a&H80&"
     tag = (f"\\fsp{sp}" if sp else "") + (f"\\c&H{ink}&" if ink != HOOK["ink"] else "") + edge
+    ki = 0
     for i, line in enumerate(lines):
-        cy = y - line_h * (len(lines) - 1) / 2 + i * line_h - f.cap_shift(size)
-        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({cx:.0f},{cy:.0f})\\fad(160,{out})\\fs{size}{tag}}}{line}")
+        mid = y - line_h * (len(lines) - 1) / 2 + i * line_h
+        cy = mid - f.cap_shift(size)
+        left = cx - wid(line, size) / 2
+        for j, ch in enumerate(line):             # where each emoji's gap is on this line
+            if ch == _EMJ and ki < len(keys):
+                gw = wid(_EMJ, size)
+                x_mid = left + (wid(line[:j], size) + sp if j else 0) + gw / 2
+                _frame.hook_emoji.append((keys[ki], round(x_mid), round(mid), round(f.em(size) * 1.0), dur))
+                ki += 1
+        text = line.replace(_EMJ, "\\h" * gap_n(size))
+        ev.append(f"Dialogue: 4,{span},Hook,,0,0,0,,{{\\an5\\pos({cx:.0f},{cy:.0f})\\fad(160,{out})\\fs{size}{tag}}}{text}")
     return ev
+
+
+_EMJ = "\ue000"                                     # stands in for an emoji while the hook is laid out
+
+
+def _case(text: str, how: str) -> str:
+    """The hook's letters: as typed, all capitals, Each Word Capitalised, or all small."""
+    if how == "upper":
+        return text.upper()
+    if how == "lower":
+        return text.lower()
+    if how == "title":
+        return " ".join(w[:1].upper() + w[1:].lower() if w[:1].isalpha() else w for w in text.split(" "))
+    return text
 
 
 def build_ass(words, start, end, hook, style_name, highlight, hook_y, cap_y, hook_font=None, hook_size=None, hook_show=0.0, hk=None) -> str:
@@ -807,6 +1532,20 @@ def _keeps(cuts, dur):
     return keep
 
 
+def _out_time(t: float, keeps) -> float:
+    """A moment of the clip (seconds from its start) on the finished clip, once cut parts are taken out."""
+    if not keeps:
+        return max(0.0, t)
+    before = 0.0
+    for a, b in keeps:
+        if t < a:
+            return before                          # inside a cut: where the next kept part begins
+        if t <= b:
+            return before + t - a
+        before += b - a
+    return before
+
+
 def _cut_words(words, start, keeps):
     """Words moved onto the shorter timeline once the cuts are gone; a word inside a cut is left out."""
     out = []
@@ -842,13 +1581,44 @@ def _filter(layout, fg_h, sel="", split=None):
         order = "[g][c]" if sp["cam_at"] == "bottom" else "[c][g]"
         return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];" + part(sp["game"], gh, "g", "a") + part(sp["cam"], ch, "c", "b")
                 + f"{order}vstack=inputs=2,setsar=1[v0];")
+    r = getattr(_frame, "region", None)             # the part of the picture chosen in the Frame view
+    if r and r != [0, 0, 1, 1]:
+        sel += f"crop=iw*{r[2]}:ih*{r[3]}:iw*{r[0]}:ih*{r[1]},"
+    inp = getattr(_frame, "inputs", None) or {}     # the still pictures given to ffmpeg, by name -> input number
+    fps = config.OUT_FPS
+    if layout == "card":                            # the video inside the post card: rounded, placed on the card
+        g = _frame.card_geo
+        vw, vh = g["vw"], g["vh"]
+        if getattr(_frame, "card_blur", False):    # the blurred video behind a floating card
+            head = (f"[0:v]fps={fps},{sel}split=2[ca][cz];"
+                    f"[cz]scale={W // 8 * 2}:{H // 8 * 2}:force_original_aspect_ratio=increase,crop={W // 8 * 2}:{H // 8 * 2},boxblur=8:2,"
+                    f"scale={W}:{H},eq=brightness=-0.12:saturation=1.1[cbk];[{inp['card']}:v]fps={fps},format=rgba[cpic];"
+                    f"[cbk][cpic]overlay=0:0:shortest=1,format=yuv420p,setsar=1[cb];[ca]")
+        else:
+            head = f"[{inp['card']}:v]fps={fps},format=yuv420p,setsar=1[cb];[0:v]fps={fps},{sel}"
+        return (head + f"scale={vw}:{vh}:force_original_aspect_ratio=increase,crop={vw}:{vh},"
+                f"setsar=1,format=yuva420p[cv];[{inp['round']}:v]format=gray,scale={vw}:{vh}[cm];[cv][cm]alphamerge=shortest=1[cr];"
+                f"[cb][cr]overlay={g['vx']}:{g['vy']}:shortest=1,setsar=1[v0];")
     if layout == "crop":
-        return f"[0:v]fps={config.OUT_FPS},{sel}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
-    return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];"
-            f"[a]scale={W // 8 * 2}:{H // 8 * 2}:force_original_aspect_ratio=increase,crop={W // 8 * 2}:{H // 8 * 2},boxblur=6:2,"
-            f"scale={W}:{H},eq=brightness=-0.14:saturation=1.15[bg];"
-            f"[b]scale={W}:{fg_h}:force_original_aspect_ratio=increase,crop={W}:{fg_h}[fg];"
-            f"[bg][fg]overlay=0:(H-h)/2,setsar=1[v0];")
+        return f"[0:v]fps={fps},{sel}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1[v0];"
+    # Blurred fill and Zoomed: the video in the middle, with room around it if asked, rounded if asked, over a
+    # blurred copy of itself, one colour or a gradient
+    bg = getattr(_frame, "bg", None) or {"kind": "blur"}
+    iw = W - 2 * getattr(_frame, "pad", 0)
+    if bg["kind"] == "blur":
+        head = (f"[0:v]fps={fps},{sel}split=2[a][b];"
+                f"[a]scale={W // 8 * 2}:{H // 8 * 2}:force_original_aspect_ratio=increase,crop={W // 8 * 2}:{H // 8 * 2},boxblur=6:2,"
+                f"scale={W}:{H},eq=brightness=-0.14:saturation=1.15[bg];")
+    elif bg["kind"] == "gradient":
+        head = f"[0:v]fps={fps},{sel}null[b];[{inp['bg']}:v]fps={fps},format=yuv420p,setsar=1[bg];"
+    else:
+        head = f"[0:v]fps={fps},{sel}null[b];color=c=0x{bg['c1'][1:]}:s={W}x{H}:r={fps},format=yuv420p[bg];"
+    fg = f"[b]scale={iw}:{fg_h}:force_original_aspect_ratio=increase,crop={iw}:{fg_h},setsar=1"
+    if "round" in inp:
+        fg += f",format=yuva420p[fq];[{inp['round']}:v]format=gray,scale={iw}:{fg_h}[fm];[fq][fm]alphamerge=shortest=1[fg];"
+    else:
+        fg += "[fg];"
+    return head + fg + "[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1[v0];"
 
 
 _qsv_ok = None
@@ -863,7 +1633,8 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     try:
         return _render_clip(src, out_dir, name, clip, words, src_w, src_h, look)
     finally:
-        _frame.wh, _frame.split = (W, H), None
+        _frame.wh, _frame.split, _frame.region, _frame.card_geo = (W, H), None, None, None
+        _frame.pad, _frame.bg, _frame.inputs, _frame.hook_emoji, _frame.card_blur = 0, None, None, [], False
 
 
 def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
@@ -876,8 +1647,25 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     if clip.get("layout") == "split":
         split = avoid_cam(split, src_w, src_h, W, H)   # stream part still the whole picture: keep the face cam out of it
     _frame.split = split                       # the split layout's two parts, for the picture step below
-    layout, fg_h, hook_y, cap_y = geometry(src_w, src_h, clip.get("layout", "blur"), split)
+    region = look["frame"] if look and clip.get("layout") != "split" else None
+    _frame.region = region
+    fw, fh = (src_w * region[2], src_h * region[3]) if region else (src_w, src_h)   # the shape of what is shown
+    # Blurred fill and Zoomed: what is behind the video, the room around it and its corners
+    framed = look and clip.get("layout") in ("blur", "zoom")
+    _frame.pad = round(look["pad"] * W / 1080 / 2) * 2 if framed else 0
+    _frame.bg = look["bg"] if framed else None
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
+    card = None
+    if clip.get("layout") == "card":           # the post card: its own places; the post's words stand in for the hook
+        card = look["card"] if look else clean_card(None)
+        card = dict(card, name=card["name"] or _clean(clip.get("card_name") or "")[:40])   # no name typed: the channel's
+        g = card_geometry(W, H, fw, fh, card["text"] or roman.to_roman(hook or ""), floating=card["back"] != "none",
+                          scale=card["scale"], dx=card["dx"], dy=card["dy"], pad=card["pad"])
+        _frame.card_geo = g
+        _frame.card_blur = card["back"] == "blur"
+        layout, fg_h, hook_y, cap_y = "card", g["vh"], g["vy"], g["cap"]
+    else:
+        layout, fg_h, hook_y, cap_y = geometry(fw, fh, clip.get("layout", "blur"), split)
     hook_font = hook_size = None
     hook_show = HOOK_SHOW                       # not changed in the editor: the hook shows for the first few seconds
     hk = brand = None
@@ -891,11 +1679,14 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
         if look["hook_y"] is not None:
             hook_y = round(H * look["hook_y"] / 100)
         hook_font, hook_size, hook_show = ensure_font(look["hook_font"], look["hook_weight"]), look["hook_size"], look["hook_dur"]
-        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp", "hook_x", "hook_italic", "hook_underline")}
+        hk = {k: look[k] for k in ("hook_box", "hook_ink", "hook_op", "hook_round", "hook_sp", "hook_x", "hook_italic", "hook_underline",
+                                   "hook_case", "hook_banner")}
         hk["hook_bold"] = bool("ass" in FONTS.get(look["hook_font"], {}) and (look["hook_weight"] or 0) >= 600)
         brand = look if look["brand_on"] else None
         if not look["hook"]:
             hook = ""
+    if card:
+        hook = ""                               # written on the card itself
     # Speech cleanup: the parts taken out are dropped from picture and sound, and the captions, the hook and the
     # fades are laid on the shorter clip that is left
     cuts = [(a - start, b - start) for a, b in clip.get("cuts") or []]
@@ -916,30 +1707,138 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     work = Path(tempfile.mkdtemp(prefix="pk"))
     try:
         badge = brand_badge(brand, clip.get("logo_path", ""), work / "badge.png") if brand else None
+        # the still pictures the picture step uses, in the order ffmpeg gets them (input 1, 2, ...)
+        stills = []
+        if card:
+            card_images(card, _frame.card_geo, clip.get("logo_path", ""), work / "card.png", work / "round.png")
+            stills = ["card", "round"]
+        elif _frame.bg and layout in ("blur", "zoom"):
+            if _frame.bg["kind"] == "gradient":
+                bg_picture(_frame.bg, work / "bg.png")
+                stills.append("bg")
+            if look["vradius"]:
+                round_mask(W - 2 * _frame.pad, fg_h, round(look["vradius"] * W / 1080), work / "round.png")
+                stills.append("round")
+        _frame.inputs = {k: i + 1 for i, k in enumerate(stills)}
+        main = out_end - start                       # the clip's length once cuts are out
+        mdir = Path(clip.get("media_dir") or "")
+        from . import emoji as _em
+        zms = []
+        for zm in (look["zooms"] if look else []):    # zoom moments, on the finished clip's timeline
+            a, b = _out_time(zm["a"] - start, keeps), _out_time(zm["b"] - start, keeps)
+            if b - a >= 0.3 and a < main:
+                zms.append((a, min(b, main), zm["s"], zm["x"] / 100, zm["y"] / 100, zm["fx"], zm["ease"]))
+        hook_pics = []
+        for i, (k, x, y, size, show) in enumerate(getattr(_frame, "hook_emoji", None) or []):
+            f = _em.picture(k)
+            if f:
+                shutil.copyfile(f, work / f"em{i}.png")
+                hook_pics.append((f"em{i}.png", x, y, max(8, round(size / 2) * 2), 0.0, min(show, main), 100))
+        # pictures placed on the video: frame pixels, and times on the finished clip (cut parts skipped)
+        ovs = []
+        for i, o in enumerate(look["overlays"] if look else []):
+            f = mdir / f"{o['id']}.png"
+            if not f.is_file():
+                continue
+            shutil.copyfile(f, work / f"ov{i}.png")
+            a, b = _out_time(o["a"] - start, keeps), _out_time(o["b"] - start, keeps)
+            if b - a >= 0.1 and a < main:
+                ovs.append((f"ov{i}.png", round(W * o["x"] / 100), round(H * o["y"] / 100), max(8, round(W * o["w"] / 100 / 2) * 2),
+                            a, min(b, main), o["op"]))
+        # the outro: the card drawn here, or a picture or video from the library
+        outro = None
+        ot = look["outro"] if look else None
+        if ot and ot["on"]:
+            if ot["kind"] == "file" and ot["file"]:
+                f = mdir / f"{ot['file']}.png"
+                f = f if f.is_file() else mdir / f"{ot['file']}.mp4"
+                if f.is_file():
+                    shutil.copyfile(f, work / f"outro{f.suffix}")
+                    outro = {"file": f"outro{f.suffix}", "video": f.suffix == ".mp4", "secs": ot["secs"], "main": main}
+            else:
+                pic = clip.get("logo_path", "") if ot["pic"] == "logo" else str(mdir / f"{ot['pic']}.png") if ot["pic"] else ""
+                outro_card(ot, pic, work / "outro.png")
+                outro = {"file": "outro.png", "video": False, "secs": ot["secs"], "main": main}
+        music = None
+        mp = Path(clip.get("music_path") or "")
+        if look and look["music"]["id"] and mp.is_file():
+            shutil.copyfile(mp, work / "music.m4a")
+            music = dict(look["music"], dur=main)
+            if outro and music["peak_at"] is not None:      # the song's drop lands right on the outro
+                music["at"] = max(0.0, music["peak_at"] - main)
         return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel,
-                          brand_overlay(brand) if badge else None)
+                          brand_overlay(brand) if badge else None, stills=stills, music=music, overlays=ovs, outro=outro, over=hook_pics, zooms=zms)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
 def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", ""), sel="", asel="",
-               brand=None) -> dict:
+               brand=None, stills=(), music=None, overlays=(), outro=None, over=(), zooms=()) -> dict:
+    """`overlays`: pictures on the video, [(file, x, y, width, from, to, opacity)] in frame pixels and output seconds.
+    `outro`: {"file", "video", "secs", "main"}: a card picture or a video joined after the clip (main = clip length)."""
     global _qsv_ok
+    Wd, Hd = _wh()
+    fps = config.OUT_FPS
     (work / f"{name}.ass").write_text(ass, encoding="utf-8")
     (work / "f").mkdir()
     for f in [*config.FONTS_DIR.glob("*.ttf"), *config.FONTS_DIR.glob("*.otf")]:
         shutil.copyfile(f, work / "f" / f.name)
     pre, post, audio = fx
+    still = lambda f: ["-loop", "1", "-framerate", str(fps), "-i", f]   # noqa: E731 - a picture held as video
+    # extra inputs, in order: the layout's stills (card, gradient, rounded-corner shape), the placed pictures, the
+    # brand badge, the outro, then the music. `n` is the next input's number.
+    extra = [x for k in stills for x in still(f"{k}.png")]
+    n = 1 + len(stills)
+    fc = _filter(layout, fg_h, sel)
+    cur = "v0"
+    if zooms:                                  # the zoom moments: on the video only, before anything is laid on it
+        fc += f"[v0]{zoom_filter(zooms, Wd, Hd, fps)},setsar=1[vz];"
+        cur = "vz"
+    for i, (f, x, y, w, a, b, op) in enumerate(overlays):       # pictures on the video, under the captions
+        extra += still(f)
+        alpha = f",colorchannelmixer=aa={op / 100:.2f}" if op < 100 else ""
+        fc += (f"[{n}:v]format=rgba,scale={w}:-1{alpha}[p{i}];"
+               f"[{cur}][p{i}]overlay=x={x}-w/2:y={y}-h/2:enable='between(t,{a:.2f},{b:.2f})':shortest=1[o{i}];")
+        cur, n = f"o{i}", n + 1
+    fc += f"[{cur}]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f[vc];"
+    cur = "vc"
+    for i, (f, x, y, w, a, b, op) in enumerate(over):           # the hook's emoji: on top of the hook, in their gaps
+        extra += still(f)
+        fc += (f"[{n}:v]format=rgba,scale={w}:-1[e{i}];"
+               f"[{cur}][e{i}]overlay=x={x}-w/2:y={y}-h/2:enable='between(t,{a:.2f},{b:.2f})':shortest=1[h{i}];")
+        cur, n = f"h{i}", n + 1
     if brand:                                  # the brand badge goes on top of the captions, then the fades
         bpre, bover = brand
-        fc = (_filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f[vc];"
-              f"[1:v]{bpre}[lg];[vc][lg]{bover}{',' + post if post else ''}[v]")
-        extra = ["-loop", "1", "-framerate", str(config.OUT_FPS), "-i", "badge.png"]
+        fc += f"[{n}:v]{bpre}[lg];[{cur}][lg]{bover}{',' + post if post else ''}[vm]"
+        extra += still("badge.png")
+        n += 1
     else:
-        fc = _filter(layout, fg_h, sel) + f"[v0]{pre + ',' if pre else ''}ass={name}.ass:fontsdir=f{',' + post if post else ''}[v]"
-        extra = []
+        fc += f"[{cur}]{post if post else 'null'}[vm]"
+    total = end - start if not outro else outro["main"]
+    if outro:                                  # the outro joined after the clip, fading in from the clip's last frame
+        secs = outro["secs"]
+        extra += (["-t", f"{secs:.2f}", "-i", outro["file"]] if outro["video"] else still(outro["file"]))
+        fc += (f";[{n}:v]trim=duration={secs:.2f},setpts=PTS-STARTPTS,fps={fps},scale={Wd}:{Hd}:force_original_aspect_ratio=decrease,"
+               f"pad={Wd}:{Hd}:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p,setsar=1,fade=t=in:st=0:d=0.35[ov];"
+               f"[vm]format=yuv420p,setsar=1[vk];[vk][ov]concat=n=2:v=1:a=0[v]")
+        n += 1
+        total = outro["main"] + secs
+    else:
+        fc += ";[vm]null[v]"
+    voice = asel + "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else "")
+    if outro:
+        voice += f",apad=whole_dur={total:.2f}"     # silence under the outro, so the music carries it
+    if music:                                  # the music goes in last, and the sound is mixed in the same graph
+        extra += (["-stream_loop", "-1"] if music["loop"] else []) + ["-ss", f"{music['at']:.2f}", "-i", "music.m4a"]
+        fc += ";" + music_graph(music, n, total, voice, outro["main"] if outro else 0.0)
+        sound = ["-map", "[a]"]
+    elif outro:
+        fc += f";[0:a]{voice}[a]"
+        sound = ["-map", "[a]"]
+    else:
+        sound = ["-map", "0:a:0", "-af", voice]
     base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src), *extra,
-            "-filter_complex", fc, "-map", "[v]", "-map", "0:a:0", "-af", asel + "loudnorm=I=-14:TP=-1.5:LRA=11" + (f",{audio}" if audio else ""),
+            "-filter_complex", fc, "-map", "[v]", *sound,
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
     if _qsv_ok is not False:

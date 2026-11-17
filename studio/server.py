@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 
 from . import admin as admins
 from . import account, load
-from . import (accounts, ai, alerts, auth, chat, config, creators, ctx, db, jobs, live, media, posting,
+from . import (accounts, ai, alerts, auth, chat, config, creators, ctx, db, emoji, jobs, live, media, posting,
                profiles, render, safe, transcribe, usage)
 
 from . import tools as _tools  # noqa: E402
@@ -107,6 +107,8 @@ class Gate:
             piece = method == "PUT" and path.startswith("/api/upload/")
             cap = ((min(config.MAX_UPLOAD_MB, config.UPLOAD_PART_MB) if piece else config.MAX_UPLOAD_MB) + 8) * 1024 * 1024 \
                 if path == "/api/upload" or piece else 256 * 1024
+            if method == "POST" and path in SMALL_UPLOADS:     # a song for the music library, a logo: their own limits
+                cap = SMALL_UPLOADS[path]
             try:
                 if int(req.headers.get("content-length") or 0) > cap:
                     return await deny(413, f"That file is too big. The limit is {config.MAX_UPLOAD_MB} MB." if path == "/api/upload" else "That request is too large.")
@@ -123,7 +125,7 @@ class Gate:
                         raise HTTPException(413, "That request is too large.")
                 return m
 
-        is_open = path in PAGES or any(path.startswith(p) for p in OPEN)
+        is_open = path in PAGES or any(path.startswith(p) for p in OPEN) or _site_file(path) is not None
         admin_area = path == "/admin" or path.startswith(("/admin/", "/api/admin/"))
         if config.ACCOUNTS:
             cookie = req.cookies.get(auth.COOKIE, "")
@@ -316,8 +318,9 @@ def landing():
     if _LANDING.get("m") != m:
         html = f.read_text(encoding="utf-8").replace("{{SITE}}", config.PUBLIC_URL)
         _LANDING.update(m=m, html=html, etag='"' + hashlib.md5(html.encode()).hexdigest() + '"')
-    # fresh for five minutes; after that a CDN or browser may show its copy while it quietly fetches the new one
-    return HTMLResponse(_LANDING["html"], headers={"Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    # a browser asks for the page again on every visit, so a change shows straight away; a CDN keeps it for five
+    # minutes, then may show its copy while it quietly fetches the new one
+    return HTMLResponse(_LANDING["html"], headers={"Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400",
                                                    "ETag": _LANDING["etag"]})
 
 
@@ -331,10 +334,16 @@ def robots():
 @app.get("/sitemap.xml")
 def sitemap():
     day = time.strftime("%Y-%m-%d")
-    pages = [("/", "1.0", "weekly"), ("/signup", "0.8", "monthly"), ("/login", "0.4", "monthly"), ("/terms", "0.3", "yearly"),
-             ("/privacy", "0.3", "yearly"), ("/acceptable-use", "0.2", "yearly")]
-    body = "".join(f"<url><loc>{config.PUBLIC_URL}{u}</loc><lastmod>{day}</lastmod><changefreq>{c}</changefreq>"
-                   f"<priority>{p}</priority></url>" for u, p, c in pages)
+    pages = [("/", "1.0", "weekly", day), ("/signup", "0.8", "monthly", day), ("/login", "0.4", "monthly", day),
+             ("/terms", "0.3", "yearly", day), ("/privacy", "0.3", "yearly", day), ("/acceptable-use", "0.2", "yearly", day)]
+    # the use-case pages and the blog, made by tools/build_site.py: each dated by when it was last built
+    for f in sorted(SITE.rglob("*.html")):
+        rel = f.relative_to(SITE).as_posix()[:-5]
+        url, pri, freq = (("/blog", "0.7", "weekly") if rel == "blog/index" else
+                          ("/" + rel, "0.6", "monthly") if rel.startswith("blog/") else ("/" + rel, "0.8", "monthly"))
+        pages.append((url, pri, freq, time.strftime("%Y-%m-%d", time.gmtime(f.stat().st_mtime))))
+    body = "".join(f"<url><loc>{config.PUBLIC_URL}{u}</loc><lastmod>{d}</lastmod><changefreq>{c}</changefreq>"
+                   f"<priority>{p}</priority></url>" for u, p, c, d in pages)
     return Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
                     + body + "</urlset>", media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
 
@@ -568,7 +577,9 @@ def status(request: Request):
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
             "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
             "fonts": {k: {"google": v["google"], "weight": v["weight"], "local": bool(v.get("local")), "em": render.font_em(k)} for k, v in render.FONTS.items()},
-            "presets": render.PRESETS, "storage": _storage()}
+            "presets": render.PRESETS, "storage": _storage(),
+            # the hook's emoji picker: [group, label, [[emoji, file key, name], ...]]
+            "emoji": [[g, label, [[c, emoji.key(c), n] for c, n, _ in items]] for g, label, items in emoji.GROUPS]}
 
 
 def _storage() -> dict:
@@ -1085,6 +1096,21 @@ def clip_source(jid: str, cid: str):
         f = Path(job.get("source_path") or "").resolve()
     if not f.is_file() or home not in f.resolve().parents:
         raise HTTPException(404, "The original video for this clip is no longer here.")
+    if f.suffix.lower() == ".ts":
+        # A live clip's footage is a stream recording (MPEG-TS), which browsers cannot play. It is repackaged as MP4
+        # once, without re-encoding (a second or so), and that copy is kept beside it. The first frame stays second 0,
+        # as ffmpeg counts it when the clip is made, so the preview and the saved clip line up.
+        mp4 = f.with_suffix(".mp4")
+        if not mp4.is_file() or mp4.stat().st_mtime < f.stat().st_mtime:
+            part = f.with_suffix(".part.mp4")
+            try:
+                media.run(["ffmpeg", "-y", "-v", "error", "-i", str(f), "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy",
+                           "-bsf:a", "aac_adtstoasc", "-movflags", "+faststart", str(part)], timeout=120)
+                part.replace(mp4)
+            except Exception:  # noqa: BLE001
+                part.unlink(missing_ok=True)
+                raise HTTPException(500, "This clip's footage couldn't be prepared for the preview.")
+        f = mp4
     return FileResponse(f, media_type="video/mp4", headers={"Cache-Control": "private, max-age=3600"})
 
 
@@ -1124,6 +1150,25 @@ def clip_retranscribe(jid: str, cid: str):
         raise HTTPException(400, str(e))
     ctx.bump()
     return clip_captions(jid, cid)
+
+
+@app.post("/api/jobs/{jid}/clips/{cid}/face")
+def clip_face(jid: str, cid: str, body: dict = Body(default={})):
+    """Where the main face is between two moments of the clip, for a zoom: its middle as fractions of the source
+    picture ({"x", "y"}), or {"x": null} when none is found."""
+    _throttle("face:" + ctx.uid(), 60, 600)
+    job, clip = _clip_or_404(jid, cid)
+    try:
+        a, b = float(body.get("a")), float(body.get("b"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Say which moment to look at.")
+    off = clip.get("src_offset", 0.0)
+    src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "")
+    if not src.is_file():
+        raise HTTPException(404, "The original video for this clip is no longer here.")
+    from . import facecam
+    p = facecam.face_point(src, max(0.0, a - off), max(0.1, b - off))
+    return {"x": p[0], "y": p[1]} if p else {"x": None, "y": None}
 
 
 @app.get("/api/jobs/{jid}/clips/{cid}/export")
@@ -1234,6 +1279,194 @@ def brand_logo_del():
     _logo_file().unlink(missing_ok=True)
     ctx.bump()
     return {"logo": 0}
+
+
+# ================================================================ music library: tracks a person uploaded for clips
+MUSIC_MAX_MB, MUSIC_MAX_TRACKS = 25, 30
+MEDIA_MAX_MB, MEDIA_MAX_ITEMS = 60, 60
+SMALL_UPLOADS = {"/api/music": (MUSIC_MAX_MB + 1) * 1_000_000, "/api/brand/logo": 4_500_000,   # request size, form included
+                 "/api/media": (MEDIA_MAX_MB + 1) * 1_000_000}
+
+
+def _music_dir() -> Path:
+    return config.user_dir(ctx.uid()) / "music"
+
+
+def _music_list() -> list:
+    try:
+        return json.loads((_music_dir() / "music.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+
+def _music_save(items: list):
+    d = _music_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "music.json").write_text(json.dumps(items), encoding="utf-8")
+
+
+@app.get("/api/music")
+def music_list():
+    return {"tracks": _music_list()}
+
+
+@app.post("/api/music")
+async def music_add(file: UploadFile = File(...)):
+    """A song or sound for clips. Turned into AAC once (the first 10 minutes at most), so the preview and every
+    render use the same file."""
+    _throttle("music:" + ctx.uid(), 20, 600)
+    items = _music_list()
+    if len(items) >= MUSIC_MAX_TRACKS:
+        raise HTTPException(400, f"Your library holds {MUSIC_MAX_TRACKS} tracks. Remove one to add another.")
+    data = await file.read(MUSIC_MAX_MB * 1_000_000 + 1)
+    if len(data) > MUSIC_MAX_MB * 1_000_000:
+        raise HTTPException(400, f"That file is too big. Use one under {MUSIC_MAX_MB} MB.")
+    mid = secrets.token_hex(6)
+    d = _music_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    raw = config.TMP_DIR / f"music-{mid}.in"
+    raw.write_bytes(data)
+    out = d / f"{mid}.m4a"
+    def convert() -> float:
+        media.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-vn", "-t", "600", "-ac", "2", "-ar", "48000",
+                   "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)], timeout=180)
+        return float(media.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)]).strip())
+    try:
+        dur = await run_in_threadpool(convert)
+        if dur < 1:
+            raise ValueError("too short")
+    except Exception:  # noqa: BLE001 - not a sound file ffmpeg can read
+        out.unlink(missing_ok=True)
+        raise HTTPException(400, "That file isn't a song SocialShot can read. Use MP3, M4A, WAV or OGG.")
+    finally:
+        raw.unlink(missing_ok=True)
+    name = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", re.sub(r"[\x00-\x1f\x7f]", "", file.filename or "")).strip()[:60] or "Track"
+    items.append({"id": mid, "name": name, "dur": round(dur, 1)})
+    _music_save(items)
+    ctx.bump()
+    return {"tracks": items, "id": mid}
+
+
+@app.get("/api/music/{mid}")
+def music_get(mid: str):
+    f = render.music_path(ctx.uid(), mid) if render._MUSIC_ID.match(mid) else None
+    if not f or not f.is_file():
+        raise HTTPException(404, "That track isn't in your library.")
+    return FileResponse(f, media_type="audio/mp4", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@app.delete("/api/music/{mid}")
+def music_del(mid: str):
+    if not render._MUSIC_ID.match(mid):
+        raise HTTPException(404, "That track isn't in your library.")
+    render.music_path(ctx.uid(), mid).unlink(missing_ok=True)
+    items = [t for t in _music_list() if t.get("id") != mid]
+    _music_save(items)
+    ctx.bump()
+    return {"tracks": items}
+
+
+# ================================================================ media library: pictures and short videos for clips
+# (pictures placed on the video, the outro's picture or its own file). Pictures are kept as PNG (transparency kept,
+# at most 2048 px), videos as MP4 (at most 30 seconds, 1080 px wide).
+def _media_dir() -> Path:
+    return config.user_dir(ctx.uid()) / "media"
+
+
+def _media_list() -> list:
+    try:
+        return json.loads((_media_dir() / "media.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+
+def _media_save(items: list):
+    d = _media_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "media.json").write_text(json.dumps(items), encoding="utf-8")
+
+
+@app.get("/api/emoji/{k}.png")
+def emoji_png(k: str):
+    """A Fluent 3D emoji picture (fetched once from Microsoft's emoji set, then served from here)."""
+    f = emoji.picture(k) if re.fullmatch(r"[0-9a-f]{2,6}(?:-[0-9a-f]{2,6}){0,6}", k) else None
+    if not f:
+        raise HTTPException(404, "No such emoji")
+    return FileResponse(f, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.get("/api/media")
+def media_list():
+    return {"items": _media_list()}
+
+
+@app.post("/api/media")
+async def media_add(file: UploadFile = File(...)):
+    _throttle("media:" + ctx.uid(), 30, 600)
+    items = _media_list()
+    if len(items) >= MEDIA_MAX_ITEMS:
+        raise HTTPException(400, f"Your library holds {MEDIA_MAX_ITEMS} files. Remove one to add another.")
+    data = await file.read(MEDIA_MAX_MB * 1_000_000 + 1)
+    if len(data) > MEDIA_MAX_MB * 1_000_000:
+        raise HTTPException(400, f"That file is too big. Use one under {MEDIA_MAX_MB} MB.")
+    mid = secrets.token_hex(6)
+    d = _media_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    name = re.sub(r"\.[A-Za-z0-9]{2,5}$", "", re.sub(r"[\x00-\x1f\x7f]", "", file.filename or "")).strip()[:60] or "File"
+    from io import BytesIO
+
+    from PIL import Image
+    try:                                       # a picture?
+        im = Image.open(BytesIO(data))
+        im.load()
+        im = im.convert("RGBA")
+        im.thumbnail((2048, 2048))
+        im.save(d / f"{mid}.png", "PNG")
+        item = {"id": mid, "name": name, "kind": "image", "w": im.width, "h": im.height}
+    except Exception:  # noqa: BLE001 - not a picture: maybe a video
+        raw = config.TMP_DIR / f"media-{mid}.in"
+        raw.write_bytes(data)
+        out = d / f"{mid}.mp4"
+
+        def convert():
+            media.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-t", "30", "-vf", "scale='min(1080,iw)':-2,fps=30",
+                       "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
+                       "-movflags", "+faststart", str(out)], timeout=300)
+            info = json.loads(media.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(out)]))
+            v = next(s for s in info["streams"] if s["codec_type"] == "video")
+            return int(v["width"]), int(v["height"]), float(info["format"]["duration"])
+        try:
+            w, h, dur = await run_in_threadpool(convert)
+        except Exception:  # noqa: BLE001
+            out.unlink(missing_ok=True)
+            raise HTTPException(400, "That file isn't a picture or video SocialShot can read. Use PNG, JPG, WebP, MP4 or MOV.")
+        finally:
+            raw.unlink(missing_ok=True)
+        item = {"id": mid, "name": name, "kind": "video", "w": w, "h": h, "dur": round(dur, 2)}
+    items.append(item)
+    _media_save(items)
+    ctx.bump()
+    return {"items": items, "id": mid}
+
+
+@app.get("/api/media/{mid}")
+def media_get(mid: str):
+    f = render.media_path(ctx.uid(), mid) if render._MUSIC_ID.match(mid) else None
+    if not f or not f.is_file():
+        raise HTTPException(404, "That file isn't in your library.")
+    return FileResponse(f, media_type="image/png" if f.suffix == ".png" else "video/mp4", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@app.delete("/api/media/{mid}")
+def media_del(mid: str):
+    if not render._MUSIC_ID.match(mid):
+        raise HTTPException(404, "That file isn't in your library.")
+    for ext in ("png", "mp4"):
+        (_media_dir() / f"{mid}.{ext}").unlink(missing_ok=True)
+    items = [t for t in _media_list() if t.get("id") != mid]
+    _media_save(items)
+    ctx.bump()
+    return {"items": items}
 
 
 @app.put("/api/brand")
@@ -1768,6 +2001,34 @@ def admin_delete_user(request: Request, uid: str, body: dict = Body(...)):
     with db.engine.begin() as c:
         admins._log(c, me_.id, "delete", target.id, "account deleted")
     return {"ok": True}
+
+
+SITE = WEB / "site"     # the use-case pages and the blog, written by tools/build_site.py
+
+
+def _site_file(path: str):
+    """The built page for /<page>, /blog or /blog/<post>, or None. Names are lowercase words and dashes only."""
+    if path == "/blog":
+        name = "blog/index"
+    elif re.fullmatch(r"/(blog/)?[a-z0-9]+(-[a-z0-9]+)*", path):
+        name = path[1:]
+    else:
+        return None
+    f = SITE / f"{name}.html"
+    return f if f.is_file() else None
+
+
+# Declared last, so every route above wins over these.
+@app.get("/blog")
+@app.get("/blog/{post}")
+@app.get("/{page}")
+def site_page(request: Request, post: str = "", page: str = ""):
+    f = _site_file(request.url.path)
+    if not f:
+        raise HTTPException(404)
+    html = f.read_text(encoding="utf-8").replace("{{SITE}}", config.PUBLIC_URL)
+    # like the home page: a browser checks for a new copy each visit, a CDN keeps it for five minutes
+    return HTMLResponse(html, headers={"Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400"})
 
 
 def main():
