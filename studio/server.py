@@ -1147,7 +1147,7 @@ def job_more(jid: str, body: dict = Body(default={})):
         n = 3
     if job.get("kind") == "live" and not Path(job.get("source_path") or "").is_file():
         try:
-            live.find_vod(job)          # said straight away if the stream is still live or gone
+            live.find_vod(job)          # said straight away if the stream is gone
         except ValueError as e:
             raise HTTPException(400, str(e))
     job.pop("more_error", None)

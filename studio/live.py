@@ -807,17 +807,62 @@ def find_vod(job) -> dict:
             full = y.extract_info(url, download=False) or {}
     except Exception as e:  # noqa: BLE001
         raise ValueError("Couldn't open the stream's saved copy: " + media_safe(e)) from e
-    if full.get("live_status") == "is_live" or full.get("is_live"):
-        raise ValueError("This stream is still live. Its clips can be made from the saved copy once it ends.")
+    still = full.get("live_status") == "is_live" or bool(full.get("is_live"))
+    if still and not media.is_youtube(url):
+        raise ValueError("This stream is still live on Twitch. Its clips can be made from the saved copy once it ends.")
     began = full.get("release_timestamp") or full.get("timestamp")
     lead = vod.get("lead")
     if lead is None and began:
         lead = float(job["created"]) - float(began)
     if lead is None or lead < 0:
         raise ValueError("Couldn't tell where this recording sits in the stream.")
-    vod.update(url=full.get("webpage_url") or url, lead=round(float(lead), 1), length=full.get("duration"))
+    vod.update(url=full.get("webpage_url") or url, lead=round(float(lead), 1), length=full.get("duration"), live=still)
     job["vod"] = vod
     return vod
+
+
+def live_section(url, out: Path, a: float, b: float) -> Path:
+    """A stretch (seconds a to b from the stream's start) of a YouTube stream that is still live. yt-dlp won't cut
+    a live stream, but YouTube serves its past as numbered pieces of a couple of seconds, so just those are
+    fetched, for the picture and the sound, and joined into one file that starts where the first piece starts."""
+    import httpx
+    import yt_dlp
+    from yt_dlp.utils import update_url_query
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, "live_from_start": True,
+                           "logger": _Quiet()}) as y:
+        info = y.extract_info(url, download=False) or {}
+    fm = [f for f in info.get("formats") or [] if str(f.get("protocol", "")).startswith("http_dash")]
+    vids = sorted((f for f in fm if f.get("vcodec") not in (None, "none") and str(f.get("vcodec", "")).startswith("avc1")
+                   and (f.get("height") or 0) <= 720), key=lambda f: f.get("height") or 0)
+    auds = [f for f in fm if f.get("acodec") not in (None, "none") and f.get("vcodec") in (None, "none")]
+    if not vids or not auds:
+        raise RuntimeError("YouTube didn't offer this stream's past in pieces.")
+    aud = next((f for f in auds if f.get("format_id") == "140"), auds[-1])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    parts, step = [], 2.0
+    for k, f in (("v", vids[-1]), ("a", aud)):
+        p = out.with_suffix(f".{k}.mp4")
+        with httpx.Client(headers=f.get("http_headers") or {}, timeout=30, follow_redirects=True) as c:
+            first = c.get(update_url_query(f["url"], {"sq": 0}))
+            try:      # how long one piece is: the newest piece's time over its number (2 s on normal streams)
+                step = float(first.headers["x-head-time-sec"]) / max(1, int(first.headers["x-head-seqnum"]))
+            except (KeyError, ValueError):
+                pass
+            s0, s1 = int(a // step), int(-(-b // step))
+            with open(p, "wb") as o:
+                for sq in range(s0, s1 + 1):
+                    r = c.get(update_url_query(f["url"], {"sq": sq}))
+                    if r.status_code != 200 or not r.content:
+                        break
+                    o.write(r.content)
+        parts.append(p)
+    try:
+        media.run(["ffmpeg", "-y", "-v", "error", "-i", str(parts[0]), "-i", str(parts[1]), "-map", "0:v", "-map", "1:a",
+                   "-c", "copy", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", str(out)])
+    finally:
+        for p in parts:
+            p.unlink(missing_ok=True)
+    return out
 
 
 def cut_from_vod(job, clip, words):
@@ -828,10 +873,20 @@ def cut_from_vod(job, clip, words):
     a = max(0.0, clip["start"] - PAD - room + v["lead"])
     b = clip["end"] + PAD + room + v["lead"]
     try:
-        src = media.download_section(v["url"], Path(job["dir"]) / "clips", f"{clip['id']}.src", a, b)
+        if v.get("live"):
+            src = live_section(v["url"], Path(job["dir"]) / "clips" / f"{clip['id']}.src.mp4", a, b)
+        else:
+            src = media.download_section(v["url"], Path(job["dir"]) / "clips", f"{clip['id']}.src", a, b)
     except Exception as e:  # noqa: BLE001
-        clip.update(status="error", error="Couldn't download this part of the stream: " + media_safe(e))
-        return
+        if v.get("live"):            # the stream may have ended a moment ago: its saved copy has the same stretch
+            try:
+                src = media.download_section(v["url"], Path(job["dir"]) / "clips", f"{clip['id']}.src", a, b)
+            except Exception as e2:  # noqa: BLE001
+                clip.update(status="error", error="Couldn't download this part of the stream: " + media_safe(e2))
+                return
+        else:
+            clip.update(status="error", error="Couldn't download this part of the stream: " + media_safe(e))
+            return
     meta = media.probe(src)
     job.setdefault("width", meta["width"])
     job.setdefault("height", meta["height"])

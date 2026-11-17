@@ -5812,7 +5812,7 @@ function projHtml(j) {
     ${tiles || waiting ? `<div class="pc-strip">${tiles || waiting}${tiles && total > 3 ? `<a class="pc-more" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project to see all ${total} clips">
         <span class="pc-more-ic">${ic("film")}</span><b>Open project</b><small>+${total - 3} more · ${total} clips</small><i>${ic("arrowr")}</i></a>` : ""}</div>`
       : `<div class="pc-strip pc-none">${busy ? "" : j.finding ? `<div class="pc-find"><span class="jfinding" role="status"><i class="spin"></i>${esc(j.finding)}</span></div>`
-          : `<div class="pc-find"><b>No clips from this video yet</b><span>${j.kind === "live" ? "The AI can read the whole recording and clip its best moments." : "The AI can read it again and clip its best moments."}</span>
+          : `<div class="pc-find"><b>No clips from this video yet</b><span>${j.kind === "live" ? "The AI reads the whole recording and clips its best moments, even while the stream is still live." : "The AI can read it again and clip its best moments."}</span>
             ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}${moreBtn(j)}</div>`}</div>`}
     ${total > 2 ? `<a class="pc-all" href="${link}" data-act="openproj" data-j="${j.id}">View all ${total} clips${ic("arrowr")}</a>` : ""}`;
 }
