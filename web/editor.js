@@ -865,7 +865,7 @@ function drawStage() {
         ? (sp.cam_at === "bottom" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) : band("edBandC", "edVid2", true) + band("edBandG", "edVid", false))
         : `${g.layout === "card" ? `<div class="ed-post" id="edPost"></div>` : `<img class="ed-bg ${g.layout === "crop" ? "none" : ""}" src="/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}" alt="">`}
         <div class="ed-band ed-fgb" id="edFgBox"><video class="ed-bv" id="edVid" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto"></video></div>`}
-        <div class="ed-zgrain" id="edZgrain" hidden></div><div class="ed-pics" id="edPics"></div><i class="ed-zdot" id="edZdot" hidden></i><div class="ed-outro" id="edOutro" hidden></div>
+        <div class="ed-zgrain" id="edZgrain" hidden></div><span class="ed-zbadge" id="edZbadge" hidden></span><div class="ed-pics" id="edPics"></div><i class="ed-zdot" id="edZdot" hidden></i><div class="ed-outro" id="edOutro" hidden></div>
         <button class="ed-hook" id="edHookBox" data-ed="tab" data-t="text" title="Edit the hook"></button>
         <button class="ed-brand" id="edBrand" data-ed="tab" data-t="brand" title="Edit your brand" hidden></button>
         <div class="ed-cap" id="edCap" title="Drag to move the captions · double-click to change how they look"></div><div class="ed-fade" id="edFade"></div>
@@ -1340,12 +1340,16 @@ function applyZoom(t, phone) {
     E.fxShown = E.look.effect;
     const gr = $e("#edZgrain"); if (gr) { gr.hidden = Z.fx !== "grain"; if (!gr.hidden && !gr.style.backgroundImage) gr.style.backgroundImage = `url(${grain()})`; }
   }
+  const zb = $e("#edZbadge"), live = Z.z > 1.01;
+  if (zb) { zb.hidden = !live; if (live) zb.innerHTML = `${ZOOM_IC}Zoom ${Z.z.toFixed(1)}×${Z.fx !== "none" ? " · " + (ZOOM_FX.find(f => f[0] === Z.fx) || [])[1] : ""}`; }
+  const zi = (E.look.zooms || []).findIndex(q => t >= q.a && t <= q.b);
+  if (zi !== E.zLit) { E.zLit = zi; $$e(".ed-zbar").forEach(b => b.classList.toggle("live", +b.dataset.zb === zi)); }
   // the aim dot of the chosen zoom, while the playhead is inside it
   const dot = $e("#edZdot"), zs = (E.look.zooms || [])[E.zSel];
   if (dot) { const on = !!zs && t >= zs.a - 0.05 && t <= zs.b + 0.05; dot.hidden = !on; if (on) { dot.style.left = zs.x + "%"; dot.style.top = zs.y + "%"; } }
 }
-function zoomAdd() {
-  const t = Math.max(E.start, Math.min(E.end - 0.6, nowT())), L = E.look.zooms || [];
+function zoomAdd(at) {
+  const t = Math.max(E.start, Math.min(E.end - 0.6, at ?? nowT())), L = E.look.zooms || [];
   if (L.length >= 12) return toast("Up to 12 zooms on one clip.", "bad");
   const z = {a: Math.round(t * 10) / 10, b: Math.round(Math.min(E.end, t + 2.5) * 10) / 10, s: 1.8, x: 50, y: 40, fx: "none", ease: true};
   L.push(z); L.sort((p, q) => p.a - q.a); E.look.zooms = L; E.zSel = L.indexOf(z); E.lookTouched = true;
@@ -1395,11 +1399,29 @@ function zoomCard() {
         <p class="ed-help">Or drag the dot on the video to aim. Drag the bar on the timeline's Zooms row to move it, its ends to change how long.</p></div>` : ""}
   </div>`;
 }
+const MUSIC_IC = svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>');
+function musicLane() {
+  const m = musicOf(), tr = (E.music || []).find(x => x.id === m.id), o = outroOf();
+  if (!tr) return `<div class="ed-lane music znone" title="Add a song from your library"><span class="ed-mhint" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${MUSIC_IC}Click to add music</span></div>`;
+  const end = Math.min(E.max, E.end + (o.on ? o.secs : 0));
+  return `<div class="ed-lane music" title="${esc(tr.name)}: click to change the music"><span class="ed-mbar" style="left:${pct(E.start)}%;width:${pct(end) - pct(E.start)}%">
+    ${MUSIC_IC}<b>${esc(tr.name)}</b><small>${m.vol}%${o.on && m.rise ? ` → ${m.peak}%` : ""}${m.duck ? " · lowers for speech" : ""}</small></span></div>`;
+}
 function zoomsLane() {
-  const L = E.look.zooms || []; if (!L.length) return "";
-  return `<div class="ed-lane zooms">${L.map((z, i) => `<button class="ed-zbar ${i === E.zSel ? "on" : ""}" data-zb="${i}" data-ed="zoomsel" data-v="${i}"
+  const L = E.look.zooms || [];
+  if (!L.length) return `<div class="ed-lane zooms znone" title="Click to add a zoom at that moment"><span class="ed-zhint" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${ZOOM_IC}Click to add a zoom here · or press Z</span></div>`;
+  return `<div class="ed-lane zooms" title="Click an empty spot to add a zoom there">${L.map((z, i) => `<button class="ed-zbar ${i === E.zSel ? "on" : ""}" data-zb="${i}" data-ed="zoomsel" data-v="${i}"
     style="left:${pct(z.a)}%;width:${Math.max(0.6, pct(z.b) - pct(z.a))}%"><i class="pe l"></i><span>${z.s.toFixed(1)}× ${z.fx && z.fx !== "none" ? (ZOOM_FX.find(f => f[0] === z.fx) || [])[1] : ""}</span><i class="pe r"></i></button>`).join("")}</div>`;
 }
+$("#clipdlg").addEventListener("click", e => {
+  const ml = e.target.closest(".ed-lane.music");
+  if (ml) { e.stopPropagation(); E.tab = "audio"; drawPanel(); if (phone()) { E.sheet = "panel"; syncSheet(); } return; }
+  const lane = e.target.closest(".ed-lane.zooms"); if (!lane || e.target.closest(".ed-zbar")) return;
+  if (E.justMoved && Date.now() - E.justMoved < 300) return;
+  const r = $e("#edTrack").getBoundingClientRect(), t = E.min + (e.clientX - r.left) / r.width * (E.max - E.min);
+  if (t < E.start || t > E.end) return toast("Zooms go inside the clip", "bad");
+  e.stopPropagation(); zoomAdd(t); showAt(Math.min(E.end, t + 0.4));
+});
 let zDrag = null;
 dlg_on("pointerdown", e => {
   const bar = e.target.closest(".ed-zbar");
@@ -2059,7 +2081,8 @@ function drawTimeline() {
           ${head("hook", TEXT_IC, "Hook", hasHook ? `<button class="ed-tb" data-ed="hookvis" aria-pressed="${!!E.look.hook}" title="${E.look.hook ? "Hide" : "Show"} the hook">${EYE(E.look.hook)}</button>` : "")}
           ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`)}
           ${(E.look.overlays || []).length ? head("pics", PIC_IC, "Pictures") : ""}
-          ${(E.look.zooms || []).length ? head("zooms", ZOOM_IC, "Zooms") : ""}
+          ${head("music", MUSIC_IC, "Music", `<button class="ed-tb" data-ed="tab" data-t="audio" title="Add or change the music" aria-label="Music">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
+          ${head("zooms", ZOOM_IC, "Zooms", `<button class="ed-tb" data-ed="zoomadd" title="Add a zoom at the playhead (Z)" aria-label="Add a zoom">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${E.chat?.counts?.length ? head("chat", ic("chat"), "Chat") : ""}
           ${head("film", ic("film"), "Video", `<button class="ed-tb" data-ed="mute" aria-pressed="${!E.muted}" title="${E.muted ? "Turn the preview's sound on" : "Mute the preview"}">${SOUND(!E.muted)}</button>`)}
         </div>
@@ -2070,7 +2093,7 @@ function drawTimeline() {
           <div class="ed-lanes">
             <div class="ed-lane hook">${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
               ${fx !== "None" ? `<button class="ed-fxchip" data-ed="tab" data-t="fx" style="left:${pct(hookEnd())}%;width:${Math.max(6, pct(E.end) - pct(hookEnd()))}%"><i>${FX_IC}</i><span>Filter: ${esc(fx)}</span></button>` : ""}</div>
-            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${zoomsLane()}${chatLane()}
+            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${musicLane()}${zoomsLane()}${chatLane()}
             <div class="ed-lane film" style="background-image:url('/media/${E.jid}/thumb.jpg'),url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')">
               <div class="ed-shade l" style="width:${pct(E.start)}%"></div><div class="ed-shade r" style="left:${pct(E.end)}%"></div>
               ${(E.cuts || []).map(([a, b]) => `<i class="ed-cutmark" style="left:${pct(a)}%;width:${Math.max(0.2, pct(b) - pct(a))}%" title="Cut by Speech cleanup"></i>`).join("")}

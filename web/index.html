@@ -4032,6 +4032,32 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 @media (max-width:1250px){.sc-week{grid-template-columns:repeat(7,minmax(112px,1fr));overflow-x:auto}}
 @media (max-width:900px){.sc-week{grid-template-columns:repeat(7,minmax(120px,1fr));min-height:360px}}
 @media (max-width:560px){.sc-week{grid-template-columns:repeat(7,minmax(130px,1fr))}}
+/* zooms: always a row on the timeline (click to add), a lit bar and a badge on the preview while one plays */
+.ed-lane.zooms{cursor:copy}
+.ed-zhint{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:6px;border:1px dashed rgba(245,158,11,.35);
+  color:rgba(253,230,138,.7);font-size:11px;white-space:nowrap;overflow:hidden;pointer-events:none}
+.ed-zhint svg{width:13px;height:13px;flex:none}
+.ed-lane.zooms.empty:hover .ed-zhint{border-color:rgba(245,158,11,.7);color:#FDE68A}
+.ed-zbar.live{background:color-mix(in srgb,#F59E0B 45%,#26262B);color:#fff}
+.ed-zbadge{position:absolute;left:8px;top:8px;z-index:6;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:7px;
+  background:rgba(10,10,12,.72);color:#FDE68A;font-size:11px;font-weight:600;pointer-events:none}
+.ed-zbadge svg{width:12px;height:12px}
+/* the timeline's Music and Zooms rows: slim, the same height as the others */
+.ed-th.music,.ed-lane.music{height:28px}
+.ed .ed-lane.zooms,.ed .ed-th.zooms{height:28px}
+.ed .ed-lane.znone{padding:0;border:0;display:block;background:none}
+.ed .ed-zhint,.ed .ed-mhint{top:4px;bottom:4px;height:auto;font-size:10.5px}
+.ed-lane.music{cursor:pointer}
+.ed-mhint{position:absolute;top:4px;bottom:4px;display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:6px;border:1px dashed rgba(52,211,153,.35);
+  color:rgba(167,243,208,.75);font-size:10.5px;white-space:nowrap;overflow:hidden;pointer-events:none}
+.ed-mhint svg,.ed-mbar svg{width:12px;height:12px;flex:none}
+.ed-lane.music.znone:hover .ed-mhint{border-color:rgba(52,211,153,.7);color:#A7F3D0}
+.ed-mbar{position:absolute;top:4px;bottom:4px;display:flex;align-items:center;gap:6px;padding:0 9px;border-radius:6px;overflow:hidden;white-space:nowrap;
+  background:repeating-linear-gradient(90deg,color-mix(in srgb,#10B981 26%,#232327) 0 3px,color-mix(in srgb,#10B981 18%,#232327) 3px 6px);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#10B981 50%,transparent);color:#A7F3D0;font-size:11px}
+.ed-mbar b{font-weight:600;color:#ECFDF5;overflow:hidden;text-overflow:ellipsis}
+.ed-mbar small{color:rgba(167,243,208,.75);font-size:10.5px}
+.ed-lane.music:hover .ed-mbar{box-shadow:inset 0 0 0 1.5px #34D399}
 </style>
 </head>
 <body>
@@ -6563,6 +6589,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=87"></script>
+<script src="/assets/editor.js?v=89"></script>
 </body>
 </html>
