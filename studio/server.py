@@ -38,7 +38,7 @@ def _quiet(fn):
 
 app = FastAPI(title="SocialShot", docs_url=None, redoc_url=None, openapi_url=None)
 WEB = config.ROOT / "web"
-OPEN = ("/api/auth/", "/pub/", "/api/public", "/auth/google/", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
+OPEN = ("/api/auth/", "/pub/", "/api/public", "/auth/google/", "/auth/desktop", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
 PAGES = {"/": "landing.html", "/login": "auth.html", "/signup": "auth.html", "/reset": "reset.html",
          "/privacy": "legal.html", "/terms": "legal.html", "/acceptable-use": "legal.html"}
 VIDEO_TYPES = {".mp4", ".mov", ".mkv", ".webm", ".m4v", ".ts", ".flv"}
@@ -331,19 +331,23 @@ def robots():
 
 @app.get("/sitemap.xml")
 def sitemap():
-    day = time.strftime("%Y-%m-%d")
-    pages = [("/", "1.0", "weekly", day), ("/signup", "0.8", "monthly", day), ("/login", "0.4", "monthly", day),
-             ("/terms", "0.3", "yearly", day), ("/privacy", "0.3", "yearly", day), ("/acceptable-use", "0.2", "yearly", day)]
-    # the use-case pages and the blog, made by tools/build_site.py: each dated by when it was last built
+    """Every public page with the day it last changed (written by tools/build_site.py). The sign-in pages are not
+    listed: they are marked "noindex", so search results show the real pages instead."""
+    try:
+        dates = json.loads((WEB / "sitemap-dates.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        dates = {}
+    day = lambda u, k=None: dates.get(k or u, {}).get("date") or time.strftime("%Y-%m-%d")
+    pages = [("/", "1.0", day("/")), ("/blog", "0.8", day("/blog"))]
     for f in sorted(SITE.rglob("*.html")):
         rel = f.relative_to(SITE).as_posix()[:-5]
-        url, pri, freq = (("/blog", "0.7", "weekly") if rel == "blog/index" else
-                          ("/" + rel, "0.6", "monthly") if rel.startswith("blog/") else ("/" + rel, "0.8", "monthly"))
-        pages.append((url, pri, freq, time.strftime("%Y-%m-%d", time.gmtime(f.stat().st_mtime))))
-    body = "".join(f"<url><loc>{config.PUBLIC_URL}{u}</loc><lastmod>{d}</lastmod><changefreq>{c}</changefreq>"
-                   f"<priority>{p}</priority></url>" for u, p, c, d in pages)
+        if rel != "blog/index":
+            u = "/" + rel
+            pages.append((u, "0.7" if rel.startswith("blog/") else "0.9", day(u)))
+    pages += [(u, "0.2", day(u, "/legal")) for u in ("/terms", "/privacy", "/acceptable-use")]
+    body = "".join(f"<url><loc>{config.PUBLIC_URL}{u}</loc><lastmod>{d}</lastmod><priority>{p}</priority></url>" for u, p, d in pages)
     return Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-                    + body + "</urlset>", media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
+                    + body + "</urlset>", media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/login")
@@ -562,6 +566,54 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
     except auth.AuthError:
         return RedirectResponse("/login?error=google", 303)
     return _signed_in(request, user, first, redirect=nxt)
+
+
+# ================================================================ signing in the Windows and Mac app
+# The app opens /auth/desktop in the person's own browser (Google refuses to sign anyone in inside an app's
+# window). Once they are signed in here, by email or Google, the browser is sent back to the app's own address on
+# their computer (127.0.0.1) with a one-time code. The app swaps the code for a session of its own. A code lasts
+# two minutes, works once, and only together with the random `state` the app made up for this one sign-in.
+_desktop_codes: dict = {}
+_desktop_lock = threading.Lock()
+
+
+@app.get("/auth/desktop")
+def desktop_signin(request: Request, port: int = 0, state: str = "", via: str = ""):
+    if not 1024 <= port <= 65535 or not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", state):
+        raise HTTPException(400, "This sign-in link is broken. Start again from the SocialShot app.")
+    me_ = _me(request)
+    if not me_:
+        back = quote(f"/auth/desktop?port={port}&state={state}", safe="")
+        # the app's "Continue with Google" goes straight to Google; "Create an account" to the sign-up form
+        if via == "google" and auth.google_ready():
+            return RedirectResponse("/auth/google/start?next=" + back, 303)
+        return RedirectResponse(("/signup" if via == "signup" else "/login") + "?next=" + back, 303)
+    code, now = secrets.token_urlsafe(32), time.time()
+    with _desktop_lock:
+        for k in [k for k, v in _desktop_codes.items() if v[0] < now - 120]:
+            _desktop_codes.pop(k, None)
+        if len(_desktop_codes) > 5000:        # someone hammering it: the real ones are seconds old
+            _desktop_codes.clear()
+        _desktop_codes[code] = (now, me_.id, state)
+    return RedirectResponse(f"http://127.0.0.1:{port}/callback?code={code}&state={state}", 303,
+                            headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
+
+
+@app.post("/api/auth/desktop")
+def desktop_exchange(request: Request, body: dict = Body(...)):
+    """The app's half: the one-time code (and its state) for a session, answered like a sign-in."""
+    try:
+        auth.throttle("desktop:" + _ip(request), 30, 600)
+    except auth.AuthError as e:
+        raise HTTPException(429, str(e))
+    with _desktop_lock:
+        got = _desktop_codes.pop(str(body.get("code", ""))[:100], None)
+    if not got or time.time() - got[0] > 120 or not hmac.compare_digest(got[2], str(body.get("state", ""))):
+        raise HTTPException(400, "That sign-in has expired. Try again from the app.")
+    user = auth.get_user(got[1])
+    if not user or user.disabled:
+        raise HTTPException(400, "This account can't sign in.")
+    return _signed_in(request, user, False)
 
 
 # ================================================================ app status
