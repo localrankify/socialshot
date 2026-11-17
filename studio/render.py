@@ -508,7 +508,7 @@ def outro_card(o: dict, pic_path: str, out: Path):
 # looks (ZOOM_FX there).
 ZOOM_FX = {"none": "", "bw": "hue=s=0", "warm": "colorbalance=rs=.12:gs=.03:bs=-.1", "cool": "colorbalance=rs=-.08:bs=.12",
            "punch": "eq=contrast=1.22:saturation=1.4", "vintage": "curves=preset=vintage", "grain": "noise=alls=22:allf=t"}
-ZOOM_EASE = 0.25
+ZOOM_EASE = 0.6          # seconds to glide in and out (less on short zooms), on an S-curve
 
 
 def clean_zooms(v) -> list:
@@ -533,8 +533,13 @@ def clean_zooms(v) -> list:
 def zoom_filter(zooms: list, W: int, H: int, fps: int) -> str:
     """The zooms as one zoompan step (how far in at each moment and where), then each zoom's look for its time.
     `zooms`: [(from, to, strength, x 0-1, y 0-1, look, ease)] in seconds of the finished clip."""
-    ramp = lambda a, b, e: (f"max(0,min(1,min((it-{a:.2f})/{e},({b:.2f}-it)/{e})))" if e else f"between(it,{a:.2f},{b:.2f})")   # noqa: E731
-    z = "1+" + "+".join(f"({s - 1:.3f})*{ramp(a, b, ZOOM_EASE if ease else 0)}" for a, b, s, x, y, fx, ease in zooms)
+    def ramp(a, b, ease):
+        if not ease:
+            return f"between(it,{a:.2f},{b:.2f})"
+        e = max(0.05, min(ZOOM_EASE, (b - a) / 2))
+        p = f"max(0,min(1,min((it-{a:.2f})/{e:.3f},({b:.2f}-it)/{e:.3f})))"
+        return f"({p}*{p}*(3-2*{p}))"           # smoothstep: starts and lands softly, like the editor's zoomAt
+    z = "1+" + "+".join(f"({s - 1:.3f})*{ramp(a, b, ease)}" for a, b, s, x, y, fx, ease in zooms)
     fx_ = "0.5"
     fy_ = "0.5"
     for a, b, s, x, y, fx, ease in reversed(zooms):     # the point of whichever zoom is on (the middle otherwise)
@@ -581,12 +586,22 @@ def clean_music(v) -> dict:
         peak_at = None if v.get("peak_at") in (None, "") else max(0.0, min(3600.0, float(v["peak_at"])))
     except (TypeError, ValueError):
         peak_at = None
+    try:
+        off = max(0.0, min(3600.0, float(v.get("off") or 0)))
+    except (TypeError, ValueError):
+        off = 0.0
+    try:
+        till = None if v.get("till") in (None, "") else max(off + 0.5, min(3600.0, float(v["till"])))
+    except (TypeError, ValueError):
+        till = None
     return {"id": mid if _MUSIC_ID.match(mid) else "", "vol": _num(v.get("vol"), 0, 100, 25), "duck": bool(v.get("duck", True)),
             "loop": bool(v.get("loop", True)), "fade": bool(v.get("fade", True)), "at": round(at, 2),
             # the rise into the outro: from `vol` to `peak` over `rise` seconds, ending as the outro starts. `peak_at`
             # is the moment in the song (its drop) that should land right on the outro; it sets where the song starts.
             "peak": _num(v.get("peak"), 0, 100, 100), "rise": _secs(v.get("rise"), 0, 10, 3),
-            "peak_at": None if peak_at is None else round(peak_at, 2)}
+            "peak_at": None if peak_at is None else round(peak_at, 2),
+            # where the music sits on the timeline: it starts `off` seconds into the clip and stops at `till` (None: the end)
+            "off": round(off, 2), "till": None if till is None else round(till, 2)}
 
 
 def _secs(v, lo, hi, default) -> float:
@@ -601,15 +616,20 @@ def music_graph(m: dict, idx: int, dur: float, voice: str, main: float = 0.0) ->
     it, ducked while someone talks. `main` is where the outro starts (0: no outro); the music rises into it. Ends as [a]."""
     fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
     v, p = m["vol"] / 100, m["peak"] / 100
+    s = min(m.get("off") or 0.0, max(0.0, dur - 0.5))                  # the music's own stretch of the timeline
+    e = dur if m.get("till") is None else max(s + 0.5, min(dur, m["till"]))
     level = f"volume={v:.2f}"
     if main and m["rise"] and p != v:            # the rise: a straight climb that finishes as the outro begins
         t0, t1 = max(0.0, main - m["rise"]), main
         level = f"volume='if(lt(t,{t0:.2f}),{v:.2f},if(lt(t,{t1:.2f}),{v:.2f}+({p - v:.2f})*(t-{t0:.2f})/{max(.01, t1 - t0):.2f},{p:.2f}))':eval=frame"
     elif main:
         level = f"volume='if(lt(t,{main:.2f}),{v:.2f},{p:.2f})':eval=frame"
-    mus = [fmt, f"atrim=0:{dur:.2f}", "asetpts=PTS-STARTPTS", "loudnorm=I=-14:TP=-2:LRA=11", level]
+    mus = [fmt, f"atrim=0:{e - s:.2f}", "asetpts=PTS-STARTPTS", "loudnorm=I=-14:TP=-2:LRA=11"]
     if m["fade"]:
-        mus += ["afade=t=in:st=0:d=0.6", f"afade=t=out:st={max(0.0, dur - 1.5):.2f}:d=1.5"]
+        mus += ["afade=t=in:st=0:d=0.6", f"afade=t=out:st={max(0.0, e - s - 1.5):.2f}:d=1.5"]
+    if s > 0:                                  # silence before it, so the level below runs on the clip's own time
+        mus.append(f"adelay={int(s * 1000)}:all=1")
+    mus.append(level)
     g = f"[0:a]{voice},{fmt}[vo];[{idx}:a]{','.join(mus)}[mz];"
     if m["duck"]:
         g += ("[vo]asplit=2[v1][v2];[mz][v2]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=400[md];"
@@ -1765,7 +1785,7 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             shutil.copyfile(mp, work / "music.m4a")
             music = dict(look["music"], dur=main)
             if outro and music["peak_at"] is not None:      # the song's drop lands right on the outro
-                music["at"] = max(0.0, music["peak_at"] - main)
+                music["at"] = max(0.0, music["peak_at"] - max(0.0, main - music["off"]))
         return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel,
                           brand_overlay(brand) if badge else None, stills=stills, music=music, overlays=ovs, outro=outro, over=hook_pics, zooms=zms)
     finally:

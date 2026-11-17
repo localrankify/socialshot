@@ -75,8 +75,6 @@ def _startup():
     jobs.start()
     live.start()
     posting.start()
-    from . import updates
-    updates.start()                  # looks for a newer PeakCut every minute, in the background
 
 
 # ================================================================ the gate: who is asking, and are they allowed
@@ -570,9 +568,8 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
 @app.get("/api/status")
 def status(request: Request):
     from . import notices
-    from . import updates
     me_ = _me(request)
-    return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
+    return {"user": auth.public(me_), "update": None, "accounts": config.ACCOUNTS, "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
             "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
@@ -1035,7 +1032,7 @@ def clips_zip(ids: str = ""):
     except ValueError as e:
         raise HTTPException(400, str(e))
     from starlette.background import BackgroundTask
-    return FileResponse(f, filename=f"peakcut-clips-{len(pairs)}.zip", media_type="application/zip",
+    return FileResponse(f, filename=f"socialshot-clips-{len(pairs)}.zip", media_type="application/zip",
                         headers={"Cache-Control": "private, no-store"}, background=BackgroundTask(lambda: f.unlink(missing_ok=True)))
 
 
@@ -1133,6 +1130,40 @@ def find_facecam(jid: str, cid: str):
         clip["auto_split"] = dict(render.SPLIT_DEFAULT, cam=cam) if cam else None
         jobs.save(job)
     return {"split": clip["auto_split"]}
+
+
+@app.post("/api/jobs/{jid}/more")
+def job_more(jid: str, body: dict = Body(default={})):
+    """Find more clips in a video (or a kept live recording) that is already done, beside the ones it has."""
+    _throttle("more:" + ctx.uid(), 10, 3600)
+    job = _job_or_404(jid)
+    if job.get("finding"):
+        raise HTTPException(409, "Already finding more clips in this video.")
+    if not jobs.can_find_more(job):
+        raise HTTPException(400, "This video can't give more clips: its transcript or the video itself is no longer here.")
+    try:
+        n = max(1, min(10, int(body.get("n") or (3 if job["clips"] else 6))))
+    except (TypeError, ValueError):
+        n = 3
+    if job.get("kind") == "live" and not Path(job.get("source_path") or "").is_file():
+        try:
+            live.find_vod(job)          # said straight away if the stream is still live or gone
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    job.pop("more_error", None)
+    job["finding"] = "Waiting to start"
+    jobs.save(job)
+
+    def run():
+        try:
+            jobs.more_clips(job, n)
+        except Exception as e:  # noqa: BLE001
+            job.pop("finding", None)
+            job["more_error"] = str(e)[:200]
+            jobs.save(job)
+    jobs.submit(run)
+    ctx.bump()
+    return jobs.public(job)
 
 
 @app.post("/api/jobs/{jid}/clips/{cid}/retranscribe")
@@ -1479,8 +1510,13 @@ def brand_put(body: dict = Body(...)):
             styles.append({"name": name, "look": look})
     f = _brand_file()
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps({"styles": styles}), encoding="utf-8")
-    return {"styles": styles}
+    names = [s["name"] for s in styles]
+    want = body.get("default")          # the look new clips start with: a name, "" for none, absent for the first one
+    keep = {"styles": styles}
+    if isinstance(want, str) and (want == "" or want in names):
+        keep["default"] = want
+    f.write_text(json.dumps(keep), encoding="utf-8")
+    return keep
 
 
 # ================================================================ creators and live recording
@@ -1712,6 +1748,20 @@ def clip_now(jid: str, body: dict = Body(...)):
         raise HTTPException(429, "Give it a moment: your last clips are still being made.")
     try:
         s.clip_last(max(5, min(180, float(body.get("seconds", 30)))))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+@app.post("/api/live/{jid}/best")
+def live_best(jid: str, body: dict = Body(default={})):
+    """While recording: clip the best moments of what is recorded so far, now."""
+    s = live.mine(jid)
+    if not s or s.ended:
+        raise HTTPException(404, "This recording has already ended")
+    _throttle("livebest:" + ctx.uid(), 6, 600, "Give it a moment: the last search is still running.")
+    try:
+        s.best_now(max(1, min(5, int(body.get("n") or 2))))
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e))
     return {"ok": True}

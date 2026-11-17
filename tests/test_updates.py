@@ -97,7 +97,7 @@ check("offline for a moment: the notice stays, no error", updates.check(force=Tr
 updates.httpx.get = fake_get
 c = TestClient(server.app, base_url="http://127.0.0.1:8765")
 st = c.get("/api/status").json()
-check("the owner's dashboard gets the notice", (st["update"] or {}).get("behind"), 2)
+check("SocialShot shows no new-version notice, even when one is found", st["update"], None)
 updates.ON = False
 check("PEAKCUT_UPDATE_CHECK=0: never asks, never tells", (updates.check(force=True), c.get("/api/status").json()["update"]), (None, None))
 

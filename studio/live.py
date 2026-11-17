@@ -19,6 +19,7 @@ PAD = 8               # seconds kept either side of a clip so it can be re-trimm
 CHECK_EVERY = 180     # look at the stream every 3 minutes...
 QUIET_MAX = 600       # ...but only ask the AI when something happened, or at most every 10 minutes when calm
 WINDOW = 240          # seconds of transcript shown to the AI per check
+BEST_EVERY = 15 * 60  # with no clip for this long, the best moment of that stretch is clipped anyway
 SR = 16000
 
 
@@ -67,7 +68,8 @@ def resolve(url: str) -> dict:
     if "(live)" in title and info.get("description"):  # Twitch puts the real stream title here
         title = str(info["description"]).splitlines()[0][:120]
     return {"urls": [f["url"] for f in fmts], "title": title,
-            "uploader": info.get("uploader") or info.get("channel") or ""}
+            "uploader": info.get("uploader") or info.get("channel") or "",
+            "watch": info.get("webpage_url") or "", "began": info.get("release_timestamp") or info.get("timestamp")}
 
 
 def active():
@@ -135,6 +137,9 @@ class Session:
         self.last_spike = -999.0      # when the last jump was sent to the AI (stream seconds)
         self.base = {}                # running averages the jumps are measured against, shown on the card
         self.spikes = 0
+        self.last_best = 0.0          # stream second the last "best of the last 15 minutes" looked up to
+        self.finding = False          # "Find best moments" pressed and still looking
+        self.keep_all = bool(settings.get("keep_recording", True))   # the whole stream is kept, for more clips later
 
     # ---------------------------------------------------------------- recording
     def start(self):
@@ -173,6 +178,10 @@ class Session:
                 continue
             if not self.job.get("uploader"):
                 self.job.update(title=info["title"], uploader=info["uploader"])
+            if info.get("watch") and not self.job.get("vod"):
+                # the stream's own page and start: once it ends, the site's copy can give clips the buffer no longer has
+                lead = time.time() - float(info["began"]) if info.get("began") else None
+                self.job["vod"] = {"url": info["watch"], "lead": round(lead, 1) if lead and lead > 0 else None}
             self.part += 1
             with self.lock:
                 self.seg_clock = max(self.seg_clock, self.samples / SR)
@@ -226,7 +235,7 @@ class Session:
                     self.seg_clock += dur
                 self.csv_seen[i] = len(rows)
             keep_from = self.seg_clock - self.settings["buffer_min"] * 60
-            while self.segments and self.segments[0][2] < keep_from:
+            while not self.keep_all and self.segments and self.segments[0][2] < keep_from:
                 self.segments.pop(0)[0].unlink(missing_ok=True)
 
     # ---------------------------------------------------------------- chat (Twitch only)
@@ -402,6 +411,115 @@ class Session:
             if added >= (1 if every <= 2 else 2):
                 break
 
+    def _rank(self, a, b, k):
+        """The best moments between stream seconds a and b, best first, on the stream clock. Unlike the live judges
+        this always gives something: the AI is asked for the best, not for a yes or no."""
+        bw = [dict(w, s=round(w["s"] - a, 2), e=round(w["e"] - a, 2)) for w in self.words if a <= w["s"] < b]
+        if len(bw) < 20 or k <= 0:
+            return []
+        usage.set_context(self.job["creator"], self.job["title"] or "Live stream")
+        st = self.settings
+        db = np.array(self.db[int(a): int(b) + 1], dtype=np.float32)
+        got, ai = brain.find_clips(bw, db, b - a, self.job["title"], self.job["uploader"], k, st["min_len"], st["max_len"],
+                                   lambda *_: None, None)
+        self.tokens += ai.get("tokens", 0)
+        for c in got:
+            c.update(start=round(c["start"] + a, 2), end=round(c["end"] + a, 2))
+        return sorted(got, key=lambda c: -c.get("score", 0))
+
+    def _take(self, cands, n, why):
+        """Clip the best `n` of `cands` that don't overlap a clip already made."""
+        added = 0
+        for c in sorted(cands, key=lambda c: -c.get("score", 0)):
+            if added >= n:
+                break
+            if any(c["start"] < k["end"] + 4 and c["end"] > k["start"] - 4 for k in self.job["clips"]):
+                continue
+            c["reason"] = f"{c.get('reason', '')} ({why}.)".strip()
+            self._add_clip(c)
+            added += 1
+        return added
+
+    def _pick_best(self, a, b, n, why):
+        return self._take(self._rank(a, b, n + 1), n, why)
+
+    def best_now(self, n=2):
+        """Pressed "Find best moments" while recording: the best `n` moments of everything still on disk."""
+        if self.finding:
+            raise ValueError("Already looking for the best moments.")
+        with self.lock:
+            a = self.segments[0][1] if self.segments else 0.0
+        b = self.t_done
+        if b - a < 60 or len([w for w in self.words if w["s"] >= a]) < 20:
+            raise ValueError("Not enough has been said yet. Try again in a minute or two.")
+        self.finding = True
+
+        def run():
+            try:
+                parts = [(t, min(b, t + 600.0)) for t in range(int(a), int(b), 600)]
+                cands = [c for x, y in parts for c in self._rank(x, y, 2)]
+                got = self._take(cands, n, "picked when you asked for the best moments")
+                self._verdict({"t": round(b), "transcript": None, "reaction": None, "trigger": "You asked"},
+                              f"Best moments: {got} clip{'s' if got != 1 else ''} made" if got else "Best moments: nothing new found")
+            except Exception as e:  # noqa: BLE001
+                self.job["ai"]["last_error"] = str(e)[-200:]
+            finally:
+                self.finding = False
+        threading.Thread(target=ctx.bind(run), daemon=True).start()
+
+    def _best_recent(self):
+        """No clip in the last 15 minutes: clip the best moment of them anyway, if anyone talked."""
+        a, b = self.last_best, self.t_done
+        self.last_best = b
+        if any(k["start"] >= a for k in self.job["clips"]):
+            return
+        if self._pick_best(a, b, 1, "best moment of the last 15 minutes"):
+            self._verdict({"t": round(b), "transcript": None, "reaction": None, "trigger": "Every 15 minutes"},
+                          "Clipped: best moment of the last 15 minutes")
+
+    def _best_of_stream(self):
+        """When the stream is over: top it up to the clip count in Setup with the best moments of the whole stream."""
+        if not self.keep_all:
+            return
+        want = int(self.settings.get("max_clips", 6))
+        have = sum(1 for k in self.job["clips"] if k.get("status") != "error")
+        end = self.t_done
+        if have >= want or end < 120:
+            return
+        self.job.update(stage="Picking the best moments")
+        jobs.save(self.job)
+        parts = [(t, min(end, t + 600.0)) for t in range(0, int(end), 600)]
+        parts.sort(key=lambda ab: sum(1 for k in self.job["clips"] if ab[0] <= k["start"] < ab[1]))
+        for i, (a, b) in enumerate(parts):
+            left = want - sum(1 for k in self.job["clips"] if k.get("status") != "error")
+            if left <= 0:
+                break
+            self._pick_best(a, b, max(1, -(-left // (len(parts) - i))), "one of the best moments of the stream")
+
+    def _keep_recording(self):
+        """The stream's pieces joined into one video, so more clips can be made from it later."""
+        segs = [s for s in self.segments if s[0].exists()]
+        if not segs:
+            return
+        lst = self.buf / "all.txt"
+        lst.write_text("".join(f"file '{s[0].as_posix()}'\n" for s in segs), encoding="utf-8")
+        out = self.dir / "recording.mp4"
+        try:
+            media.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy",
+                       "-bsf:a", "aac_adtstoasc", "-movflags", "+faststart", str(out)])
+        except Exception as e:  # noqa: BLE001
+            self.job["ai"]["last_error"] = "Could not keep the recording: " + str(e)[-150:]
+            out.unlink(missing_ok=True)
+            return
+        try:
+            (self.dir / "loudness.json").write_text(json.dumps([round(float(x), 1) for x in self.db]), encoding="utf-8")
+            (self.dir / "words.json").write_text(json.dumps(self.words), encoding="utf-8")
+        except OSError:
+            pass
+        self.job.update(source_path=str(out), duration=round(self.t_done or segs[-1][2], 2),
+                        rec_start=segs[0][1], clock_fix=round(self.clock_fix, 2))
+        jobs.save(self.job)
+
     def _verdict(self, v, result):
         self.verdicts.append(dict(v, result=result))
         del self.verdicts[:-6]
@@ -446,6 +564,9 @@ class Session:
         self.n += 1
         c.update(id=f"clip{self.n:03d}", style=self.settings["style"], layout=self.settings["layout"],
                  status="queued", version=0, made_at=time.time())
+        look = jobs.brand_look(self.job.get("user"))
+        if look and "look" not in c:
+            c["look"] = dict(look)
         with self.lock:
             self.job["clips"].append(c)
         jobs.save(self.job)
@@ -494,36 +615,9 @@ class Session:
         jobs.render_one(self.job, clip, list(self.words))
 
     def _align(self, src, guess, dur):
-        """Where `src` really starts on the transcript clock. The video pieces and the audio feed keep separate
-        clocks that drift apart, so transcribe the clip's own audio and line its words up with the live words.
-        Local speech model only: no AI calls. Also gives back what was heard, on the clip's own clock."""
-        key = lambda w: re.sub(r"[^a-z0-9]", "", w.lower())
-        heard, audio = [], None
-        try:
-            wav = src.with_suffix(".wav")
-            media.extract_audio(src, wav)
-            audio = media.load_audio(wav)
-            wav.unlink(missing_ok=True)
-            # lined up with the main model's words, since the live words come from that model too
-            english = transcribe.transcribe(audio, pieces=transcribe.CLIP_PIECES)
-            heard = english
-            with self.lock:
-                near = [w for w in self.words if guess - 15 <= w["s"] <= guess + dur + 15]
-            diffs = []
-            for h in english:
-                k = key(h["w"])
-                if len(k) < 3:
-                    continue
-                m = [w["s"] for w in near if key(w["w"]) == k and abs(w["s"] - (guess + h["s"])) < 8]
-                if m:
-                    diffs.append(min(m, key=lambda s: abs(s - (guess + h["s"]))) - h["s"])
-            # the captions: the Hindi model's words when the clip is in Hindi or Urdu, else these same words
-            heard = transcribe.hear_clip(audio, self.job.get("lang") or "", english=english)
-            if len(diffs) >= 4:
-                return float(np.median(diffs)), heard
-        except Exception:  # noqa: BLE001 - fall back to the piece clock
-            pass
-        return guess, heard
+        with self.lock:
+            near = [w for w in self.words if guess - 15 <= w["s"] <= guess + dur + 15]
+        return align_piece(src, near, guess, self.job.get("lang") or "")
 
     def clip_last(self, seconds):
         end = self.samples / SR
@@ -545,7 +639,7 @@ class Session:
                       "rejected": self.rejected, "verdicts": list(reversed(self.verdicts)),
                       "every_min": int(self.settings.get("ai_every_min", 3)) or 3,
                       "auto": None,
-                      "pending_clips": len(self.manual)})
+                      "pending_clips": len(self.manual), "finding": self.finding})
         jobs.save(self.job)
 
     def _analyze(self):
@@ -579,6 +673,8 @@ class Session:
                     self._ai_check((sp["t"] - self.AUTO_BEFORE, sp["t"] + self.AUTO_AFTER), "Jump: " + sp["why"])
                 elif self.t_done - self.last_check >= every * 60 or (self.ended and not busy and self.t_done > self.last_check):
                     self._ai_check()
+                elif not self.ended and self.t_done - self.last_best >= BEST_EVERY:
+                    self._best_recent()
                 self._publish()
             except Exception as e:  # noqa: BLE001
                 self.job["ai"]["last_error"] = str(e)[-200:]
@@ -587,6 +683,11 @@ class Session:
             if not busy:
                 time.sleep(2)
         failed = bool(self.job.get("error")) and not started
+        if not failed:
+            try:
+                self._best_of_stream()
+            except Exception as e:  # noqa: BLE001
+                self.job["ai"]["last_error"] = str(e)[-200:]
         self.job.update(status="error" if failed else "done", stage="Could not record" if failed else self.end_note)
         jobs.save(self.job)
         creators.log(cid, f"Recording finished ({self.end_note.lower()}): {len(self.job['clips'])} clips, "
@@ -598,13 +699,152 @@ class Session:
             alerts.notify(f"recording finished for {self.job['source']['name']}: {len(self.job['clips'])} clips, "
                           f"{round(self.samples / SR / 60)} min.")
 
-        def cleanup():  # runs after any queued renders, then frees the buffer
+        def cleanup():  # runs after any queued renders: the pieces become one video, then the buffer is freed
+            if self.keep_all and not failed:
+                self._keep_recording()
             for f in self.buf.glob("*"):
                 f.unlink(missing_ok=True)
             self.finished = True
             SESSIONS.pop(self.job["id"], None)
 
         jobs.submit_live(cleanup)
+
+
+def align_piece(src, near, guess, lang="", slack=8.0):
+    """Where the video piece `src` starts on the transcript clock (its words lined up with `near`, the transcript
+    around it), and what was heard in it, on the piece's own clock. Local speech model only, no AI."""
+    key = lambda w: re.sub(r"[^a-z0-9]", "", w.lower())   # noqa: E731
+    heard = []
+    try:
+        wav = Path(src).with_suffix(".wav")
+        media.extract_audio(src, wav)
+        audio = media.load_audio(wav)
+        wav.unlink(missing_ok=True)
+        english = transcribe.transcribe(audio, pieces=transcribe.CLIP_PIECES)
+        heard = english
+        diffs = []
+        for h in english:
+            k = key(h["w"])
+            if len(k) < (3 if slack <= 8 else 4):
+                continue
+            m = [w["s"] for w in near if key(w["w"]) == k and abs(w["s"] - (guess + h["s"])) < slack]
+            if m:
+                diffs.append(min(m, key=lambda s: abs(s - (guess + h["s"]))) - h["s"])
+        heard = transcribe.hear_clip(audio, lang, english=english)
+        if len(diffs) >= 4:
+            if slack > 8:          # a wide search: keep the matches that agree with each other, then their middle
+                mid = float(np.median(diffs))
+                close = [x for x in diffs if abs(x - mid) < 1.5]
+                if len(close) >= 3:
+                    return float(np.median(close)), heard
+            return float(np.median(diffs)), heard
+    except Exception:  # noqa: BLE001 - fall back to the guess
+        pass
+    return guess, heard
+
+
+def cut_from_recording(job, clip, words):
+    """A new clip from a kept live recording: cut its stretch (with room either side) and line it up with the
+    transcript, the same way clips are made while recording."""
+    rec = Path(job["source_path"])
+    fix = float(job.get("clock_fix") or 0.0)
+    a = max(0.0, clip["start"] - PAD - fix)              # on the recording's own clock
+    b = min(float(job.get("duration") or clip["end"] + PAD), clip["end"] + PAD - fix)
+    src = Path(job["dir"]) / "clips" / f"{clip['id']}.src.mp4"
+    try:
+        media.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{a:.2f}", "-i", str(rec), "-t", f"{b - a:.2f}", "-c", "copy",
+                   "-avoid_negative_ts", "make_zero", str(src)])
+    except Exception as e:  # noqa: BLE001
+        clip.update(status="error", error=media_safe(e))
+        return
+    if "width" not in job:
+        meta = media.probe(src)
+        job.update(width=meta["width"], height=meta["height"])
+    guess = a + fix
+    near = [w for w in words if guess - 15 <= w["s"] <= guess + (b - a) + 15]
+    offset, heard = align_piece(src, near, guess, job.get("lang") or "")
+    dur = b - a
+    clip.update(src=str(src), src_offset=round(offset, 2), src_end=round(offset + dur, 2))
+    if heard:
+        clip.update(heard_words=[dict(w, s=round(w["s"] + offset, 2), e=round(w["e"] + offset, 2)) for w in heard],
+                    heard_for=[round(offset, 2), round(offset + dur, 2)])
+    clip["start"] = max(clip["start"], clip["src_offset"])
+    clip["end"] = min(clip["end"], clip["src_end"])
+
+
+def _title_key(t: str) -> str:
+    t = re.sub(r"\s\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", "", t or "")        # yt-dlp adds the date to a live title
+    return re.sub(r"[^a-z0-9]+", "", t.lower())
+
+
+def find_vod(job) -> dict:
+    """The stream's saved copy on YouTube or Twitch, and how far into it the recording began. Raises ValueError
+    with a plain reason when there is none (yet)."""
+    import yt_dlp
+    vod = dict(job.get("vod") or {})
+    url = vod.get("url") or ""
+    if not url:
+        ch = (job["source"].get("url") or "").rstrip("/")
+        if media.is_youtube(ch):
+            listing = re.sub(r"/(live|streams|videos)$", "", ch) + "/streams"
+        elif "twitch.tv/" in ch:
+            listing = ch + "/videos?filter=archives"
+        else:
+            raise ValueError("Clips from a finished recording can only be found again for YouTube and Twitch streams.")
+        try:
+            with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": "in_playlist", "playlistend": 15,
+                                   "logger": _Quiet()}) as y:
+                info = y.extract_info(listing, download=False) or {}
+        except Exception as e:  # noqa: BLE001
+            raise ValueError("Couldn't reach the channel to find this stream: " + media_safe(e)) from e
+        want = _title_key(job.get("title"))
+        hit = next((e for e in info.get("entries") or [] if want and _title_key(e.get("title")) == want), None)
+        if not hit:
+            raise ValueError("This stream isn't on the channel's page any more, so its clips can't be made.")
+        url = hit.get("url") if str(hit.get("url", "")).startswith("http") else f"https://www.youtube.com/watch?v={hit['id']}"
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, "logger": _Quiet()}) as y:
+            full = y.extract_info(url, download=False) or {}
+    except Exception as e:  # noqa: BLE001
+        raise ValueError("Couldn't open the stream's saved copy: " + media_safe(e)) from e
+    if full.get("live_status") == "is_live" or full.get("is_live"):
+        raise ValueError("This stream is still live. Its clips can be made from the saved copy once it ends.")
+    began = full.get("release_timestamp") or full.get("timestamp")
+    lead = vod.get("lead")
+    if lead is None and began:
+        lead = float(job["created"]) - float(began)
+    if lead is None or lead < 0:
+        raise ValueError("Couldn't tell where this recording sits in the stream.")
+    vod.update(url=full.get("webpage_url") or url, lead=round(float(lead), 1), length=full.get("duration"))
+    job["vod"] = vod
+    return vod
+
+
+def cut_from_vod(job, clip, words):
+    """A clip of a finished recording, cut from the stream's saved copy: download its stretch (with extra room,
+    since the two clocks only roughly agree), then line it up with the transcript by the words heard in it."""
+    v = job["vod"]
+    room = 30.0
+    a = max(0.0, clip["start"] - PAD - room + v["lead"])
+    b = clip["end"] + PAD + room + v["lead"]
+    try:
+        src = media.download_section(v["url"], Path(job["dir"]) / "clips", f"{clip['id']}.src", a, b)
+    except Exception as e:  # noqa: BLE001
+        clip.update(status="error", error="Couldn't download this part of the stream: " + media_safe(e))
+        return
+    meta = media.probe(src)
+    job.setdefault("width", meta["width"])
+    job.setdefault("height", meta["height"])
+    guess = a - v["lead"]
+    near = [w for w in words if guess - 60 <= w["s"] <= guess + meta["duration"] + 60]
+    offset, heard = align_piece(src, near, guess, job.get("lang") or "", slack=45.0)
+    dur = meta["duration"]
+    clip.update(src=str(src), src_offset=round(offset, 2), src_end=round(offset + dur, 2))
+    if heard:
+        clip.update(heard_words=[dict(w, s=round(w["s"] + offset, 2), e=round(w["e"] + offset, 2)) for w in heard],
+                    heard_for=[round(offset, 2), round(offset + dur, 2)])
+    clip["start"] = max(clip["start"], clip["src_offset"])
+    clip["end"] = min(clip["end"], clip["src_end"])
 
 
 def recover(job):

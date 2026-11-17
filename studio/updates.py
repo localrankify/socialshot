@@ -8,7 +8,7 @@ sent. The owner sees a notice in the dashboard within a minute or two, with no r
 
     PEAKCUT_UPDATE_REPO     where to look (default: the project's own repository; a fork points at itself)
     PEAKCUT_UPDATE_BRANCH   which branch (default: main)
-    PEAKCUT_UPDATE_CHECK=0  never look"""
+    PEAKCUT_UPDATE_CHECK=1  look (off by default)"""
 import re
 import threading
 import time
@@ -17,11 +17,11 @@ import httpx
 
 from . import config
 
-REPO = (config.env("PEAKCUT_UPDATE_REPO") or "haziqahmedqasmi/peakcut").strip().strip("/")
+REPO = (config.env("PEAKCUT_UPDATE_REPO") or "localrankify/socialshot").strip().strip("/")
 BRANCH = (config.env("PEAKCUT_UPDATE_BRANCH") or "main").strip()
-ON = config.env("PEAKCUT_UPDATE_CHECK", "1") != "0" and bool(re.fullmatch(r"[\w.\-]+/[\w.\-]+", REPO))
+ON = config.env("PEAKCUT_UPDATE_CHECK", "0") == "1"      # off unless asked: SocialShot is its own project now and bool(re.fullmatch(r"[\w.\-]+/[\w.\-]+", REPO))
 EVERY = 60
-UA = {"User-Agent": "PeakCut-update-check"}
+UA = {"User-Agent": "SocialShot-update-check"}
 _state = {"checked": 0.0, "result": None, "seen": "", "notes": None}
 _lock = threading.Lock()
 _started = False

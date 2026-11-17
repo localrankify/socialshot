@@ -86,7 +86,7 @@ def send(to: str, subject: str, title: str, intro: str, button: str, link: str, 
     msg.add_alternative(_html(title, intro, button, link, outro), subtype="html")
     if LOGO.is_file():   # the logo travels inside the email, so it shows without loading anything from the web
         msg.get_payload()[1].add_related(LOGO.read_bytes(), maintype="image", subtype="png", cid=f"<{LOGO_CID}>",
-                                         filename="peakcut.png", disposition="inline")
+                                         filename="socialshot.png", disposition="inline")
 
     def work():
         try:

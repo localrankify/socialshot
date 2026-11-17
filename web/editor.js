@@ -36,15 +36,23 @@ function pfStop(btn, doneText, restText) {
 // full screen: the play bar shows on any mouse move or tap and fades after a moment of stillness while playing;
 // a click on the picture plays or pauses, like any video player
 let fsT = 0;
+// the preview full screen: the browser's own, or (where the browser won't allow it, like an app's built-in pane) the
+// preview filling the window, with Esc or the same button to leave
+const fsEl = () => document.fullscreenElement || document.querySelector(".ed.fsx #edPhone");
+function fsWindow(on) {
+  const root = document.querySelector("#clipdlg .ed"); if (!root) return;
+  root.classList.toggle("fsx", on); $("#edPhone")?.classList.remove("awake");
+  dispatchEvent(new Event("resize")); if (on) fsAwake();
+}
 function fsAwake() {
-  const ph = document.fullscreenElement; if (!ph || ph.id !== "edPhone") return;
+  const ph = fsEl(); if (!ph || ph.id !== "edPhone") return;
   ph.classList.add("awake"); clearTimeout(fsT);
   fsT = setTimeout(() => { const v = document.querySelector("#edVid"); if (v && !v.paused) ph.classList.remove("awake"); }, 2200);
 }
 document.addEventListener("pointermove", fsAwake, true);
 document.addEventListener("fullscreenchange", () => { $("#edPhone")?.classList.remove("awake"); fsAwake(); });
 document.addEventListener("click", e => {
-  const ph = document.fullscreenElement;
+  const ph = fsEl();
   if (!ph || ph.id !== "edPhone" || e.target.closest(".ed-fsbar, button, a, input")) return;
   e.stopPropagation(); ph.querySelector('.ed-fsbar [data-ed="play"]')?.click(); fsAwake();
 }, true);
@@ -377,6 +385,19 @@ const fontCss = (key, w) => {
 };
 // the weight and style buttons, for the captions (prefix "") or the hook (prefix "hook_")
 const WEIGHT_NAMES = [[300, "Light"], [400, "Regular"], [500, "Medium"], [600, "Semibold"], [700, "Bold"], [800, "Black"]];
+// the brand kit as saved: the looks, and which one new clips start with (kept only while that look exists)
+function brandBody(styles) {
+  const out = {styles};
+  if (E.brandDef === "" || styles.some(x => x.name === E.brandDef)) out.default = E.brandDef;
+  return out;
+}
+function brandDefRow() {
+  if (!E.brand.length) return "";
+  const cur = E.brandDef === "" ? "" : (E.brand.find(x => x.name === E.brandDef) || E.brand[0]).name;
+  return `<div class="ed-f">New clips start with<div class="ed-seg ed-bdef">${E.brand.slice(0, 3).map(x => `<button data-ed="branddef" data-v="${esc(x.name)}" aria-pressed="${cur === x.name}">${esc(x.name)}</button>`).join("")}
+    <button data-ed="branddef" data-v="" aria-pressed="${cur === ""}">Own style</button></div>
+    ${E.brand.length > 3 && !E.brand.slice(0, 3).some(x => x.name === cur) && cur ? `<small class="ed-help">Now: ${esc(cur)}</small>` : ""}</div>`;
+}
 function typeCtl(L, fontKey, pre) {
   const f = FONTS()[fontKey] || {}, own = f.weight || 400, cur = L[pre + "weight"] || own;
   const list = f.local ? [[own, "Regular"], [700, "Bold"]] : WEIGHT_NAMES;      // a bundled font comes in one weight
@@ -431,7 +452,7 @@ window.openClip = async function (jid, cid) {
     api("/api/media").then(r => { E.media = r.items || []; if (E.tab === "media") drawPanel(); E.picKey = ""; paintOverlay(); }).catch(() => {});
     if (E.cid !== cid) return;
     Object.assign(E, {words: clone(cap.words), auto: cap.edited ? [] : clone(cap.words), edited: cap.edited,
-      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], logoV: brand.logo || 0, chat: cap.chat || null});
+      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], brandDef: brand.default, logoV: brand.logo || 0, chat: cap.chat || null});
   } catch (e) { toast(e.message, "bad"); }
   E.saved = snap(); E.lookKey = JSON.stringify(E.look);
   // A hook made before hooks were written in normal case: offered in normal case, as a change to save
@@ -605,7 +626,7 @@ function drawPanel() {
             : `-webkit-text-stroke:${look.outline ? Math.max(2, look.outline / 2.4).toFixed(1) : 0}px #000`}">
           ${look.upper ? "CLIP" : "Clip"} <em style="color:${look.active}">${look.upper ? "THIS" : "this"}</em></span><b>${esc(label)}</b></span>
         ${del ? `<i class="ed-x" data-ed="branddel" data-k="${esc(key)}" title="Remove from brand kit">${ic("x")}</i>` : ""}</button>`; };
-    const fold = (k, title, note, body) => `<details class="ed-fold" data-fold="${k}" ${E.open?.has(k) ? "open" : ""}><summary>${title}${note ? `<small>${note}</small>` : ""}</summary><div>${body}</div></details>`;
+    const fold = (k, title, note, body) => `<details class="ed-fold" data-fold="${k}" ${E.shut?.has(k) ? "" : "open"}><summary>${title}${note ? `<small>${note}</small>` : ""}</summary><div>${body}</div></details>`;
     const st = E.stab || "presets";
     const tabs = `<div class="ed-ptabs pill wide" role="tablist"><button role="tab" data-ed="stab" data-t="presets" aria-selected="${st === "presets"}">${ic("cc")}Styles</button>
       <button role="tab" data-ed="stab" data-t="settings" aria-selected="${st === "settings"}">${svg('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>')}Customize</button></div>`;
@@ -651,8 +672,8 @@ function drawPanel() {
       ${fold("pos", "Position", L.y == null ? "Auto" : Math.round(L.y) + "%", `
         ${posCard("cap")}`)}
       ${fold("brand", "Brand kit", `${E.brand.length}/12`, `
-        ${E.brand.length ? `<div class="ed-presets">${E.brand.map((b, i) => tile(String(i), b.look, b.name, true)).join("")}</div>`
-          : `<p class="ed-help">Save the look you like and use it on every clip.</p>`}
+        ${E.brand.length ? `<div class="ed-presets">${E.brand.map((b, i) => tile(String(i), b.look, b.name, true)).join("")}</div>${brandDefRow()}`
+          : `<p class="ed-help">Save the look you like and it's used on every new clip.</p>`}
         <div class="ed-row"><input id="edBrandName" placeholder="Name this look" maxlength="40"><button class="ed-btn" data-ed="brandsave">${ic("plus")}Save look</button></div>`)}`;
   } else if (E.tab === "text") {
     const L = E.look, H = hookOf(L), f = FONTS(), autoY = Math.round(geo(E.layout, E.sw, E.sh).hook / OUT_H * 100);
@@ -898,7 +919,7 @@ function drawStage() {
     <input type="range" min="0" max="200" step="5" value="${E.look.volume ?? 100}" data-look="volume" aria-label="Volume" aria-orientation="vertical" style="--p:${(E.look.volume ?? 100) / 2}%">
     <button class="ed-link" data-ed="vol100">100%</button></div>`);
   requestAnimationFrame(placeViews);
-  const hv = $e("#edViews"); if (hv) hv.innerHTML = `<button class="ed-tip" data-ed="view" data-v="live" aria-pressed="${E.view === "live"}" aria-label="Live preview" data-tip="Live preview">${svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>')}<span>Live</span></button>
+  const hv = $e("#edViews"); if (hv) hv.innerHTML = `<button class="ed-tip" data-ed="view" data-v="live" aria-pressed="${E.view === "live"}" aria-label="Live preview" data-tip="Live preview"><i class="ed-livedot" aria-hidden="true"></i><span>Live</span></button>
         <button class="ed-tip" data-ed="view" data-v="frame" aria-pressed="${E.view === "frame"}" aria-label="Frame" data-tip="Choose the part of the video shown">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}<span>Frame</span></button>
         <button class="ed-tip" data-ed="view" data-v="rendered" aria-pressed="${E.view === "rendered"}" ${c.file ? "" : "disabled"} aria-label="Saved clip" data-tip="${c.file ? "The saved video file" : "Not saved yet"}">${svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/>')}<span>Saved</span></button>`;
   $e(".ed")?.classList.toggle("framing", E.view === "frame");      // framing: the side panel steps aside for the picture
@@ -1115,16 +1136,31 @@ function picAdd(id) {
   E.look.overlays = L; E.picSel = L.length - 1; E.lookTouched = true;
   drawPanel(); drawTimeline(); E.picKey = ""; after(""); toast("Drag it on the video to place it", "ok");
 }
+// a large upload card: click to pick a file, or drop one on it
+function dropCard(id, accept, title, sub, busy) {
+  return `<label class="ed-drop${busy ? " busy" : ""}"><input type="file" accept="${accept}" id="${id}" hidden ${busy ? "disabled" : ""}>
+    <span class="ed-dropic">${ic("up")}</span><span class="ed-dropt"><b>${title}</b><small>${sub}</small></span></label>`;
+}
+dlg_on("dragover", e => {
+  const z = e.target.closest?.(".ed-drop"); if (!z) return;
+  e.preventDefault(); z.classList.add("over");
+});
+dlg_on("dragleave", e => { const z = e.target.closest?.(".ed-drop"); if (z && !z.contains(e.relatedTarget)) z.classList.remove("over"); });
+dlg_on("drop", e => {
+  const z = e.target.closest?.(".ed-drop"); if (!z) return;
+  e.preventDefault(); z.classList.remove("over");
+  const f = e.dataTransfer?.files?.[0], el = z.querySelector("input"); if (!f || !el || el.disabled) return;
+  if (el.id === "edMusIn") musicAdd(f); else mediaAdd(f, el.dataset.for || "");
+});
 function picsCard() {
   const lib = (E.media || []).filter(m => m.kind === "image"), on = E.look.overlays || [], sel = on[E.picSel];
   const nameOf = id => (E.media || []).find(m => m.id === id)?.name || "Picture";
-  return `<div class="ed-card"><div class="ed-h"><b>Pictures on the video</b>
-      <label class="ed-btn ghost sm">${ic("up")}Upload<input type="file" accept="image/png,image/jpeg,image/webp" id="edMedIn" hidden></label></div>
-    ${E.medBusy ? `<p class="ed-help">Adding…</p>` : ""}
+  return `<div class="ed-card"><div class="ed-h"><b>Pictures on the video</b></div>
+    ${dropCard("edMedIn", "image/png,image/jpeg,image/webp", E.medBusy ? "Adding the picture…" : "Upload a picture", "Drop it here or browse · PNG, JPG or WebP", E.medBusy)}
     ${lib.length ? `<div class="ed-medgrid">${lib.map(m => `<button class="ed-med" data-ed="picadd" data-v="${m.id}" title="Put ${esc(m.name)} on the video">
         <img src="${mediaUrl(m.id)}" alt="" loading="lazy"><i class="ed-x" data-ed="medialdel" data-v="${m.id}" title="Remove from your library">${ic("x")}</i></button>`).join("")}</div>
       <p class="ed-help">Tap a picture to put it on the clip. Drag it on the video to move it, drag its corner to resize.</p>`
-      : `<p class="ed-help">Upload a PNG (a clear background works best), JPG or WebP. It stays in your library for every clip.</p>`}
+      : `<p class="ed-help">It stays in your library for every clip.</p>`}
     ${on.length ? `<p class="ed-grp">On this clip</p><div class="ed-piclist">${on.map((o, i) => `<div class="ed-picrow ${i === E.picSel ? "on" : ""} ${E.picSwap === i ? "swap" : ""}">
         <button class="ed-picpick" data-ed="picsel" data-v="${i}" aria-pressed="${i === E.picSel}"><img src="${mediaUrl(o.id)}" alt=""><span>${esc(nameOf(o.id))}</span><small>${ts(o.a - E.start)}–${ts(o.b - E.start)}</small></button>
         <button class="ed-ib sm ed-tip" data-ed="picswap" data-v="${i}" aria-label="Replace this picture" data-tip="Replace">${svg('<path d="M4 9h13l-3-3M20 15H7l3 3"/>')}</button>
@@ -1265,7 +1301,7 @@ function outroCard() {
 }
 // the Audio panel's rise into the outro
 function riseCard(m, cur) {
-  const o = outroOf(), total = (E.end - E.start) + (o.on ? o.secs : 0), at = m.peak_at != null && o.on ? Math.max(0, m.peak_at - (E.end - E.start)) : m.at;
+  const o = outroOf(), total = (E.end - E.start) + (o.on ? o.secs : 0), at = m.peak_at != null && o.on ? Math.max(0, m.peak_at - Math.max(0, E.end - E.start - (m.off || 0))) : m.at;
   const loops = cur && cur.dur - at < total;
   return `<p class="ed-grp">Rise into the outro</p>
     ${o.on ? `${slider("Peak volume", "mus_peak", 0, 100, 5, m.peak, m.peak + "%")}
@@ -1311,12 +1347,13 @@ const ZOOM_IC = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21
 const ZOOM_FX = [["none", "None", ""], ["bw", "B&W", "grayscale(1)"], ["warm", "Warm", "sepia(.16) saturate(1.18) hue-rotate(-6deg)"],
   ["cool", "Cool", "hue-rotate(10deg) saturate(.9) brightness(1.03)"], ["punch", "Punch", "contrast(1.22) saturate(1.4)"],
   ["vintage", "Vintage", "sepia(.4) contrast(.9) saturate(.85)"], ["grain", "Grain", "contrast(1.05)"]];
-const ZOOM_EASE = 0.25;
+const ZOOM_EASE = 0.6;          // seconds to glide in and out (less on short zooms), on an S-curve; render.zoom_filter matches
 // how far in, where and with which look at moment t
 function zoomAt(t) {
   let z = 1, cur = null;
   for (const zm of E.look.zooms || []) {
-    const r = zm.ease === false ? (t >= zm.a && t <= zm.b ? 1 : 0) : Math.max(0, Math.min(1, (t - zm.a) / ZOOM_EASE, (zm.b - t) / ZOOM_EASE));
+    const e = Math.max(0.05, Math.min(ZOOM_EASE, (zm.b - zm.a) / 2)), p = Math.max(0, Math.min(1, (t - zm.a) / e, (zm.b - t) / e));
+    const r = zm.ease === false ? (t >= zm.a && t <= zm.b ? 1 : 0) : p * p * (3 - 2 * p);
     z += (zm.s - 1) * r;
     if (t >= zm.a - 0.01 && t <= zm.b + 0.01) cur = zm;
   }
@@ -1391,21 +1428,37 @@ function zoomCard() {
         <button class="ed-picpick" data-ed="zoomsel" data-v="${i}" aria-pressed="${i === E.zSel}"><i class="ed-zi">${q.s.toFixed(1)}×</i><span>${(ZOOM_FX.find(f => f[0] === q.fx) || ZOOM_FX[0])[1] === "None" ? "Zoom" : (ZOOM_FX.find(f => f[0] === q.fx))[1] + " zoom"}</span><small>${ts(q.a - E.start)}–${ts(q.b - E.start)}</small></button>
         <button class="ed-ib sm ed-tip" data-ed="zoomdel" data-v="${i}" aria-label="Remove this zoom" data-tip="Remove">${svg('<path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>')}</button></div>`).join("")}</div>`
       : `<p class="ed-help">Punch in on a reaction: the video zooms toward a face for a moment, with its own look. Press Z while it plays to add one.</p>`}
-    ${z ? `<div class="ed-picset">
-        <label class="ed-sl" style="--p:${pctOf(z.s, 1.1, 3)}"><input type="range" min="1.1" max="3" step="0.1" value="${z.s}" data-zm="s" aria-label="How far in"><span class="ed-sl-l">How far in</span><output>${z.s.toFixed(1)}×</output></label>
-        <div class="ed-f">Look<div class="ed-chips">${ZOOM_FX.map(([k, l]) => `<button data-ed="zoomfx" data-v="${k}" aria-pressed="${(z.fx || "none") === k}">${l}</button>`).join("")}</div></div>
-        <label class="ed-ck"><input type="checkbox" data-ed="zoomease" ${z.ease !== false ? "checked" : ""}><span>Smooth in and out<small>Off: a hard cut in and out</small></span></label>
-        <div class="ed-row"><button class="ed-btn" data-ed="zoomface" ${E.zBusy ? "disabled" : ""}>${E.zBusy ? "Looking…" : "Find the face"}</button></div>
-        <p class="ed-help">Or drag the dot on the video to aim. Drag the bar on the timeline's Zooms row to move it, its ends to change how long.</p></div>` : ""}
+    ${z ? zoomSet(z) : ""}
+  </div>`;
+}
+const ZOOM_AMT = [[1.2, "Subtle"], [1.5, "Punch"], [2, "Close"], [2.6, "Tight"]];
+function zoomSet(z) {
+  const c = clipNow(), pic = c && c.cover ? `/media/${E.jid}/${esc(c.cover)}?v=${c.version || 0}` : "";
+  const fx = z.fx || "none", len = Math.max(0, z.b - z.a);
+  const tile = ([k, l, f]) => `<button class="ed-ztile" data-ed="zoomfx" data-v="${k}" aria-pressed="${fx === k}">
+      <span class="ed-ztp${k === "grain" ? " grain" : ""}">${pic ? `<img src="${pic}" alt="" loading="lazy" style="filter:${f || "none"};transform:scale(${Math.min(1.8, z.s)});transform-origin:${z.x}% ${z.y}%">` : ""}</span><b>${l}</b></button>`;
+  return `<div class="ed-zset">
+    <div class="ed-zsec"><div class="ed-zhd"><span>How far in</span><em>${z.s.toFixed(1)}×</em></div>
+      <div class="ed-zamt">${ZOOM_AMT.map(([v, l]) => `<button data-ed="zoomamt" data-v="${v}" aria-pressed="${Math.abs(z.s - v) < 0.05}"><b>${v}×</b><small>${l}</small></button>`).join("")}</div>
+      <label class="ed-sl" style="--p:${pctOf(z.s, 1.1, 3)}"><input type="range" min="1.1" max="3" step="0.1" value="${z.s}" data-zm="s" aria-label="How far in"><span class="ed-sl-l">Fine-tune</span><output>${z.s.toFixed(1)}×</output></label></div>
+    <div class="ed-zsec"><div class="ed-zhd"><span>Look</span><em>${(ZOOM_FX.find(f => f[0] === fx) || ZOOM_FX[0])[1]}</em></div>
+      <div class="ed-zlooks">${ZOOM_FX.map(tile).join("")}</div></div>
+    <div class="ed-zsec"><div class="ed-zhd"><span>Motion</span><em>${len.toFixed(1)} s</em></div>
+      <div class="ed-seg" role="radiogroup" aria-label="Motion"><button role="radio" data-ed="zoomeaseset" data-v="1" aria-checked="${z.ease !== false}">Smooth in and out</button>
+        <button role="radio" data-ed="zoomeaseset" data-v="0" aria-checked="${z.ease === false}">Hard cut</button></div></div>
+    <div class="ed-zsec"><div class="ed-zhd"><span>Aim</span><em>${Math.round(z.x)}% · ${Math.round(z.y)}%</em></div>
+      <div class="ed-zaim"><button class="ed-btn" data-ed="zoomface" ${E.zBusy ? "disabled" : ""}>${E.zBusy ? "Looking…" : "Find the face"}</button>
+        <button class="ed-btn ghost" data-ed="zoomcentre" ${z.x === 50 && z.y === 50 ? "disabled" : ""}>Centre</button></div>
+      <p class="ed-help">Or drag the dot on the video. On the timeline, drag the bar to move it and its ends to change how long.</p></div>
   </div>`;
 }
 const MUSIC_IC = svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>');
 function musicLane() {
   const m = musicOf(), tr = (E.music || []).find(x => x.id === m.id), o = outroOf();
   if (!tr) return `<div class="ed-lane music znone" title="Add a song from your library"><span class="ed-mhint" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${MUSIC_IC}Click to add music</span></div>`;
-  const end = Math.min(E.max, E.end + (o.on ? o.secs : 0));
-  return `<div class="ed-lane music" title="${esc(tr.name)}: click to change the music"><span class="ed-mbar" style="left:${pct(E.start)}%;width:${pct(end) - pct(E.start)}%">
-    ${MUSIC_IC}<b>${esc(tr.name)}</b><small>${m.vol}%${o.on && m.rise ? ` → ${m.peak}%` : ""}${m.duck ? " · lowers for speech" : ""}</small></span></div>`;
+  const [a, b] = musSpan();
+  return `<div class="ed-lane music" title="${esc(tr.name)}: drag to move it, drag its ends to trim, click to change it"><span class="ed-mbar" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%">
+    <i class="pe l"></i>${MUSIC_IC}<b>${esc(tr.name)}</b><small>${m.vol}%${o.on && m.rise ? ` → ${m.peak}%` : ""}${m.duck ? " · lowers for speech" : ""}</small><i class="pe r"></i></span></div>`;
 }
 function zoomsLane() {
   const L = E.look.zooms || [];
@@ -1415,12 +1468,39 @@ function zoomsLane() {
 }
 $("#clipdlg").addEventListener("click", e => {
   const ml = e.target.closest(".ed-lane.music");
+  if (ml && E.justMoved && Date.now() - E.justMoved < 300) return e.stopPropagation();
   if (ml) { e.stopPropagation(); E.tab = "audio"; drawPanel(); if (phone()) { E.sheet = "panel"; syncSheet(); } return; }
   const lane = e.target.closest(".ed-lane.zooms"); if (!lane || e.target.closest(".ed-zbar")) return;
   if (E.justMoved && Date.now() - E.justMoved < 300) return;
   const r = $e("#edTrack").getBoundingClientRect(), t = E.min + (e.clientX - r.left) / r.width * (E.max - E.min);
   if (t < E.start || t > E.end) return toast("Zooms go inside the clip", "bad");
   e.stopPropagation(); zoomAdd(t); showAt(Math.min(E.end, t + 0.4));
+});
+let mDrag = null;
+dlg_on("pointerdown", e => {
+  const bar = e.target.closest(".ed-mbar"); if (!bar) return;
+  const tr = $e("#edTrack").getBoundingClientRect(), [a, b] = musSpan();
+  mDrag = {mode: e.target.closest(".pe.l") ? "a" : e.target.closest(".pe.r") ? "b" : "move", sx: e.clientX, a0: a, b0: b,
+    k: (E.max - E.min) / tr.width, moved: false, bar};
+  bar.setPointerCapture?.(e.pointerId);
+});
+dlg_on("pointermove", e => {
+  const d = mDrag; if (!d) return;
+  if (Math.abs(e.clientX - d.sx) > 3) d.moved = true; if (!d.moved) return;
+  const o = outroOf(), endAll = Math.min(E.max, E.end + (o.on ? o.secs : 0)), dt = (e.clientX - d.sx) * d.k, r = v => Math.round(v * 10) / 10;
+  let a = d.a0, b = d.b0;
+  if (d.mode === "a") a = Math.max(E.start, Math.min(b - 0.5, d.a0 + dt));
+  else if (d.mode === "b") b = Math.min(endAll, Math.max(a + 0.5, d.b0 + dt));
+  else { const len = d.b0 - d.a0; a = Math.max(E.start, Math.min(endAll - len, d.a0 + dt)); b = a + len; }
+  const m = musicOf();
+  E.look.music = {...m, off: r(a - E.start), till: b >= endAll - 0.05 ? null : r(b - E.start)};
+  d.bar.style.left = pct(a) + "%"; d.bar.style.width = (pct(b) - pct(a)) + "%";
+  if (d.mode !== "b") showAt(Math.max(E.start, Math.min(E.end, a)));
+});
+dlg_on("pointerup", () => {
+  const d = mDrag; mDrag = null; if (!d || !d.moved) return;
+  E.justMoved = Date.now(); E.lookTouched = true;
+  if (E.tab === "audio") drawPanel(); drawTimeline(); after("");
 });
 let zDrag = null;
 dlg_on("pointerdown", e => {
@@ -1500,21 +1580,26 @@ $("#clipdlg").addEventListener("dblclick", e => {
 /* ---------- background music: a track from the person's library under the clip. The preview plays it beside the
    video with the same steps as render.music_graph: evened out, set to a share of the voice, lowered while someone
    speaks (ducking), looped, faded in and out. */
-const MUSIC_DEFAULT = {id: "", vol: 25, duck: true, loop: true, fade: true, at: 0, peak: 100, rise: 3, peak_at: null};
+const MUSIC_DEFAULT = {id: "", vol: 25, duck: true, loop: true, fade: true, at: 0, peak: 100, rise: 3, peak_at: null, off: 0, till: null};
 const musicOf = () => ({...MUSIC_DEFAULT, ...(E.look.music || {})});
+// where the music plays, in source seconds: from `off` after the clip's start to `till` (null: the end, outro included)
+function musSpan(m = musicOf()) {
+  const o = outroOf(), total = (E.end - E.start) + (o.on ? o.secs : 0);
+  const s = Math.min(m.off || 0, Math.max(0, total - 0.5)), e = m.till == null ? total : Math.max(s + 0.5, Math.min(total, m.till));
+  return [E.start + s, Math.min(E.max, E.start + e)];
+}
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 function musicCard() {
   const m = musicOf(), list = E.music || [], cur = list.find(t => t.id === m.id);
   const sw = (k, label, help) => `<label class="ed-ck"><input type="checkbox" data-mus="${k}" ${m[k] ? "checked" : ""}><span>${label}<small>${help}</small></span></label>`;
-  return `<div class="ed-card"><div class="ed-h"><b>Background music</b>
-      <label class="ed-btn ghost sm">${ic("up")}Add a song<input type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac" id="edMusIn" hidden></label></div>
-    ${E.musBusy ? `<p class="ed-help">Adding the song…</p>` : ""}
+  return `<div class="ed-card"><div class="ed-h"><b>Background music</b></div>
+    ${dropCard("edMusIn", "audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac", E.musBusy ? "Adding the song…" : "Upload a song", "Drop it here or browse · MP3, M4A or WAV", E.musBusy)}
     <div class="ed-mlist" role="radiogroup" aria-label="Music">
       <button role="radio" class="ed-mrow" data-ed="muspick" data-v="" aria-checked="${!m.id}"><span>No music</span></button>
       ${list.map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
         ${svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>')}<span>${esc(t.name)}</span><small>${mmss(t.dur)}</small>
         <i class="ed-x" data-ed="musdel" data-v="${t.id}" title="Remove from your library">${ic("x")}</i></button>`).join("")}</div>
-    ${list.length ? "" : `<p class="ed-help">Add an MP3, M4A or WAV. It's kept in your library for every clip.</p>`}
+    ${list.length ? "" : `<p class="ed-help">It's kept in your library for every clip.</p>`}
     ${cur ? `${slider("Music volume", "mus_vol", 0, 100, 5, m.vol, m.vol + "%")}
       ${slider("Start the song at", "mus_at", 0, Math.max(1, Math.floor(cur.dur - 1)), 1, Math.min(m.at, cur.dur), mmss(Math.min(m.at, cur.dur)))}
       ${sw("duck", "Lower it while someone talks", "Words stay clear")}${sw("loop", "Loop it", "Plays again if the clip is longer")}${sw("fade", "Fade in and out", "Starts softly and ends smoothly")}
@@ -1544,17 +1629,17 @@ function syncMusic(t, v) {
   if (!on) { if (el && !el.paused) el.pause(); return; }
   const a = musicEl(), src = `/api/music/${m.id}`;
   if (!a.src.endsWith(src)) a.src = src;
-  const rel = t - E.start, len = track.dur;
+  const [ms, me] = musSpan(m), rel = t - ms, len = track.dur;
   let pos = m.at + Math.max(0, rel);
   if (pos >= len) { if (!m.loop) { if (!a.paused) a.pause(); return; } pos = m.at < len ? m.at + (pos - m.at) % Math.max(0.5, len - m.at) : pos % len; }
-  if (v.paused || rel < 0 || t > E.end) { if (!a.paused) a.pause(); return; }
+  if (v.paused || rel < 0 || t > E.end || t > me) { if (!a.paused) a.pause(); return; }
   if (Math.abs(a.currentTime - pos) > 0.3) a.currentTime = pos;
   if (a.paused) a.play().catch(() => {});
   let g = m.vol / 100 * 0.7;
   const ot = outroOf();
   if (ot.on && m.rise > 0) { const r0 = E.end - m.rise; if (t >= r0) g = (m.vol + (m.peak - m.vol) * Math.min(1, (t - r0) / m.rise)) / 100 * 0.7; }
   if (m.duck && E.words.some(w => t >= w.s - 0.05 && t < w.e + 0.2)) g *= 0.3;      // someone is talking: lower it
-  if (m.fade) g *= Math.min(1, Math.max(0, rel / 0.6), Math.max(0, (E.end - t) / 1.5));
+  if (m.fade) g *= Math.min(1, Math.max(0, rel / 0.6), Math.max(0, (Math.min(me, E.end + (ot.on ? ot.secs : 0)) - t) / 1.5));
   a.volume = Math.max(0, Math.min(1, g));
 }
 /* ---------- the social watermark (Brand > Social watermark): header, platform icon + handle, hashtag line.
@@ -1813,12 +1898,37 @@ function posCard(kind) {
   const L = E.look, hook = kind === "hook", g = geo(E.layout, E.sw, E.sh);
   const x = hook ? L.hook_x : L.x, y = hook ? L.hook_y : L.y, auto = x == null && y == null;
   const ay = Math.round((hook ? g.hook : g.cap) / OUT_H * 100);
-  return `<div class="ed-posc"><div class="ed-posc-h"><span>${svg('<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>')}
-      Drag the ${hook ? "hook" : "captions"} on the video to place ${hook ? "it" : "them"} anywhere</span></div>
-    <div class="ed-posc-v"><span>Across <b>${x == null ? "Middle" : Math.round(x) + "%"}</b></span><span>Down <b>${y == null ? ay + "% (auto)" : Math.round(y) + "%"}</b></span></div>
-    <div class="ed-row"><button class="ed-btn" data-ed="centerx" data-k="${kind}">Centre across</button>
-      <button class="ed-btn" data-ed="posreset" data-k="${kind}" ${auto ? "disabled" : ""}>Auto</button></div></div>`;
+  const cx = x == null ? 50 : x, cy = y == null ? ay : y;
+  const spots = [["Top", hook ? 14 : 22], ["Middle", 50], ["Bottom", hook ? 80 : 76]];
+  const pressed = v => y != null && Math.abs(y - v) < 1.5;
+  return `<div class="ed-posc">
+    <div class="ed-posmini" data-k="${kind}" title="Click or drag to place the ${hook ? "hook" : "captions"}" role="img" aria-label="Where the ${hook ? "hook" : "captions"} sit">
+      <i class="ed-posguide"></i><span class="ed-posmark ${hook ? "hook" : ""}" style="left:${cx}%;top:${cy}%"></span></div>
+    <div class="ed-posside">
+      <div class="ed-posspots" role="group" aria-label="Height">${spots.map(([l, v]) => `<button data-ed="posy" data-k="${kind}" data-v="${v}" aria-pressed="${pressed(v)}">${l}</button>`).join("")}
+        <button data-ed="posreset" data-k="${kind}" aria-pressed="${auto}">Auto</button></div>
+      <div class="ed-posc-v"><span>Across <b>${Math.round(cx)}%</b></span><span>Down <b>${Math.round(cy)}%</b></span></div>
+      <button class="ed-link" data-ed="centerx" data-k="${kind}" ${x == null || Math.round(x) === 50 ? "disabled" : ""}>Centre across</button>
+    </div>
+    <p class="ed-posnote">Or drag the ${hook ? "hook" : "captions"} on the video.</p></div>`;
 }
+// the small frame in Position: click or drag inside it to place the hook or captions
+let miniDrag = null;
+function miniSet(e, el) {
+  const r = el.getBoundingClientRect(), k = el.dataset.k;
+  const x = Math.round(Math.max(5, Math.min(95, (e.clientX - r.left) / r.width * 100)));
+  const y = Math.round(Math.max(5, Math.min(95, (e.clientY - r.top) / r.height * 100)));
+  const nx = Math.abs(x - 50) < 4 ? 50 : x;                      // snaps to the middle across
+  Object.assign(E.look, k === "hook" ? {hook_x: nx, hook_y: y} : {x: nx, y});
+  const m = el.querySelector(".ed-posmark"); if (m) { m.style.left = nx + "%"; m.style.top = y + "%"; }
+  E.lookTouched = true; k === "hook" ? showHook() : showCaptions();
+}
+dlg_on("pointerdown", e => {
+  const el = e.target.closest(".ed-posmini"); if (!el) return;
+  e.preventDefault(); miniDrag = el; el.setPointerCapture?.(e.pointerId); miniSet(e, el);
+});
+dlg_on("pointermove", e => { if (miniDrag) miniSet(e, miniDrag); });
+dlg_on("pointerup", () => { if (!miniDrag) return; miniDrag = null; after("p"); });
 /* moving the hook or the captions: drag them on the video, anywhere. Right in the middle across (or down) they snap
    to it and a guide line shows. A click without moving still opens their settings. */
 let posDrag = null;
@@ -2090,7 +2200,7 @@ function drawTimeline() {
       <div class="ed-scroll" id="edScroll">
         <div class="ed-track" id="edTrack" style="width:${E.zoom * 100}%">
           <div class="ed-ruler">${ticks.join("")}</div>
-          <div class="ed-lanes">
+          <div class="ed-lanes" style="--gs:${step / span * 100}%">
             <div class="ed-lane hook">${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
               ${fx !== "None" ? `<button class="ed-fxchip" data-ed="tab" data-t="fx" style="left:${pct(hookEnd())}%;width:${Math.max(6, pct(E.end) - pct(hookEnd()))}%"><i>${FX_IC}</i><span>Filter: ${esc(fx)}</span></button>` : ""}</div>
             <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${musicLane()}${zoomsLane()}${chatLane()}
@@ -2176,6 +2286,7 @@ function setTrim(k, v) {
   else E.end = Math.min(E.max, Math.max(v, E.start + 3));
   if (E.end - E.start > 180) { if (k === "start") E.end = E.start + 180; else E.start = E.end - 180; }
 }
+function aspClose() { document.querySelectorAll("#clipdlg > .ed-aspop").forEach(x => x.remove()); }
 function dlg_on(type, fn) { $("#clipdlg").addEventListener(type, fn); }   // safe to use above where `dlg` is set
 /* one word of the transcript, fixed in place: a new spelling, several words for a missing one (they share its time),
    or nothing to remove it. The captions follow straight away. */
@@ -2191,7 +2302,7 @@ function editWord(i, text) {
 dlg_on("dblclick", e => {
   if (!e.target.closest("#edCap") || E.view !== "live") return;
   e.preventDefault();
-  E.tab = "style"; E.stab = "settings"; (E.open ||= new Set()).add("text");
+  E.tab = "style"; E.stab = "settings"; E.shut?.delete("text");
   if (phone()) { E.sheet = "panel"; syncSheet(); }
   drawPanel();
   $e("#edPanel")?.scrollTo({top: 0, behavior: "smooth"});
@@ -2371,7 +2482,7 @@ function showCaptions() {         // a caption style change: show a line if none
 const dlg = $("#clipdlg");
 dlg.addEventListener("click", async e => {
   const b = e.target.closest("[data-ed]");
-  if (!$e("#edAsp")?.hidden && !e.target.closest(".ed-asp")) $e("#edAsp").hidden = true;
+  if (!e.target.closest(".ed-asp, .ed-aspop")) aspClose();
   if (!b) return;
   const a = b.dataset.ed, d = b.dataset;
   if (a === "close") return edClose();
@@ -2382,6 +2493,10 @@ dlg.addEventListener("click", async e => {
   if (a === "posreset") {               // back to the automatic spot for this layout, in the middle across
     if (d.k === "hook") Object.assign(E.look, {hook_x: null, hook_y: null}); else Object.assign(E.look, {x: null, y: null});
     E.lookTouched = true; after("p"); return d.k === "hook" ? showHook() : showCaptions();
+  }
+  if (a === "posy") {
+    const k = d.k === "hook"; Object.assign(E.look, k ? {hook_y: +d.v, hook_x: E.look.hook_x ?? 50} : {y: +d.v, x: E.look.x ?? 50});
+    E.lookTouched = true; after("p"); return k ? showHook() : showCaptions();
   }
   if (a === "centerx") { E.look[d.k === "hook" ? "hook_x" : "x"] = 50; E.lookTouched = true; after("p"); return d.k === "hook" ? showHook() : showCaptions(); }
   if (a === "tab" && E.view === "frame") { E.view = "live"; drawStage(); }   // a tool's panel needs the live preview beside it
@@ -2420,7 +2535,12 @@ dlg.addEventListener("click", async e => {
   if (a === "fs") {                      // the preview full screen; Esc (or the button) brings it back
     const ph = $e("#edPhone");
     if (document.fullscreenElement) return document.exitFullscreen?.();
-    return ph?.requestFullscreen?.().then(fsAwake).catch(() => toast("Full screen isn't allowed here.", "bad"));
+    if (document.querySelector(".ed.fsx")) return fsWindow(false);
+    if (!ph?.requestFullscreen) return fsWindow(true);
+    let done = false;
+    ph.requestFullscreen().then(() => { done = true; fsAwake(); }).catch(() => { done = true; fsWindow(true); });
+    setTimeout(() => { if (!done && !document.fullscreenElement) fsWindow(true); }, 500);   // ignored without a word: fill the window
+    return;
   }
   if (a === "tournext") return tourShow(+d.i);
   if (a === "tourexit") return tourEnd();
@@ -2483,17 +2603,23 @@ dlg.addEventListener("click", async e => {
   if (a === "stab") { E.stab = d.t; return drawPanel(); }
   if (a === "effect") { E.look.effect = d.v; E.lookTouched = true; return after("p"); }
   if (a === "fade") { E.look[d.k] = d.v; E.lookTouched = true; E.fadeShown = null; seek(d.k === "fade_in" ? E.start : E.end - FADE_S - 0.3); return after("p"); }
+  if (a === "branddef") {
+    E.brandDef = d.v;
+    try { await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(brandBody(E.brand))}); toast(d.v ? `New clips start with “${d.v}”` : "New clips use their own style", "ok"); }
+    catch (er) { toast(er.message, "bad"); }
+    return drawPanel();
+  }
   if (a === "branddel") {
     e.stopPropagation();
     E.brand.splice(+d.k, 1);
-    try { E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({styles: E.brand})})).styles; } catch (er) { toast(er.message, "bad"); }
+    try { E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(brandBody(E.brand))})).styles; } catch (er) { toast(er.message, "bad"); }
     return drawPanel();
   }
   if (a === "brandsave") {
     const name = $e("#edBrandName").value.trim();
     if (!name) return $e("#edBrandName").focus();
     if (E.brand.length >= 12) return toast("Your brand kit holds 12 looks. Remove one first.", "bad");
-    try { E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({styles: [...E.brand, {name, look: styleOnly(E.look)}]})})).styles;
+    try { E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(brandBody([...E.brand, {name, look: styleOnly(E.look)}]))})).styles;
       toast(`“${name}” is in your brand kit`, "ok"); } catch (er) { toast(er.message, "bad"); }
     return drawPanel();
   }
@@ -2536,6 +2662,11 @@ dlg.addEventListener("click", async e => {
   if (a === "zoomsel") { E.zSel = +d.v; if (E.tab !== "fx") E.tab = "fx"; drawPanel(); drawTimeline(); const z = (E.look.zooms || [])[E.zSel]; if (z) showAt(z.a + Math.min(0.6, (z.b - z.a) / 2)); return; }
   if (a === "zoomdel") { const L = E.look.zooms || []; L.splice(+d.v, 1); E.look.zooms = L; E.zSel = -1; E.lookTouched = true; drawPanel(); drawTimeline(); return after(""); }
   if (a === "zoomfx") { const z = (E.look.zooms || [])[E.zSel]; if (z) { z.fx = d.v; E.lookTouched = true; drawPanel(); after(""); paintOverlay(); } return; }
+  if (a === "zoomamt" || a === "zoomeaseset" || a === "zoomcentre") {
+    const z = (E.look.zooms || [])[E.zSel]; if (!z) return;
+    if (a === "zoomamt") z.s = +d.v; else if (a === "zoomeaseset") z.ease = d.v === "1"; else { z.x = 50; z.y = 50; }
+    E.lookTouched = true; E.zKey = ""; drawPanel(); drawTimeline(); after(""); paintOverlay(); return;
+  }
   if (a === "zoomease") { const z = (E.look.zooms || [])[E.zSel]; if (z) { z.ease = !z.ease; E.lookTouched = true; drawPanel(); after(""); } return; }
   if (a === "zoomface") return zoomFace();
   if (a === "picswap") { E.picSwap = +d.v >= 0 ? +d.v : null; if (E.picSwap != null) E.picSel = E.picSwap; return drawPanel(); }
@@ -2583,7 +2714,14 @@ dlg.addEventListener("click", async e => {
   if (a === "cardgrain") { E.look.card = {...cardOf(), grain: !cardOf().grain}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "splitpos") { E.look.split = {...rawSplit(), cam_at: d.v}; E.lookTouched = true; drawStage(); return after("p"); }
   if (a === "splitreset") { E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {})}; E.lookTouched = true; drawStage(); return after("p"); }
-  if (a === "aspmenu") { const m = $e("#edAsp"); m.hidden = !m.hidden; return; }
+  if (a === "aspmenu") {                // the shape menu floats above everything: the bar under the preview clips its own overflow
+    const open = $("#clipdlg > .ed-aspop"); aspClose(); if (open) return;
+    const m = $e(".ed-asp #edAsp"); if (!m) return;
+    const r = b.getBoundingClientRect(), menu = m.cloneNode(true);
+    menu.hidden = false; menu.removeAttribute("id");
+    if (!phone()) menu.style.cssText = `position:fixed;left:${r.left + r.width / 2}px;bottom:${innerHeight - r.top + 10}px;top:auto;z-index:60`;
+    $("#clipdlg").append(menu); return;
+  }
   if (a === "exdlg") { if (E.exOpen) { E.exOpen = false; exDoneClear(); return drawEx(); } E.ex ||= {preset: "reels", fmt: "mp4", fps: 30, q: "high", speed: 1}; E.exOpen = true; return drawEx(); }
   if (a === "exclose") { E.exOpen = false; exDoneClear(); return drawEx(); }
   if (a === "exagain") return exSave();
@@ -2592,7 +2730,7 @@ dlg.addEventListener("click", async e => {
   if (a === "expreset") { E.ex = {...E.ex, ...EX_PRESETS.find(p => p[0] === d.v)[3], preset: d.v}; return drawEx(); }
   if (a === "exset") { const v = d.k === "fmt" || d.k === "q" ? d.v : +d.v; E.ex = {...E.ex, [d.k]: v, preset: null}; return drawEx(); }
   if (a === "exgo") return exGo();
-  if (a === "aspect") {                 // the clip's shape: the preview changes at once, the render on save
+  if (a === "aspect") { aspClose();                 // the clip's shape: the preview changes at once, the render on save
     E.look.aspect = d.v; E.lookTouched = true; setFrame();
     E.lastKey = ""; drawStage(); return after("p");
   }
@@ -2761,10 +2899,10 @@ dlg.addEventListener("wheel", e => {           // ctrl or pinch on the timeline 
 }, {passive: false});
 dlg.addEventListener("toggle", e => {          // remember which style sections are open across redraws
   const f = e.target.closest?.("[data-fold]"); if (!f) return;
-  E.open = E.open || new Set();
-  f.open ? E.open.add(f.dataset.fold) : E.open.delete(f.dataset.fold);
+  E.shut = E.shut || new Set();      // every section starts open; this keeps the ones closed by hand
+  f.open ? E.shut.delete(f.dataset.fold) : E.shut.add(f.dataset.fold);
 }, true);
-dlg.addEventListener("cancel", e => { e.preventDefault(); edClose(); });
+dlg.addEventListener("cancel", e => { e.preventDefault(); if (document.querySelector(".ed.fsx")) return fsWindow(false); edClose(); });
 dlg.addEventListener("close", () => { cancelAnimationFrame(raf); dlg.classList.remove("ed-on"); dlg.innerHTML = ""; E.cid = null; D.jid = null; });
 document.addEventListener("keydown", e => {
   if (!dlg.open || !E.cid) return;

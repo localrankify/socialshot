@@ -155,6 +155,10 @@ def public(job) -> dict:
     out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for", "caption_words", "heard_words", "heard_for")} for c in job["clips"]]
     ai = job.get("ai") or {}
     out["ai"] = {"tokens": ai.get("tokens", 0), "note": ai.get("note", ""), "used": bool(ai.get("model"))}   # never the model, never raw errors
+    try:
+        out["can_more"] = can_find_more(job)
+    except Exception:  # noqa: BLE001
+        out["can_more"] = False
     if job.get("status") == "queued":
         n = _q.ahead().get(job["id"])
         if n:
@@ -205,6 +209,7 @@ def _load_file(f: Path, uid: str):
     job.update(dir=str(f.parent), user=uid)
     job.setdefault("kind", "video")
     job.setdefault("creator", None)
+    job.pop("finding", None)            # "Find more clips" stopped by a restart: it can be pressed again
     if job.get("source_path"):
         job["source_path"] = _remap(job["source_path"], f.parent)
     if job.get("source", {}).get("path"):
@@ -547,6 +552,141 @@ def render_one(job, clip, words):
     save(job)
 
 
+def brand_look(uid):
+    """The look new clips start with: the brand look chosen for new clips in the editor's Brand kit (the first one
+    saved when none is chosen). None when there is no brand look, or "none" was chosen: the clip's style decides."""
+    try:
+        b = json.loads((config.user_dir(uid or ctx.uid()) / "brand.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    styles = [s for s in b.get("styles") or [] if isinstance(s, dict) and isinstance(s.get("look"), dict)]
+    want = b.get("default")
+    if want == "":
+        return None
+    pick = next((s for s in styles if s.get("name") == want), None) if want else None
+    pick = pick or (styles[0] if styles else None)
+    return render.clean_look(pick["look"]) if pick else None
+
+
+def _next_id(job) -> str:
+    nums = [int(m.group(1)) for c in job["clips"] for m in [re.match(r"clip(\d+)$", c.get("id", ""))] if m]
+    return f"clip{(max(nums) if nums else 0) + 1:02d}"
+
+
+def _overlap(a, b, clips, gap=4.0) -> bool:
+    return any(a < c["end"] + gap and b > c["start"] - gap for c in clips)
+
+
+def more_clips(job, n):
+    """Find `n` more clips in a video (or a live recording) that is already done, next to the ones it has.
+    Reads the saved transcript, so no new transcript is written; the AI picks the best moments it has not used."""
+    d = Path(job["dir"])
+    o = job["options"]
+    try:
+        words = json.loads((d / "words.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        words = []
+    if len(words) < 20:
+        raise RuntimeError("This video has no transcript to look through.")
+    job.pop("more_error", None)
+    usage.set_context(job.get("creator"), job.get("title") or "")
+    dur = float(job.get("duration") or words[-1]["e"])
+    src_path = Path(job.get("source_path") or "")
+    recording = job.get("kind") == "live"
+    from_vod = recording and not src_path.is_file()      # an older recording: cut from the stream's saved copy
+    audio = None
+    try:
+        db = json.loads((d / "loudness.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        db = None
+    need_audio = (not recording and job["source"].get("type") == "url" and not src_path.is_file())
+    if db is None and from_vod:
+        db = [-30.0] * (int(dur) + 2)       # the recording's loudness is gone: the AI goes by the words alone
+    if db is None or need_audio:
+        _set(job, finding="Getting the audio")
+        if src_path.is_file():
+            f = src_path
+        elif job["source"].get("type") == "url":
+            f = media.download_audio(job["source"]["url"], d, lambda p: None)
+        else:
+            raise RuntimeError("The video file is no longer here, so no more clips can be made from it.")
+        wav = d / "audio.wav"
+        media.extract_audio(f, wav)
+        audio = media.load_audio(wav)
+        wav.unlink(missing_ok=True)
+        if f != src_path:
+            f.unlink(missing_ok=True)
+        db = [round(float(x), 1) for x in media.loudness_per_second(audio)]
+        (d / "loudness.json").write_text(json.dumps(db), encoding="utf-8")
+    import numpy as np
+    db = np.array(db, dtype=np.float32)
+    have = [c for c in job["clips"] if c.get("status") != "error"]
+    found = []
+    blocks = [(t, min(dur, t + BLOCK)) for t in range(0, int(dur) + 1, BLOCK)] or [(0, dur)]
+    # the parts with the fewest clips are read first, so new clips spread over the whole video
+    blocks.sort(key=lambda ab: sum(1 for c in have if ab[0] <= c["start"] < ab[1]))
+    for bi, (a, b) in enumerate(blocks):
+        if len(found) >= n:
+            break
+        bw = [dict(w, s=round(w["s"] - a, 2), e=round(w["e"] - a, 2)) for w in words if a <= w["s"] < b]
+        if len(bw) < 8:
+            continue
+        _set(job, finding=f"Finding more clips (part {bi + 1} of {len(blocks)})")
+        inside = sum(1 for c in have if a <= c["start"] < b)
+        quota = min(6, max(1, math.ceil((n - len(found)) / max(1, len(blocks) - bi))) + inside)
+        got, ai = brain.find_clips(bw, db[int(a): int(b) + 1], b - a, job.get("title") or "", job.get("uploader") or "",
+                                   quota, int(o["min_len"]), int(o["max_len"]), lambda *_: None, None)
+        for c in sorted(got, key=lambda c: -c.get("score", 0)):
+            s, e = round(c["start"] + a, 2), round(c["end"] + a, 2)
+            if len(found) >= n or _overlap(s, e, have + found):
+                continue
+            c.update(start=s, end=e)
+            found.append(c)
+    if not found:
+        job.pop("finding", None)
+        save(job)
+        return 0
+    look = brand_look(job.get("user"))
+    for c in found:
+        c.update(id=_next_id(job), style=o["style"], layout=o["layout"], status="queued", version=0, made_at=time.time(), more=True)
+        if look:
+            c["look"] = dict(look)
+        job["clips"].append(c)
+    _set(job, finding=f"Making {len(found)} more clip{'s' if len(found) != 1 else ''}")
+    for c in found:
+        if from_vod:
+            from . import live
+            live.cut_from_vod(job, c, words)
+        elif recording:
+            from . import live
+            live.cut_from_recording(job, c, words)
+        elif job["source"].get("type") == "url" and not src_path.is_file():
+            _fetch_piece(job, c, audio)
+        if c["status"] != "error":
+            render_one(job, c, words)
+    job.pop("finding", None)
+    save(job)
+    try:
+        from . import notices
+        ok = sum(1 for c in found if c.get("status") == "done")
+        notices.add(job.get("user"), "clips", f"{ok} more clip{'s' if ok != 1 else ''} ready", job.get("title") or "your video",
+                    f"/app/creators/{job['creator']}" if job.get("creator") else "/app/videos")
+    except Exception:  # noqa: BLE001
+        pass
+    return len(found)
+
+
+def can_find_more(job) -> bool:
+    """Is there what "Find more clips" needs: the transcript, and the video (its file, its link, or the recording)?"""
+    d = Path(job["dir"])
+    if job.get("status") not in ("done",) or job.get("finding") or not (d / "words.json").is_file():
+        return False
+    if job.get("kind") == "live":         # its kept recording, or (older ones) the stream's saved copy on the site
+        return Path(job.get("source_path") or "").is_file() or bool(job.get("vod")) or \
+            media.is_youtube(job["source"].get("url") or "") or "twitch.tv/" in (job["source"].get("url") or "")
+    return Path(job.get("source_path") or "").is_file() or job["source"].get("type") == "url"
+
+
 CLIP_MINUTES = float(config.env("PEAKCUT_CLIP_MINUTES", "15"))     # the longest one clip may take to make
 
 
@@ -691,6 +831,10 @@ def _run_job(job):
     hi = min(len(audio), int(o["range_end"] * 16000)) if o["range_end"] else len(audio)
     span = (hi - lo) / 16000
     db = media.loudness_per_second(audio[lo:hi])
+    try:
+        (d / "loudness.json").write_text(json.dumps([round(float(x), 1) for x in media.loudness_per_second(audio)]), encoding="utf-8")
+    except Exception:  # noqa: BLE001 - only needed for "Find more clips"
+        pass
 
     vlock, vstate = threading.Lock(), {}
 
@@ -839,9 +983,12 @@ def _run_job(job):
         model = ai.get("model") or model
         if ai.get("note"):
             notes.append(ai["note"])
+        look = brand_look(job.get("user"))
         for c in found:
             c.update(id=f"clip{len(job['clips']) + 1:02d}", start=round(c["start"] + shift, 2),
                      end=round(c["end"] + shift, 2), style=o["style"], layout=o["layout"], status="queued", version=0)
+            if look:
+                c["look"] = dict(look)
             job["clips"].append(c)
             futures.append((renders.submit(ctx.bind(make), c, list(words)), c))
         job["ai"] = {"model": model, "tokens": tokens, "note": "", "log": notes[-5:]}

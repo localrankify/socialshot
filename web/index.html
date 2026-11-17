@@ -2854,10 +2854,10 @@ svg.ti.ri{fill:none;stroke:none;stroke-width:1.5}     /* a few Reicon icons (che
 .ed-seg.ed-fst button u{font-style:normal}
 /* the play bar inside the preview, shown only in full screen: play, time, and the way back out */
 .ed-fsbar{display:none}
-.ed-phone:fullscreen .ed-fsbar{position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:14px;padding:28px 22px 20px;
+.ed-phone:fullscreen .ed-fsbar,.ed.fsx .ed-phone .ed-fsbar{position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:14px;padding:28px 22px 20px;
   background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:0;transition:opacity .25s ease;pointer-events:none}
-.ed-phone:fullscreen.awake .ed-fsbar{opacity:1;pointer-events:auto}
-.ed-phone:fullscreen{cursor:none}.ed-phone:fullscreen.awake{cursor:default}
+.ed-phone:fullscreen.awake .ed-fsbar,.ed.fsx .ed-phone.awake .ed-fsbar{opacity:1;pointer-events:auto}
+.ed-phone:fullscreen,.ed.fsx .ed-phone{cursor:none}.ed-phone:fullscreen.awake,.ed.fsx .ed-phone.awake{cursor:default}
 .ed-fsbar .ed-pbtn{width:46px;height:46px}
 .ed-fsbar .ed-pbtn svg{width:18px;height:18px}
 .ed-fstime{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;color:#D4D4D8;font-variant-numeric:tabular-nums}
@@ -3808,6 +3808,10 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed .ed-left .ed-name{flex:0 1 auto;min-width:60px;max-width:min(340px,30vw);text-align:left}
 .ed .ed-left .ed-name b{max-width:none;font-size:13.5px}
 .ed .ed-hsep{width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 2px}
+/* help, undo, redo and shortcuts: one tight row of narrow icon buttons */
+.ed .ed-left>[data-ed=tour],.ed .ed-undo .ed-ib{width:28px;height:28px;border-radius:7px}
+.ed .ed-left>[data-ed=tour] svg,.ed .ed-undo .ed-ib svg{width:16px;height:16px}
+.ed .ed-undo{gap:0;margin:0 0 0 -8px}
 @media (max-width:760px){
   .ed .ed-top{grid-template-columns:minmax(0,1fr) auto}
   .ed .ed-left .ed-name{max-width:none;flex:1 1 auto}
@@ -3922,7 +3926,8 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed .ed-panel>.ed-hero .ed-hero-ic{width:30px;height:30px;border-radius:8px}
 .ed .ed-panel>.ed-hero .ed-hero-ic svg{width:16px;height:16px}
 .ed .ed-panel>.ed-hero h3{font-size:13.5px;line-height:1.25}
-.ed .ed-panel>.ed-hero p{margin-top:1px;font-size:11.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed .ed-panel>.ed-hero>div:not(.ed-hero-ic){flex:1;min-width:0}
+.ed .ed-panel>.ed-hero p{margin-top:2px;font-size:11.5px;line-height:1.4;text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 /* the floating post card in the preview, and its settings */
 .ed-pbk{position:absolute;inset:0}
 .ed-pbk.blur{inset:-8%;background-size:cover;background-position:center;filter:blur(22px) brightness(.8) saturate(1.1)}
@@ -4058,6 +4063,212 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-mbar b{font-weight:600;color:#ECFDF5;overflow:hidden;text-overflow:ellipsis}
 .ed-mbar small{color:rgba(167,243,208,.75);font-size:10.5px}
 .ed-lane.music:hover .ed-mbar{box-shadow:inset 0 0 0 1.5px #34D399}
+/* the music bar can be dragged along the timeline; its ends trim it */
+.ed-mbar{cursor:grab;padding:0 12px}
+.ed-mbar:active{cursor:grabbing}
+.ed-mbar .pe{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}
+.ed-mbar .pe.l{left:0}.ed-mbar .pe.r{right:0}
+.ed-mbar .pe::after{content:"";position:absolute;top:6px;bottom:6px;left:3px;width:1.5px;border-radius:1px;background:rgba(167,243,208,.55)}
+/* the zoom's settings in Effects: full-width sections with room between them */
+.ed-zset{display:grid;gap:18px;padding-top:14px;margin-top:4px;border-top:1px solid rgba(255,255,255,.06)}
+.ed-zsec{display:grid;gap:10px}
+.ed-zhd{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;font-weight:500;color:#D4D4D8}
+.ed-zhd em{font-style:normal;font-size:11.5px;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-zamt{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ed-zamt button{display:grid;gap:2px;justify-items:center;padding:8px 4px;border:1px solid var(--line-2);border-radius:9px;background:transparent;color:#D4D4D8;font:inherit;cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease}
+.ed-zamt button b{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.ed-zamt button small{font-size:10.5px;color:#8E8E96}
+.ed-zamt button:hover{background:var(--e3)}
+.ed-zamt button[aria-pressed=true]{border-color:#fff;background:#fff;color:#111}
+.ed-zamt button[aria-pressed=true] small{color:#52525B}
+.ed-zlooks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ed-ztile{display:grid;gap:6px;padding:0;border:0;background:none;color:#A1A1AA;font:inherit;font-size:11px;font-weight:500;cursor:pointer;text-align:center}
+.ed-ztp{position:relative;display:block;aspect-ratio:1;border-radius:9px;overflow:hidden;background:#202024;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ed-ztp img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}
+.ed-ztp.grain::after{content:"";position:absolute;inset:0;opacity:.35;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)'/%3E%3C/svg%3E")}
+.ed-ztile:hover{color:#E4E4E7}
+.ed-ztile:hover .ed-ztp{box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.ed-ztile[aria-pressed=true]{color:#fff}
+.ed-ztile[aria-pressed=true] .ed-ztp{box-shadow:0 0 0 2px var(--acc)}
+.ed-zset .ed-seg button{height:32px;font-size:12px}
+.ed-zset .ed-seg button[aria-checked=true]{background:var(--e3);color:var(--tx)}
+.ed-zaim{display:grid;grid-template-columns:1fr auto;gap:8px}
+.ed-zaim .ed-btn{justify-content:center}
+.ed-zset .ed-help{margin:0}
+/* the tool rail: an even step between tools, so each label sits with its own icon */
+.ed-rail{gap:4px}
+.ed-rail button{flex:none}
+@media (min-width:761px) and (max-height:900px){
+  .ed-rail{gap:6px;padding-top:8px;padding-bottom:8px}
+  .ed-rail button{min-height:50px;padding:2px 0;gap:3px}
+  .ed-rail button svg{width:30px;height:30px;padding:7px}
+}
+/* the timeline's grid: a line at every ruler mark and a fainter one between, behind every row */
+.ed-lanes{background-image:linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:var(--gs,10%) 100%,calc(var(--gs,10%) / 2) 100%;background-position:0 0}
+/* the upload card in Media and Audio: a wide target to click or drop a file on, on a quiet grained surface */
+.ed-drop{position:relative;display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;cursor:pointer;overflow:hidden;isolation:isolate;
+  background:linear-gradient(180deg,#1E1E22,#18181B);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:box-shadow .15s ease,background-color .15s ease}
+.ed-drop::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.22;mix-blend-mode:overlay;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+.ed-drop:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.ed-drop.over{box-shadow:inset 0 0 0 1.5px var(--acc);background:#1F1A1C}
+.ed-drop.busy{cursor:progress;opacity:.75}
+.ed-dropic{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#2A2A2F;color:#E4E4E7}
+.ed-dropic svg{width:18px;height:18px}
+.ed-dropt{flex:1;min-width:0;display:grid;gap:3px}
+.ed-dropt b{font-size:13px;font-weight:500;color:#F4F4F5}
+.ed-dropt small{font-size:11.5px;color:#8E8E96;line-height:1.35}
+.ed-drop em{flex:none;font-style:normal;font-size:12px;font-weight:500;color:#D4D4D8;padding:6px 10px;border-radius:8px;background:#26262A}
+.ed-drop:hover em{background:#303035;color:#fff}
+.ed-drop+.ed-help{margin-top:2px}
+.ed-drop{flex-direction:column;justify-content:center;gap:10px;min-height:128px;padding:20px 16px;text-align:center}
+.ed-dropic{width:44px;height:44px;border-radius:12px}
+.ed-dropt{flex:none;justify-items:center}
+.ed-drop:hover .ed-dropic{background:#34343A;color:#fff}
+/* Captions > Customize: each section a card with real inner room; a label above each control, the same step everywhere */
+.ed .ed-panel .ed-fold{margin:0 0 10px;border:0;border-radius:12px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.ed .ed-panel .ed-fold:last-of-type{margin-bottom:14px}
+.ed .ed-panel .ed-fold>summary{min-height:48px;padding:0 16px;border-radius:12px;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed .ed-panel .ed-fold[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.ed .ed-panel .ed-fold>summary small{font-size:11.5px;font-weight:400;color:#8E8E96}
+.ed .ed-panel .ed-fold>div{gap:16px;padding:4px 16px 18px}
+.ed .ed-panel .ed-fold .ed-f{display:grid;gap:8px;font-size:12px;font-weight:500;color:#A1A1AA}
+.ed .ed-panel .ed-fold label.ed-f:has(>select){grid-template-columns:72px minmax(0,1fr);gap:12px}
+.ed .ed-panel .ed-fold label.ed-f>select{height:36px;padding:0 12px;border-radius:9px;background:#26262B}
+.ed .ed-panel .ed-fold .ed-sl{height:38px;background:#26262B}
+.ed .ed-panel .ed-fold .ed-seg{padding:3px;gap:3px;border-radius:10px;background:#26262B}
+.ed .ed-panel .ed-fold .ed-seg button{height:30px;border-radius:7px;font-size:12.5px}
+.ed .ed-panel .ed-fold .ed-seg button[aria-pressed=true]{background:#3A3A40;color:#fff}
+.ed .ed-panel .ed-fold .ed-typectl{padding:3px;gap:3px;border-radius:10px;background:#26262B}
+.ed .ed-panel .ed-fold .ed-typerow .ed-fl em{font-size:11.5px;color:#E4E4E7}
+/* Position: a small frame to click or drag in, the height choices beside it */
+.ed .ed-posc{grid-template-columns:76px minmax(0,1fr);align-items:start;gap:12px 14px;padding:12px;border-radius:10px;background:#141416}
+.ed-posmini{position:relative;width:76px;aspect-ratio:9/16;border-radius:9px;background:linear-gradient(180deg,#2A2A30,#202024);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);cursor:crosshair;touch-action:none;overflow:hidden}
+.ed-posguide{position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:rgba(255,255,255,.07)}
+.ed-posmark{position:absolute;width:46px;height:8px;margin:-4px 0 0 -23px;border-radius:3px;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.12);pointer-events:none;
+  transition:left .12s ease,top .12s ease}
+.ed-posmark.hook{width:54px;height:12px;margin:-6px 0 0 -27px;background:#FACC15}
+.ed-posmini:hover .ed-posmark{box-shadow:0 0 0 3px rgba(255,255,255,.22)}
+.ed-posside{display:grid;gap:12px;min-width:0}
+.ed-posspots{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ed-posspots button{height:32px;border:0;border-radius:8px;background:#26262B;color:#D4D4D8;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;
+  transition:background-color .15s ease,color .15s ease}
+.ed-posspots button:hover{background:#303036;color:#fff}
+.ed-posspots button[aria-pressed=true]{background:#fff;color:#111}
+.ed .ed-posc-v{gap:14px;font-size:11.5px}
+.ed-posside .ed-link{justify-self:start;font-size:12px}
+.ed-posside .ed-link:disabled{opacity:.4;cursor:default}
+.ed-posnote{grid-column:1 / -1;margin:0;font-size:11.5px;color:#71717A}
+/* the Live view: a red dot like a live stream, with a soft ring while it's the view shown */
+.ed-livedot{flex:none;width:8px;height:8px;margin:0 2px;border-radius:50%;background:#EF4444}
+[aria-pressed=true]>.ed-livedot{box-shadow:0 0 0 3px rgba(239,68,68,.25)}
+[aria-pressed=false]>.ed-livedot{background:#9F3B3B}
+/* full screen inside the window, where the browser won't go full screen: the preview fills it on black */
+.ed.fsx .ed-center .ed-stage{container-type:normal}
+.ed.fsx::after{content:"";position:fixed;inset:0;z-index:89;background:#000}
+.ed.fsx .ed-phone{position:fixed!important;inset:0!important;z-index:90;height:100vh!important;width:auto!important;max-width:100vw;max-height:none!important;
+  aspect-ratio:var(--aw,9)/var(--ah,16);margin:auto!important;border-radius:0!important;box-shadow:none!important;background:#000;transform:none!important}
+/* Settings > Appearance: two cards; the accent with a small live sample of the app beside the choices */
+.ap{display:grid;gap:14px;margin-top:4px}
+.ap-card{border-radius:14px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);overflow:hidden}
+.ap-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 0}
+.ap-h b{display:block;font-size:14px;font-weight:600;color:#F4F4F5}
+.ap-h span{display:block;margin-top:3px;font-size:12.5px;color:#8E8E96}
+.ap-h code{padding:4px 8px;border-radius:7px;background:#232327;color:#D4D4D8;font:500 11.5px/1 ui-monospace,Consolas,monospace}
+.ap-body{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:20px;padding:16px 18px 18px}
+.ap-prev{display:grid;align-content:start;gap:12px;padding:14px;border-radius:11px;background:#0F0F11;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.ap-tabs{display:flex;gap:4px;padding:3px;border-radius:8px;background:#1C1C20}
+.ap-tabs i{flex:1;padding:5px 0;border-radius:6px;text-align:center;font-size:11px;font-weight:500;font-style:normal;color:#8E8E96}
+.ap-tabs i.on{background:var(--accent);color:#fff}
+.ap-line{display:flex;align-items:center;gap:8px}
+.ap-line em{flex:1;height:6px;border-radius:3px;background:#26262B;max-width:70%}
+.ap-chk{position:relative;width:14px;height:14px;border-radius:4px;background:var(--accent)}
+.ap-chk::after{content:"";position:absolute;left:4.5px;top:2px;width:3px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.ap-tgl{position:relative;width:24px;height:14px;border-radius:7px;background:var(--accent)}
+.ap-tgl::after{content:"";position:absolute;right:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#fff}
+.ap-bar{height:6px;border-radius:3px;background:#26262B;overflow:hidden}
+.ap-bar i{display:block;height:100%;background:var(--accent)}
+.ap-btn{justify-self:start;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;font-size:11.5px;font-weight:600}
+.ap-pick{display:grid;align-content:start;gap:16px}
+.ap-sw{display:grid;grid-template-columns:repeat(auto-fill,32px);gap:10px}
+.ap-sw .sw{width:32px;height:32px;border-radius:9px}
+.ap-sw .sw.on{box-shadow:0 0 0 2px #17171A,0 0 0 4px var(--c)}
+.ap-custom{display:flex;align-items:center;gap:12px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)}
+.ap-custom>div{display:grid;gap:6px}
+.ap-custom b{font-size:12.5px;font-weight:500;color:#D4D4D8}
+.ap-custom .hexin{height:34px;width:128px;border-radius:8px}
+.ap-wheel{position:relative;flex:none;width:48px;height:48px;border-radius:12px;cursor:pointer;
+  background:conic-gradient(from 0deg,#EF4444,#F59E0B,#EAB308,#22C55E,#06B6D4,#3B82F6,#8B5CF6,#EC4899,#EF4444)}
+.ap-wheel::after{content:"";position:absolute;inset:9px;border-radius:7px;background:var(--c);box-shadow:0 0 0 3px #17171A;pointer-events:none}
+.ap-wheel input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+.ap-wheel:hover{filter:brightness(1.08)}
+.ap-side{display:grid;grid-template-columns:repeat(2,minmax(0,200px));gap:12px;padding:16px 18px 18px}
+.ap-opt{position:relative;display:grid;gap:3px;padding:10px;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);cursor:pointer}
+.ap-opt input{position:absolute;opacity:0;pointer-events:none}
+.ap-opt:has(input:checked){box-shadow:inset 0 0 0 2px var(--accent)}
+.ap-opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.ap-art{display:flex;gap:6px;height:64px;margin-bottom:6px;padding:6px;border-radius:7px;background:#0F0F11}
+.ap-art i{border-radius:4px;background:#26262B}
+.ap-art i.full{width:38%}
+.ap-art i.mini{width:14%}
+.ap-art s{flex:1;border-radius:4px;background:#1A1A1E}
+.ap-opt b{font-size:12.5px;font-weight:500;color:#F4F4F5}
+.ap-opt small{font-size:11.5px;color:#8E8E96}
+@media (max-width:900px){.ap-body{grid-template-columns:1fr}}
+/* a clip's footer: the title, one quiet row (score, edit), and its posts as a single line */
+.clip-body{gap:8px}
+.cmeta{gap:8px}
+.cscore{height:20px;padding:0 7px;border-radius:6px;font-size:11.5px;font-variant-numeric:tabular-nums}
+.cscore svg{width:11px;height:11px}
+.cnew{height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.06);color:#A1A1AA;font-size:11px;font-weight:500}
+.cedit{margin-left:auto;color:#71717A;opacity:0;transition:opacity .15s ease,color .15s ease}
+.clip:hover .cedit,.clip:focus-within .cedit{opacity:1}
+.clip-body:hover .cedit{color:#E4E4E7}
+.cposts{display:none}
+.cpost{display:flex;align-items:center;gap:8px;width:100%;min-width:0;margin:2px 0 0;padding:6px 8px;border:0;border-radius:8px;background:#1A1A1D;
+  color:#A1A1AA;font:inherit;font-size:11.5px;font-weight:500;text-align:left;cursor:pointer;transition:background-color .15s ease}
+.cpost:hover{background:#222226;color:#E4E4E7}
+.cpost>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpost::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:#71717A}
+.cpost.warn::before{background:#FBBF24}.cpost.ok::before{background:#4ADE80}.cpost.bad::before{background:#F87171}
+.cpost.bad{color:#FCA5A5}
+.cmarks{display:flex;flex:none}
+.cmarks i{display:grid;place-items:center;width:18px;height:18px;margin-left:-5px;border-radius:50%;background:#26262B;box-shadow:0 0 0 2px #1A1A1D}
+.cmarks i:first-child{margin-left:0}
+.cmarks svg{width:10px;height:10px}
+/* a video's clips folded away: a row of small covers to open them, and the fold button in the header */
+.jfold svg{transition:transform .2s ease}
+.jfold.open svg{transform:rotate(180deg)}
+.jstrip{display:flex;align-items:center;gap:14px;width:100%;margin-top:12px;padding:8px 10px 8px 8px;border:0;border-radius:12px;background:#151518;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);color:#A1A1AA;font:inherit;cursor:pointer;text-align:left;transition:background-color .15s ease}
+.jstrip:hover{background:#1A1A1E;color:#F4F4F5}
+.jcovers{display:flex;gap:6px;min-width:0;overflow:hidden}
+.jcovers img{flex:none;width:34px;height:60px;border-radius:6px;object-fit:cover;background:#202024}
+.jshow{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:none;font-size:12.5px;font-weight:500}
+.jshow svg{width:14px;height:14px}
+.jmore{gap:6px;white-space:nowrap}
+.jmore svg{width:14px;height:14px}
+.jfinding{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:8px;background:#1C1C20;color:#D4D4D8;font-size:12px;white-space:nowrap}
+.jfinding .spin{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:jspin .8s linear infinite}
+@keyframes jspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.jfinding .spin{animation:none}}
+.ap-art.col{flex-direction:column;gap:4px}
+.ap-art.col i.hd{height:8px;width:60%;flex:none}
+.ap-art.col i.strip{height:12px;width:100%;flex:none;background:#1F1F23}
+.ap-art.col .cards{display:flex;gap:4px;flex:1}
+.ap-art.col .cards i{flex:1;background:#1F1F23}
+.ed-bdef button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+/* a video with no clips: what can be done, and the button to do it */
+.pc-find{display:grid;justify-items:start;gap:6px;max-width:360px}
+.pc-find b{font-size:14px;font-weight:600;color:#F4F4F5}
+.pc-find>span{font-size:12.5px;color:#8E8E96;line-height:1.45}
+.pc-find .jmore{margin-top:8px}
+.pc-err{margin:6px 0 0;font-size:12px;color:#FCA5A5;line-height:1.45}
+.pc-none{display:flex;align-items:center}
 </style>
 </head>
 <body>
@@ -4590,7 +4801,7 @@ async function openFeedback(kind = "bug", context = "") {
   try { await navigator.clipboard.writeText(context); toast("The problem is copied.", "ok"); } catch { toast("Couldn't copy the problem.", "bad"); }
 }
 function updateHow() {
-  const up = S.status?.update, d = $("#formdlg"); if (!up || d.open) return;
+  const up = null, d = $("#formdlg"); if (!up || d.open) return;      // SocialShot has no update notice
   const ai = "Update this SocialShot folder to the latest version from GitHub (git pull), keep my .env and data folder as they are, install any new requirements, and restart SocialShot.";
   const cmd = (label, text) => `<h3>${label}</h3><div class="cmd"><code>${esc(text)}</code><button class="btn sm" type="button" data-act="copytext" data-t="${esc(text)}">${ic("copy")}Copy</button></div>`;
   d.innerHTML = `<form method="dialog" class="dlg upd"><h2>${up.restart ? "The new version is ready" : "A new version of SocialShot is out"}</h2>
@@ -4675,7 +4886,7 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
     subHtml = [who && [ic("user"), who], pj.uploader && [ic("radio"), pj.uploader], pj.duration && [ic("clock"), fmt(pj.duration) + " long"],
       pj.clips.length && [ic("scissors"), `${ready}/${pj.clips.length} clips ready`], pj.took && [ic("bolt"), "made in " + fmt(pj.took)],
       pj.chat && [ic("chat"), `${pj.chat.spikes} chat spikes`]].filter(Boolean).map(([i, t]) => `<span class="mp">${i}${esc(t)}</span>`).join("");
-    act = busy ? "" : `${ready ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${pj.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
+    act = busy ? "" : `${moreBtn(pj)}${ready ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${pj.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
       <button class="btn sm icon ghost" data-act="deljob" data-j="${pj.id}" title="Delete this video and its clips" aria-label="Delete this video and its clips">${ic("trash")}</button>`;
   }
   if (S.view === "creators" && S.creators.length) act = `<button class="btn primary" data-act="newcreator">${ic("plus")}Add creator</button>`;
@@ -4688,7 +4899,7 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
   if (S.status.user) act += `<button class="icon-btn bell" data-act="bell" title="Notifications" aria-label="Notifications${S.status.unread ? `, ${S.status.unread} new` : ""}" aria-haspopup="dialog">${ic("bell")}${S.status.unread ? `<span class="dotn">${S.status.unread > 9 ? "9+" : S.status.unread}</span>` : ""}</button>`;
   const me = S.status.user;
   const kk = S.status.ai;
-  const up = S.status.update;
+  const up = null;                 // no "new version" notice: SocialShot is its own app
   let upSeen = "";
   try { upSeen = localStorage.getItem("peakcut_update_seen") || ""; } catch {}
   const upBar = up && up.latest !== upSeen ? `<div class="vb" role="status">${ic("up")}<span>${up.restart ? "<b>The new version is downloaded.</b> Close SocialShot and start it again to use it." : `A new version of SocialShot is out${up.behind ? `: <b>${up.behind} update${up.behind === 1 ? "" : "s"}</b> since yours` : ""}.`}</span>
@@ -5401,6 +5612,18 @@ function projStats(pj) {
     <div><span>Made in</span><b>${pj.took ? fmt(pj.took) : "–"}</b></div></div>`;
 }
 function scoreCls(s) { return s >= 80 ? "s-hi" : s >= 60 ? "s-mid" : ""; }
+// a clip's posts as one line: the platforms' marks, then where they stand (the next time, or what went wrong)
+function postLine(c) {
+  const ps = Object.values(c.posts || {}).filter(p => p.status !== "cancelled");
+  if (!ps.length) return "";
+  const failed = ps.filter(p => p.status === "failed"), done = ps.filter(p => p.status === "posted");
+  const next = ps.filter(p => p.status === "scheduled").sort((a, b) => a.due_at - b.due_at)[0];
+  const marks = [...new Set(ps.map(p => p.platform).filter(Boolean))].slice(0, 5).map(k => `<i>${schPlatMark(k)}</i>`).join("");
+  const [cls, txt] = failed.length ? ["bad", `${failed.length} failed`] : next ? ["warn", `${ps.length} planned · ${clock(next.due_at)}`]
+    : ["ok", `Posted to ${done.length}`];
+  const tip = ps.map(p => `${p.account_name || p.platform}: ${p.status === "scheduled" ? clock(p.due_at) : p.status}${p.error ? " (" + p.error + ")" : ""}`).join("\n");
+  return `<button class="cpost ${cls}" data-act="go" data-v="schedule" title="${esc(tip)}"><span class="cmarks">${marks}</span><span>${esc(txt)}</span></button>`;
+}
 function postPills(c) {
   return Object.values(c.posts || {}).filter(p => p.status !== "cancelled").map(p => {
     const cls = p.status === "posted" ? "ok" : p.status === "failed" ? "bad" : "warn";
@@ -5419,15 +5642,14 @@ function clipHtml(j, c) {
       <button class="ctool" data-act="copy" ${a} aria-label="Copy post text">${ic("copy")}</button>
       <button class="ctool" data-act="delclip" ${a} aria-label="Delete this clip">${ic("trash")}</button></div>
     <label class="cpick"><input type="checkbox" data-sel="${key}" ${picked ? "checked" : ""} aria-label="Select this clip"></label>`;
-  const posts = postPills(c);
   return `<article class="clip ${picked ? "picked" : ""}">
     <div class="cthumb"><button class="shot" data-act="openclip" ${a} aria-label="Open clip: ${esc(c.title || c.hook)}">${body}
       <span class="badge r">${fmt(c.end - c.start)}</span></button>${tools}</div>
     <button class="clip-body" data-act="openclip" ${a}>
       <span class="ttl">${esc(c.title || c.hook || "Untitled clip")}</span>
-      <span class="cmeta"><span class="cscore ${scoreCls(c.score)}" title="AI score">${c.score ? ic("bolt") + c.score : "Hand-picked"}</span>${c.status === "done" ? `<span>${ic("scissors")}Edit</span>` : ""}</span>
+      <span class="cmeta"><span class="cscore ${scoreCls(c.score)}" title="${c.score ? "How strong the AI thinks this moment is, out of 100" : "Picked by hand"}">${c.score ? ic("bolt") + c.score : "Hand-picked"}</span>${c.more ? `<span class="cnew">More</span>` : ""}${c.status === "done" ? `<span class="cedit">${ic("scissors")}Edit</span>` : ""}</span>
     </button>
-    ${posts ? `<div class="cposts">${posts}</div>` : ""}</article>`;
+    ${postLine(c)}</article>`;
 }
 function spark(vals, cls, lo, hi) { return `<div class="spark ${cls}">${vals.map(v => `<i style="height:${Math.max(4, Math.min(100, (v - lo) / (hi - lo) * 100))}%"></i>`).join("")}</div>`; }
 const EVERY = [[1, "1 min", ""], [2, "2 min", ""], [3, "3 min", ""], [5, "5 min", ""], [10, "10 min", ""]];
@@ -5442,7 +5664,9 @@ function liveHtml(j) {
   return `<div class="livecard">
     <div class="lc-head"><div class="lc-title"><span class="pill live"><span class="dot"></span>Live</span>
         <h3>${esc(j.title || j.source.name)}</h3><p class="sub">${esc(j.uploader)}${j.uploader ? " · " : ""}${esc(j.stage)}</p></div>
-      <div class="lc-acts"><button class="btn primary" data-act="clipnow" data-j="${j.id}" data-s="30">${ic("scissors")}Clip last 30s</button>
+      <div class="lc-acts">${L.finding ? `<span class="jfinding" role="status"><i class="spin"></i>Finding the best moments…</span>`
+          : `<button class="btn" data-act="livebest" data-j="${j.id}" title="The AI reads everything recorded so far and clips its 2 best moments">${ic("bolt")}Find best moments</button>`}
+        <button class="btn primary" data-act="clipnow" data-j="${j.id}" data-s="30">${ic("scissors")}Clip last 30s</button>
         <button class="btn" data-act="clipnow" data-j="${j.id}" data-s="60">Last 60s</button>
         <button class="btn danger" data-act="stoplive" data-j="${j.id}">${ic("stop")}Stop</button></div></div>
     <div class="stats"><div class="stat"><b>${fmt(L.elapsed)}</b><span>Recorded</span></div><div class="stat"><b>${Math.round(L.buffer_sec / 60)} min</b><span>Kept in buffer</span></div>
@@ -5457,6 +5681,17 @@ function liveHtml(j) {
     </div>${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}</div>
     ${j.clips.length ? `<div class="grid" style="margin-bottom:28px">${[...j.clips].reverse().map(c => clipHtml(j, c)).join("")}</div>` : ""}`;
 }
+// folding a video's clips: each video remembers its own choice; others follow Settings > Appearance (folded by default)
+function vidFolds() { try { return JSON.parse(localStorage.getItem("vid_folds") || "{}"); } catch { return {}; } }
+function vidFoldDefault() { try { return localStorage.getItem("vid_fold") !== "open"; } catch { return true; } }
+function vidFolded(j) { const f = vidFolds(); return j.id in f ? !!f[j.id] : vidFoldDefault(); }
+function setVidFold(id, on) { const f = vidFolds(); f[id] = on; try { localStorage.setItem("vid_folds", JSON.stringify(f)); } catch {} }
+// "More clips": the AI reads the same video again for moments it hasn't used
+function moreBtn(j, cls = "") {
+  if (j.finding) return `<span class="jfinding" role="status"><i class="spin"></i>${esc(j.finding)}</span>`;
+  const none = !j.clips.length;
+  return j.can_more ? `<button class="btn sm ${none ? "primary" : "ghost"} jmore ${cls}" data-act="jmore" data-j="${j.id}" title="${none ? "Find the best moments in this video and clip them" : "Find more clips in this video"}">${ic(none ? "scissors" : "plus")}${none ? "Find clips" : "More clips"}</button>` : "";
+}
 function jobHtml(j, bare = false) {        // bare: the project page, where the header already shows the video
   if (j.status === "live") return liveHtml(j);
   if (bare) {
@@ -5465,7 +5700,7 @@ function jobHtml(j, bare = false) {        // bare: the project page, where the 
       ${j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + (j.title || j.source.name || "") + " | " + j.error)}">Report this</button></div>` : ""}
       ${j.clips.length ? `<div class="grid">${j.clips.map(c => clipHtml(j, c)).join("")}</div>` : ""}`;
   }
-  const busy = j.status === "queued" || j.status === "running";
+  const busy = j.status === "queued" || j.status === "running", folded = !busy && vidFolded(j);
   const who = !creatorId() && j.creator ? S.creators.find(c => c.id === j.creator)?.name : "";
   const ready = j.clips.filter(c => c.status === "done").length;
   const meta = [who && [ic("user"), who], j.uploader && [ic("radio"), j.uploader], j.duration && [ic("clock"), fmt(j.duration) + " long"],
@@ -5475,13 +5710,23 @@ function jobHtml(j, bare = false) {        // bare: the project page, where the 
   const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="" loading="lazy">` : ic(j.source?.type === "file" ? "film" : "link");
   return `<div class="job-head"><div class="jt"><span class="jthumb">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</span><div style="min-width:0"><h3>${esc(j.title || j.source.name)}</h3><div class="mps">${meta}</div></div></div>
       <div class="row" style="flex-wrap:nowrap;gap:4px">${busy ? "" : `
+        ${moreBtn(j)}
         ${j.clips.some(c => c.status === "done") ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${j.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
         <button class="btn sm icon ghost" data-act="deljob" data-j="${j.id}" aria-label="Delete this video and its clips">${ic("trash")}</button>
-        <label class="selck"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}</div></div>
+        <label class="selck"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
+        ${j.clips.length && !busy ? `<button class="btn sm icon ghost jfold ${folded ? "" : "open"}" data-act="jfold" data-j="${j.id}" aria-expanded="${!folded}" title="${folded ? "Show the clips" : "Fold the clips away"}" aria-label="${folded ? "Show the clips" : "Fold the clips away"}">${ic("caret")}</button>` : ""}</div></div>
     ${busy ? `<div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div><p class="sub">${esc(j.stage)} · ${Math.round(j.progress * 100)}%</p>` : ""}
     ${j.status === "done" && !j.clips.length ? `<p class="sub">${esc(j.stage)}</p>` : ""}
     ${j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + (j.title || j.source.name || "") + " | " + j.error)}">Report this</button></div>` : ""}${j.ai?.note ? `<p class="sub">${esc(j.ai.note)}</p>` : ""}
-    ${j.clips.length ? `<div class="grid">${j.clips.map(c => clipHtml(j, c)).join("")}</div>` : ""}`;
+    ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}
+    ${!j.clips.length ? "" : folded ? foldStrip(j) : `<div class="grid">${j.clips.map(c => clipHtml(j, c)).join("")}</div>`}`;
+}
+// a folded video: its clips as a row of small covers, a click opens them
+function foldStrip(j) {
+  const done = j.clips.filter(c => c.status === "done");
+  return `<button class="jstrip" data-act="jfold" data-j="${j.id}" aria-label="Show the ${j.clips.length} clips">
+    <span class="jcovers">${done.slice(0, 8).map(c => `<img src="/media/${j.id}/${esc(c.cover)}?v=${c.version}" alt="" loading="lazy">`).join("")}</span>
+    <span class="jshow">Show ${j.clips.length} clip${j.clips.length === 1 ? "" : "s"}${ic("caret")}</span></button>`;
 }
 /* While a video is being made into clips: three clip cards fanned out, the video itself on the middle one, and a field
    of small dots washing across the card from left to right, as if the clips were being cut out of it. The dots are
@@ -5566,7 +5811,9 @@ function projHtml(j) {
     </div>
     ${tiles || waiting ? `<div class="pc-strip">${tiles || waiting}${tiles && total > 3 ? `<a class="pc-more" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project to see all ${total} clips">
         <span class="pc-more-ic">${ic("film")}</span><b>Open project</b><small>+${total - 3} more · ${total} clips</small><i>${ic("arrowr")}</i></a>` : ""}</div>`
-      : `<div class="pc-strip pc-none"><p class="sub">${busy ? "" : "No clips from this video."}</p></div>`}
+      : `<div class="pc-strip pc-none">${busy ? "" : j.finding ? `<div class="pc-find"><span class="jfinding" role="status"><i class="spin"></i>${esc(j.finding)}</span></div>`
+          : `<div class="pc-find"><b>No clips from this video yet</b><span>${j.kind === "live" ? "The AI can read the whole recording and clip its best moments." : "The AI can read it again and clip its best moments."}</span>
+            ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}${moreBtn(j)}</div>`}</div>`}
     ${total > 2 ? `<a class="pc-all" href="${link}" data-act="openproj" data-j="${j.id}">View all ${total} clips${ic("arrowr")}</a>` : ""}`;
 }
 /* ---- selecting several videos and clips: delete or download them together */
@@ -6088,10 +6335,38 @@ async function drawSettings() {
       let cur = ""; try { cur = localStorage.getItem("accent") || ""; } catch {}
       const now = (cur || ACCENT_DEFAULT).toUpperCase(), mini = $("#app").classList.contains("mini");
       body.innerHTML = head("Appearance", "How SocialShot looks for you. These are saved on this device only.") +
-        `<div class="srows">
-          ${row("Accent colour", "Buttons, highlights and the chosen tab.", `<div class="swatches">${ACCENTS.map(h => `<button class="sw ${h === now ? "on" : ""}" data-act="accent" data-v="${h}" style="--c:${h}" aria-label="Accent ${h}" aria-pressed="${h === now}"></button>`).join("")}</div>
-            <div class="hexrow"><span class="sub">Custom colour</span><label class="hexin"><i>#</i><input id="acc_hex" value="${now.slice(1)}" maxlength="6" spellcheck="false" aria-label="Custom accent colour"></label><span class="hexdot" id="acc_dot" style="--c:${now}"></span></div>`, "stack")}
-          ${row("Collapsed sidebar", "Show only icons in the left menu, with names on hover.", `<label class="tgl"><input type="checkbox" id="ap_mini" ${mini ? "checked" : ""}><span></span></label>`, "inline")}
+        `<div class="ap">
+          <section class="ap-card">
+            <div class="ap-h"><div><b>Accent colour</b><span>Buttons, highlights and the chosen tab.</span></div><code id="acc_code">${now}</code></div>
+            <div class="ap-body">
+              <div class="ap-prev" aria-hidden="true">
+                <div class="ap-tabs"><i class="on">Clips</i><i>Posts</i><i>Drafts</i></div>
+                <div class="ap-line"><span class="ap-chk"></span><em></em></div>
+                <div class="ap-line"><span class="ap-tgl"></span><em style="width:52%"></em></div>
+                <div class="ap-bar"><i style="width:64%"></i></div>
+                <span class="ap-btn">Make clips</span>
+              </div>
+              <div class="ap-pick">
+                <div class="swatches ap-sw">${ACCENTS.map((h, i) => `<button class="sw ${h === now ? "on" : ""}" data-act="accent" data-v="${h}" style="--c:${h}" aria-label="${ACCENT_NAMES[i]}" aria-pressed="${h === now}" title="${ACCENT_NAMES[i]}"></button>`).join("")}</div>
+                <div class="ap-custom"><label class="ap-wheel" id="acc_dot" style="--c:${now}" title="Pick any colour"><input type="color" id="acc_pick" value="${now.toLowerCase()}" aria-label="Pick any colour"></label>
+                  <div><b>Custom colour</b><label class="hexin"><i>#</i><input id="acc_hex" value="${now.slice(1)}" maxlength="6" spellcheck="false" aria-label="Custom accent colour as hex"></label></div></div>
+              </div>
+            </div>
+          </section>
+          <section class="ap-card">
+            <div class="ap-h"><div><b>Clips under each video</b><span>On the Videos and creator pages. Each video can still be opened or folded on its own.</span></div></div>
+            <div class="ap-side" role="radiogroup" aria-label="Clips under each video">
+              <label class="ap-opt"><input type="radio" name="ap_vfold" value="fold" ${vidFoldDefault() ? "checked" : ""}><span class="ap-art col"><i class="hd"></i><i class="strip"></i><i class="hd"></i><i class="strip"></i></span><b>Folded</b><small>A row of small covers; click to open</small></label>
+              <label class="ap-opt"><input type="radio" name="ap_vfold" value="open" ${vidFoldDefault() ? "" : "checked"}><span class="ap-art col"><i class="hd"></i><span class="cards"><i></i><i></i><i></i><i></i></span></span><b>Open</b><small>Every clip shown in full</small></label>
+            </div>
+          </section>
+          <section class="ap-card">
+            <div class="ap-h"><div><b>Sidebar</b><span>How the left menu shows.</span></div></div>
+            <div class="ap-side" role="radiogroup" aria-label="Sidebar">
+              <label class="ap-opt"><input type="radio" name="ap_side" value="full" ${mini ? "" : "checked"}><span class="ap-art"><i class="full"></i><s></s></span><b>Full</b><small>Icons and names</small></label>
+              <label class="ap-opt"><input type="radio" name="ap_side" value="mini" ${mini ? "checked" : ""}><span class="ap-art"><i class="mini"></i><s></s></span><b>Icons only</b><small>Names show on hover</small></label>
+            </div>
+          </section>
         </div>
         ${foot(`<button class="btn" data-act="lookreset">Reset to default</button>`)}`;
     }
@@ -6188,6 +6463,16 @@ async function drawSettings() {
 /* accent colour: one CSS variable; every shade is mixed from it in the stylesheet. Saved in this browser only. */
 const ACCENT_DEFAULT = "#7C3AED";
 const ACCENTS = ["#7C3AED", "#6366F1", "#2563EB", "#0EA5E9", "#0D9488", "#16A34A", "#E11D48", "#EA580C", "#64748B"];
+const ACCENT_NAMES = ["Violet", "Indigo", "Blue", "Sky", "Teal", "Green", "Rose", "Orange", "Slate"];
+// the accent picked anywhere on the Appearance page: every control there follows it at once
+function showAccent(v) {
+  v = v.toUpperCase();
+  $("#acc_dot")?.style.setProperty("--c", v);
+  const pk = $("#acc_pick"); if (pk && pk.value.toUpperCase() !== v) pk.value = v.toLowerCase();
+  const hx = $("#acc_hex"); if (hx && document.activeElement !== hx) hx.value = v.slice(1);
+  const cd = $("#acc_code"); if (cd) cd.textContent = v;
+  $$(".swatches .sw").forEach(b => { const on = b.dataset.v.toUpperCase() === v; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+}
 function applyAccent(hex) {
   const r = document.documentElement.style;
   if (hex && /^#[0-9a-f]{6}$/i.test(hex) && hex.toUpperCase() !== ACCENT_DEFAULT) r.setProperty("--accent", hex); else r.removeProperty("--accent");
@@ -6197,16 +6482,21 @@ function setAccent(hex) {
   try { hex && hex.toUpperCase() !== ACCENT_DEFAULT ? localStorage.setItem("accent", hex) : localStorage.removeItem("accent"); } catch {}
 }
 document.addEventListener("input", e => {
+  if (e.target.id === "acc_pick") { setAccent(e.target.value); return showAccent(e.target.value); }
   if (e.target.id !== "acc_hex") return;
   const v = "#" + e.target.value.replace(/[^0-9a-f]/gi, "").slice(0, 6);
   if (v.length !== 7) return;
-  setAccent(v); $("#acc_dot")?.style.setProperty("--c", v);
-  $$(".swatches .sw").forEach(b => { const on = b.dataset.v.toUpperCase() === v.toUpperCase(); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  setAccent(v); showAccent(v);
 });
 document.addEventListener("change", e => {
-  if (e.target.id !== "ap_mini") return;
-  $("#app").classList.toggle("mini", e.target.checked);
-  try { localStorage.setItem("mini", e.target.checked ? "1" : ""); } catch {}
+  if (e.target.name === "ap_vfold") {
+    try { localStorage.setItem("vid_fold", e.target.value); localStorage.removeItem("vid_folds"); } catch {}
+    return;
+  }
+  if (e.target.name !== "ap_side") return;
+  const on = e.target.value === "mini";
+  $("#app").classList.toggle("mini", on);
+  try { localStorage.setItem("mini", on ? "1" : ""); } catch {}
 });
 async function saveSettings() { const d = {}; $$("#sform [data-s]").forEach(i => d[i.dataset.s] = i.value); await send("/api/settings", d, "PUT"); }
 
@@ -6423,6 +6713,16 @@ document.addEventListener("click", async e => {
       const j = jobOf(d.j); if (j) j.clips = j.clips.filter(c => c.id !== d.c);
       render(); toast("Clip deleted", "ok"); return tick();
     }
+    if (a === "jfold") { const j = jobOf(d.j); if (j) { setVidFold(j.id, !vidFolded(j)); drawJobs(); } return; }
+    if (a === "jmore") {
+      const j = jobOf(d.j); if (!j) return;
+      try {
+        b.disabled = true;
+        const r = await send(`/api/jobs/${j.id}/more`, j.clips.length ? {n: 3} : {});
+        Object.assign(j, r); setVidFold(j.id, false); toast(j.clips.length ? "Looking for 3 more clips. They show here when ready." : "Finding the best moments. Clips show here when ready.", "ok"); drawShell(); drawJobs();
+      } catch (er) { toast(er.message, "bad"); b.disabled = false; }
+      return;
+    }
     if (a === "dlall") return zipDownload((jobOf(d.j)?.clips || []).filter(c => c.status === "done").map(c => d.j + "." + c.id));
     if (a === "seldl") return zipDownload(selClips());
     if (a === "selclear") { sel().clear(); return render(); }
@@ -6494,6 +6794,12 @@ document.addEventListener("click", async e => {
       toast("Recording stopped. Clips already made are kept.", "ok");
       api(`/api/live/${d.j}/stop`, {method:"POST"}).catch(e => toast(e.message, "bad")).finally(tick); return;
     }
+    if (a === "livebest") {
+      b.disabled = true;
+      try { await send(`/api/live/${d.j}/best`, {n: 2}); toast("Reading the recording for its 2 best moments. Clips show here when ready.", "ok"); }
+      catch (er) { toast(er.message, "bad"); b.disabled = false; }
+      return;
+    }
     if (a === "clipnow") { await send(`/api/live/${d.j}/clip`, {seconds:Number(d.s)}); return toast(`Clipping the last ${d.s} seconds…`, "ok"); }
     if (a === "resendverify") {
       b.disabled = true;
@@ -6505,10 +6811,7 @@ document.addEventListener("click", async e => {
     if (a === "tour") { closePops(); return startTour(); }
     if (a === "settab") { e.preventDefault(); S.stab = d.k; remember("settings", d.k); return drawSettings(); }
     if (a === "accent") {           // update in place: no redraw, so nothing flashes
-      setAccent(d.v);
-      $$(".swatches .sw").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
-      const hx = $("#acc_hex"); if (hx) hx.value = d.v.slice(1);
-      $("#acc_dot")?.style.setProperty("--c", d.v);
+      setAccent(d.v); showAccent(d.v);
       return;
     }
     if (a === "lookreset") { setAccent(""); $("#app").classList.remove("mini"); try { localStorage.setItem("mini", ""); } catch {} return drawSettings(); }
@@ -6589,6 +6892,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=89"></script>
+<script src="/assets/editor.js?v=100"></script>
 </body>
 </html>
