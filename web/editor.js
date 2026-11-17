@@ -865,17 +865,42 @@ function drawPanel() {
       <p class="ed-help ed-cfoot">3 seconds to 3 minutes. Or drag the yellow edges on the timeline.</p>`;
   } else {
     const c = clipNow();
-    p.innerHTML = head("Post", "The words that go with the clip, and where it goes.") +
-      `<div class="ed-card">
-        <label class="ed-f">Title<input id="edTitle" value="${esc(E.title)}" maxlength="100"></label>
-        <label class="ed-f">Description<textarea id="edDesc" rows="5" maxlength="2000">${esc(E.description)}</textarea></label>
-        <button class="ed-btn" data-act="copy" data-j="${E.jid}" data-c="${esc(E.cid)}">${ic("copy")}Copy post text</button></div>
-      <div class="ed-card"><b>Post it</b><div class="ed-posts">${postPills(c) || ""}</div>
-        ${S.accounts.length ? `<div class="ed-accs">${S.accounts.map(a => `<label class="ed-acc"><input type="checkbox" data-pacc value="${esc(a.id)}"><span>${esc(a.label)} · ${esc(a.name)}</span></label>`).join("")}</div>
-          <div class="ed-row"><button class="ed-btn primary" data-act="postnow">${ic("send")}Post now</button><button class="ed-btn" data-act="postqueue">Add to queue</button></div>
-          <p class="ed-help">Posts the last saved version. Save first if you changed anything.</p>`
-          : `<p class="ed-help">No accounts connected yet. Connect YouTube, Instagram, TikTok or X in Settings.</p>`}</div>`;
+    p.innerHTML = head("Post", "The words that go with the clip, and where it goes.") + postPanel(c);
   }
+}
+
+// the Post panel: the post's words with their room left, then where it goes (accounts as tiles) and how
+function postPanel(c) {
+  const mark = k => (typeof APP_MARK !== "undefined" && APP_MARK[k]) || "";
+  const posts = Object.values(c?.posts || {}).filter(x => x.status !== "cancelled").sort((x, y) => (x.due_at || 0) - (y.due_at || 0));
+  const st = x => x.status === "posted" ? ["ok", "Posted"] : x.status === "failed" ? ["bad", "Failed"] : x.status === "posting" ? ["warn", "Posting"]
+    : ["warn", new Date((x.due_at || 0) * 1000).toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})];
+  const accs = S.accounts || [], pick = E.postPick || new Set();
+  return `<div class="ed-card ed-ptxt">
+      <label class="ed-f"><span class="ed-flab">Title<small id="edTitleN">${E.title.length}/100</small></span>
+        <input id="edTitle" value="${esc(E.title)}" maxlength="100" placeholder="What viewers see first"></label>
+      <label class="ed-f"><span class="ed-flab">Description<small id="edDescN">${E.description.length}/2000</small></span>
+        <textarea id="edDesc" rows="5" maxlength="2000" placeholder="A line or two, then hashtags">${esc(E.description)}</textarea></label>
+      <button class="ed-btn sm ghost ed-pcopy" data-act="copy" data-j="${E.jid}" data-c="${esc(E.cid)}">${ic("copy")}Copy title and description</button>
+    </div>
+    ${posts.length ? `<div class="ed-card ed-plist"><b>Planned and posted</b>
+      ${posts.map(x => { const [cls, t] = st(x); return `<div class="ed-prow"><span class="ed-pmk">${mark(x.platform)}</span>
+        <span class="ed-pnm">${esc(x.account_name || x.platform || "")}</span><span class="ed-pst ${cls}" title="${esc(x.error || "")}">${esc(t)}</span>
+        ${x.url ? `<a class="ed-ib sm" href="${esc(x.url)}" target="_blank" rel="noopener" aria-label="Open the post">${ic("arrowr")}</a>` : ""}</div>`; }).join("")}</div>` : ""}
+    <div class="ed-card ed-pto"><b>Post to</b>
+      ${accs.length ? `<div class="ed-paccs">${accs.map(a => `<label class="ed-pacc ${pick.has(a.id) ? "on" : ""}">
+          <input type="checkbox" data-pacc value="${esc(a.id)}" ${pick.has(a.id) ? "checked" : ""}>
+          <span class="ed-pmk">${mark(a.platform)}</span><span class="ed-pacct"><b>${esc(a.name)}</b><small>${esc(a.label)}</small></span>
+          <i class="ed-pchk">${svg('<path d="M5 12l5 5L20 7"/>')}</i></label>`).join("")}</div>
+        ${dirty() ? `<p class="ed-pwarn">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.01"/>')}You have changes that aren't saved. The last saved version is what gets posted.</p>` : ""}
+        <div class="ed-pacts"><button class="ed-btn primary" data-act="postnow" ${pick.size ? "" : "disabled"}>${ic("send")}Post now${pick.size > 1 ? ` to ${pick.size}` : ""}</button>
+          <button class="ed-btn" data-act="schnew" data-j="${E.jid}" data-c="${esc(E.cid)}">${ic("calendar")}Schedule</button></div>
+        <button class="ed-link ed-pq" data-act="postqueue" ${pick.size ? "" : "disabled"}>Or add it to the posting queue</button>`
+      : `<div class="ed-pnone"><span class="ed-saveic">${ic("plug")}</span><div><b>No accounts connected</b>
+          <p class="ed-help">Connect YouTube, Instagram, TikTok or X to post from here. You can still plan posts on the calendar.</p>
+          <div class="ed-pacts"><button class="ed-btn sm primary" data-act="go" data-v="settings" data-tab="apps">Connect accounts</button>
+            <button class="ed-btn sm" data-act="schnew" data-j="${E.jid}" data-c="${esc(E.cid)}">${ic("calendar")}Schedule</button></div></div></div>`}
+    </div>`;
 }
 
 /* ---------- the preview */
@@ -2888,10 +2913,15 @@ dlg.addEventListener("input", e => {
   }
   if (el.id === "edHook") { E.hook = el.value.replace(/\n/g, " "); const n = $e("#edHookN"); if (n) n.textContent = E.hook.length;
     const hc = $e(".ed-hchip span"); if (hc) hc.textContent = E.hook; return after(""); }
-  if (el.id === "edTitle") { E.title = el.value; return drawClipDlg(); }
-  if (el.id === "edDesc") { E.description = el.value; return drawClipDlg(); }
+  if (el.id === "edTitle") { E.title = el.value; const n = $e("#edTitleN"); if (n) n.textContent = `${el.value.length}/100`; return drawClipDlg(); }
+  if (el.id === "edDesc") { E.description = el.value; const n = $e("#edDescN"); if (n) n.textContent = `${el.value.length}/2000`; return drawClipDlg(); }
 });
 dlg.addEventListener("change", e => {
+  if (e.target.matches?.("[data-pacc]")) {          // an account tile ticked: remember it, and wake the post buttons
+    const set = E.postPick || (E.postPick = new Set());
+    e.target.checked ? set.add(e.target.value) : set.delete(e.target.value);
+    return drawPanel();
+  }
   const el = e.target;
   if (el.id === "edLogoIn") return uploadLogo(el.files?.[0]);
   if (el.id === "edMusIn") { const f = el.files?.[0]; el.value = ""; return musicAdd(f); }
