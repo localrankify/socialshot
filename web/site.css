@@ -97,7 +97,7 @@ footer.site ul a:hover{color:#fff}
 .fq-head p{margin-top:16px;max-width:340px;color:var(--mute);font-size:15px;line-height:24px}
 .fq-link{display:inline-flex;align-items:center;gap:6px;margin-top:20px;color:var(--accent-ink);font-size:14px;line-height:20px;font-weight:500;text-decoration:none;transition:color .15s ease}
 .fq-link:hover{color:#fff}.fq-link .ti{width:16px;height:16px}
-.qlist{border-radius:var(--r-panel);border:1px solid var(--line-2);background:var(--page-grain) 0 0/200px 200px,var(--card);overflow:hidden}
+.qlist{border-radius:var(--r-panel);border:1px solid var(--line-2);background:var(--card);overflow:hidden}
 .qlist details{border-top:1px solid var(--line)}
 .qlist details:first-child{border-top:0}
 .qlist summary{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:12px;min-height:64px;padding:16px 20px;list-style:none;cursor:pointer;transition:background-color .15s ease}
@@ -133,7 +133,7 @@ footer.site ul a:hover{color:#fff}
 .rel .rgrid:last-child,.rel .pgrid:last-child{margin-bottom:0}
 /* a tool card: icon tile, topic, name, one line, and an arrow that lights up on hover */
 .rcard{position:relative;display:flex;flex-direction:column;padding:20px;border-radius:var(--r-panel);border:1px solid var(--line-2);
-  background:var(--page-grain) 0 0/200px 200px,var(--card);text-decoration:none;transition:border-color .15s ease,background-color .15s ease}
+  background:var(--card);text-decoration:none;transition:border-color .15s ease,background-color .15s ease}
 .rcard:hover{border-color:var(--line-3);background-color:var(--s3)}
 .ric{width:40px;height:40px;display:grid;place-items:center;margin-bottom:20px;border-radius:10px;background:var(--s3);border:1px solid var(--line-2);color:var(--text-2)}
 .ric .ti{width:20px;height:20px}
@@ -145,7 +145,7 @@ footer.site ul a:hover{color:#fff}
 .rcard small{margin-top:4px;font-size:14px;line-height:20px;color:var(--mute)}
 /* ---------- blog: cards, the /blog list and a post. Everything on a 4px grid; violet only marks the topic and
    the section being read, so the photos carry the colour */
-.pcard,.scard{background:var(--page-grain) 0 0/200px 200px,var(--card);border:1px solid var(--line-2);border-radius:var(--r-panel)}
+.pcard,.scard{background:var(--card);border:1px solid var(--line-2);border-radius:var(--r-panel)}
 .pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:56px}
 .pcard{display:flex;flex-direction:column;padding:8px;text-decoration:none;transition:border-color .15s ease,background-color .15s ease}
 .pcard[hidden]{display:none}
@@ -215,7 +215,7 @@ footer.site ul a:hover{color:#fff}
 .toc a{display:block;padding:8px 0 8px 16px;border-left:2px solid var(--line-2);color:var(--mute);font-size:14px;line-height:20px;text-decoration:none;transition:color .15s ease,border-color .15s ease}
 .toc a:hover{color:#fff}
 .toc a.on{color:#fff;border-left-color:var(--accent)}
-.stry{background:var(--page-grain) 0 0/200px 200px,var(--accent-soft);border-color:var(--accent-line)}
+.stry{background:var(--accent-soft);border-color:var(--accent-line)}
 .stry b{display:block;font-size:16px;line-height:24px;font-weight:600;color:#fff}
 .stry p{margin:4px 0 16px;font-size:14px;line-height:20px;color:var(--dim)}
 .stry .btn{width:100%;justify-content:center;text-decoration:none}
@@ -240,7 +240,7 @@ footer.site ul a:hover{color:#fff}
 .cta-band{padding:0 0 96px}
 /* the closing box: the offer on the left, three finished clips rising from the bottom edge on the right */
 .cta-card{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;min-height:360px;overflow:hidden;
-  border-radius:20px;border:1px solid var(--line-2);background:var(--page-grain) 0 0/200px 200px,linear-gradient(180deg,var(--s3),var(--card) 70%)}
+  border-radius:20px;border:1px solid var(--line-2);background:linear-gradient(180deg,var(--s3),var(--card) 70%)}
 .cta-copy{padding:56px 0 56px 56px}
 .cta-card h2{font-family:var(--font-head);font-size:clamp(28px,3.2vw,40px);line-height:1.1;letter-spacing:-.035em;font-weight:600;color:#fff;text-wrap:balance}
 .cta-card p{max-width:420px;margin:16px 0 28px;color:var(--mute);font-size:16px;line-height:24px}

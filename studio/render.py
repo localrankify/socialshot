@@ -1433,8 +1433,8 @@ def clean_scenes(v, n) -> list:
 def grid_cells(W, H, n, share):
     """The face grid's cells, person by person, as (x, y, w, h) pixels of the frame. Two people: one above the other.
     Three: the first across the top, two side by side below. Four: two by two. `share`: the top row's height (%)."""
-    th = int(round(H * share / 100 / 2)) * 2
-    hw = int(round(W / 2 / 2)) * 2
+    th = int(H * share / 100 / 2 + 0.5) * 2         # rounded half up, like Math.round in the editor
+    hw = int(W / 2 / 2 + 0.5) * 2
     if n <= 2:
         return [(0, 0, W, th), (0, th, W, H - th)][:max(1, n)]
     if n == 3:
@@ -1444,8 +1444,8 @@ def grid_cells(W, H, n, share):
 
 def grid_seams(W, H, n, share, b):
     """The lines between the face grid's cells, as (x, y, w, h) boxes b pixels thick."""
-    th = int(round(H * share / 100 / 2)) * 2
-    hw = int(round(W / 2 / 2)) * 2
+    th = int(H * share / 100 / 2 + 0.5) * 2         # rounded half up, like Math.round in the editor
+    hw = int(W / 2 / 2 + 0.5) * 2
     out = [(0, th - b // 2, W, b)]
     if n == 3:
         out.append((hw - b // 2, th, b, H - th))
