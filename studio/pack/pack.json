@@ -1,0 +1,363 @@
+{
+ "songs": [
+  {
+   "id": "a0a000000001",
+   "name": "Cinematic Mystery",
+   "mood": "Dark and tense",
+   "dur": 128.76
+  },
+  {
+   "id": "a0a000000002",
+   "name": "Curious Science",
+   "mood": "Light and playful",
+   "dur": 129.73
+  },
+  {
+   "id": "a0a000000003",
+   "name": "Epic History",
+   "mood": "Grand and orchestral",
+   "dur": 134.06
+  },
+  {
+   "id": "a0a000000004",
+   "name": "Tech Futuristic",
+   "mood": "Synthwave, digital",
+   "dur": 131.31
+  },
+  {
+   "id": "a0a000000005",
+   "name": "Emotional Sad",
+   "mood": "Soft piano, bittersweet",
+   "dur": 152.66
+  },
+  {
+   "id": "a0a000000006",
+   "name": "Tension Ticking",
+   "mood": "Ticking build",
+   "dur": 128.38
+  },
+  {
+   "id": "a0a000000007",
+   "name": "Uplifting Victory",
+   "mood": "Claps, uplifting",
+   "dur": 120.0
+  },
+  {
+   "id": "a0a000000008",
+   "name": "Dark Investigation",
+   "mood": "Ominous synth",
+   "dur": 124.44
+  },
+  {
+   "id": "a0a000000009",
+   "name": "Lofi Chill Loop",
+   "mood": "Lo-fi, calm",
+   "dur": 150.36
+  },
+  {
+   "id": "a0a00000000a",
+   "name": "Documentary Ambient",
+   "mood": "Warm ambient",
+   "dur": 137.13
+  }
+ ],
+ "sfx_groups": [
+  {
+   "key": "transitions",
+   "label": "Transitions"
+  },
+  {
+   "key": "impacts",
+   "label": "Impacts"
+  },
+  {
+   "key": "ui",
+   "label": "Pops and clicks"
+  },
+  {
+   "key": "comic",
+   "label": "Comic"
+  }
+ ],
+ "sfx": [
+  {
+   "id": "5fc000000001",
+   "name": "Whoosh Fast",
+   "group": "transitions",
+   "dur": 0.55
+  },
+  {
+   "id": "5fc000000002",
+   "name": "Whoosh Deep",
+   "group": "transitions",
+   "dur": 1.3
+  },
+  {
+   "id": "5fc000000003",
+   "name": "Whoosh Reverse",
+   "group": "transitions",
+   "dur": 0.55
+  },
+  {
+   "id": "5fc000000004",
+   "name": "Swish Light",
+   "group": "transitions",
+   "dur": 0.7
+  },
+  {
+   "id": "5fc000000005",
+   "name": "Riser Short",
+   "group": "transitions",
+   "dur": 1.5
+  },
+  {
+   "id": "5fc000000006",
+   "name": "Riser Long",
+   "group": "transitions",
+   "dur": 4.0
+  },
+  {
+   "id": "5fc000000007",
+   "name": "Swipe Up",
+   "group": "transitions",
+   "dur": 0.38
+  },
+  {
+   "id": "5fc000000008",
+   "name": "Impact Boom",
+   "group": "impacts",
+   "dur": 1.8
+  },
+  {
+   "id": "5fc000000009",
+   "name": "Impact Hit",
+   "group": "impacts",
+   "dur": 0.4
+  },
+  {
+   "id": "5fc00000000a",
+   "name": "Cinematic Hit",
+   "group": "impacts",
+   "dur": 2.6
+  },
+  {
+   "id": "5fc00000000b",
+   "name": "Bass Drop",
+   "group": "impacts",
+   "dur": 1.6
+  },
+  {
+   "id": "5fc00000000c",
+   "name": "Cymbal Swell",
+   "group": "impacts",
+   "dur": 2.8
+  },
+  {
+   "id": "5fc00000000d",
+   "name": "Drumroll",
+   "group": "impacts",
+   "dur": 2.6
+  },
+  {
+   "id": "5fc00000000e",
+   "name": "Suspense Sting",
+   "group": "impacts",
+   "dur": 1.8
+  },
+  {
+   "id": "5fc00000000f",
+   "name": "Pop",
+   "group": "ui",
+   "dur": 0.22
+  },
+  {
+   "id": "5fc000000010",
+   "name": "Zoom Pop",
+   "group": "ui",
+   "dur": 0.28
+  },
+  {
+   "id": "5fc000000011",
+   "name": "Click",
+   "group": "ui",
+   "dur": 0.05
+  },
+  {
+   "id": "5fc000000012",
+   "name": "Blip",
+   "group": "ui",
+   "dur": 0.13
+  },
+  {
+   "id": "5fc000000013",
+   "name": "Ding",
+   "group": "ui",
+   "dur": 1.4
+  },
+  {
+   "id": "5fc000000014",
+   "name": "Snap",
+   "group": "ui",
+   "dur": 0.16
+  },
+  {
+   "id": "5fc000000015",
+   "name": "Glitch Cut",
+   "group": "ui",
+   "dur": 0.45
+  },
+  {
+   "id": "5fc000000016",
+   "name": "Typewriter",
+   "group": "ui",
+   "dur": 0.75
+  },
+  {
+   "id": "5fc000000017",
+   "name": "Bubble Pop",
+   "group": "ui",
+   "dur": 0.32
+  },
+  {
+   "id": "5fc000000018",
+   "name": "Countdown Beep",
+   "group": "ui",
+   "dur": 0.5
+  },
+  {
+   "id": "5fc000000019",
+   "name": "Boing",
+   "group": "comic",
+   "dur": 0.9
+  },
+  {
+   "id": "5fc00000001a",
+   "name": "Wobble",
+   "group": "comic",
+   "dur": 1.1
+  },
+  {
+   "id": "5fc00000001b",
+   "name": "Vinyl Stop",
+   "group": "comic",
+   "dur": 1.3
+  },
+  {
+   "id": "5fc00000001c",
+   "name": "Tape Stop",
+   "group": "comic",
+   "dur": 1.0
+  },
+  {
+   "id": "5fc00000001d",
+   "name": "Sparkle",
+   "group": "comic",
+   "dur": 1.3
+  },
+  {
+   "id": "5fc00000001e",
+   "name": "Coin",
+   "group": "comic",
+   "dur": 0.7
+  },
+  {
+   "id": "5fc00000001f",
+   "name": "Sad Tritone",
+   "group": "comic",
+   "dur": 1.4
+  },
+  {
+   "id": "5fc000000020",
+   "name": "Magic Chime",
+   "group": "comic",
+   "dur": 1.8
+  }
+ ],
+ "looks": [
+  {
+   "key": "lut_cinematic_teal_orange",
+   "label": "Teal & orange",
+   "file": "cinematic_teal_orange.cube"
+  },
+  {
+   "key": "lut_punchy_viral",
+   "label": "Punchy",
+   "file": "punchy_viral.cube"
+  },
+  {
+   "key": "lut_moody_dark",
+   "label": "Moody",
+   "file": "moody_dark.cube"
+  },
+  {
+   "key": "lut_warm_film",
+   "label": "Warm film",
+   "file": "warm_film.cube"
+  },
+  {
+   "key": "lut_vintage_70s",
+   "label": "70s film",
+   "file": "vintage_70s.cube"
+  },
+  {
+   "key": "lut_punch_desaturated",
+   "label": "Muted punch",
+   "file": "punch_desaturated.cube"
+  },
+  {
+   "key": "lut_mono_documentary",
+   "label": "Mono doc",
+   "file": "mono_documentary.cube"
+  }
+ ],
+ "faces": [
+  {
+   "id": "fa0e00000001",
+   "name": "Mind Blown",
+   "when": "The hook shock \u2014 the impossible number, the twist opening",
+   "sfx": "5fc000000010"
+  },
+  {
+   "id": "fa0e00000002",
+   "name": "Scream",
+   "when": "The terrifying fact / bad news",
+   "sfx": "5fc00000000f"
+  },
+  {
+   "id": "fa0e00000003",
+   "name": "Side Eye",
+   "when": "The sceptical 'are you serious' beat",
+   "sfx": "5fc000000012"
+  },
+  {
+   "id": "fa0e00000004",
+   "name": "Big Brain",
+   "when": "The clever payoff \u2014 the insight",
+   "sfx": "5fc00000001d"
+  },
+  {
+   "id": "fa0e00000005",
+   "name": "Crying",
+   "when": "The tragic beat \u2014 loss, death, failure",
+   "sfx": "5fc00000001f"
+  },
+  {
+   "id": "fa0e00000006",
+   "name": "Disgust",
+   "when": "The bad news / 'this is wrong' moment",
+   "sfx": "5fc000000017"
+  },
+  {
+   "id": "fa0e00000007",
+   "name": "Cool",
+   "when": "The confident take \u2014 the solution",
+   "sfx": "5fc00000001e"
+  },
+  {
+   "id": "fa0e00000008",
+   "name": "Dead Inside",
+   "when": "The punchline / deadpan ending",
+   "sfx": "5fc00000001a"
+  }
+ ]
+}

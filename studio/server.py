@@ -1390,7 +1390,8 @@ def _music_save(items: list):
 
 @app.get("/api/music")
 def music_list():
-    return {"tracks": _music_list()}
+    from . import pack
+    return {"tracks": _music_list(), "pack": pack.songs()}     # the user's songs, and the ones that come with SocialShot
 
 
 @app.post("/api/music")
@@ -1442,7 +1443,7 @@ def music_get(mid: str):
 def music_del(mid: str):
     if not render._MUSIC_ID.match(mid):
         raise HTTPException(404, "That track isn't in your library.")
-    render.music_path(ctx.uid(), mid).unlink(missing_ok=True)
+    (_music_dir() / f"{mid}.m4a").unlink(missing_ok=True)      # only the user's own copy, never a built-in song
     items = [t for t in _music_list() if t.get("id") != mid]
     _music_save(items)
     ctx.bump()
@@ -1480,7 +1481,24 @@ def emoji_png(k: str):
 
 @app.get("/api/media")
 def media_list():
-    return {"items": _media_list()}
+    from . import pack
+    return {"items": _media_list(), "faces": pack.faces()}    # the user's files, and the built-in reaction faces
+
+
+@app.get("/api/pack/sfx")
+def pack_sfx():
+    """The built-in sound effects, in their groups."""
+    from . import pack
+    return pack.sfx()
+
+
+@app.get("/api/pack/sfx/{sid}")
+def pack_sfx_get(sid: str):
+    from . import pack
+    f = pack.sfx_path(sid) if render._MUSIC_ID.match(sid) else None
+    if not f or not f.is_file():
+        raise HTTPException(404, "That sound isn't in the pack.")
+    return FileResponse(f, media_type="audio/mp4", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @app.post("/api/media")

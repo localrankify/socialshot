@@ -525,7 +525,7 @@ def render_one(job, clip, words):
         mid = render.clean_music((clip.get("look") or {}).get("music"))["id"]     # background music from the owner's library
         local["music_path"] = str(render.music_path(job.get("user") or ctx.uid(), mid)) if mid else ""
         # split face cam with no box placed yet: find the streamer's face cam once, and keep it on the clip
-        if clip.get("layout") == "split" and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
+        if clip.get("layout") in ("split", "pip") and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
             try:
                 from . import facecam
                 cam = facecam.find(src, local["start"], local["end"])

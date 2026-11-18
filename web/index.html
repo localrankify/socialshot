@@ -3945,11 +3945,11 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-gradsw{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:4px 0 8px}
 .ed-gradsw button{aspect-ratio:1;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
 .ed-gradsw button[aria-pressed=true]{box-shadow:0 0 0 2px #18181B,0 0 0 3.5px var(--accent)}
-/* Frame view: the picture starts at the left edge and takes the height the toolbar leaves (the toolbar hides; its
-   layouts are in the row under the picture) */
+/* Frame view: the picture sits centred in the room above the Frame tool bar (the usual toolbar hides; the layouts
+   are in the Frame tool bar) */
 .ed.framing .ed-center .ed-bar{display:none}
-.ed.framing .ed-stage{align-items:flex-start;justify-content:flex-start;padding:16px 20px}
-.ed.framing .ed-fwrap{max-width:min(100%,calc((100cqh - 84px) * 16 / 9));margin:0}
+.ed.framing .ed-stage{align-items:stretch;justify-content:flex-start;gap:0;padding:0!important}
+.ed.framing .ed-fwrap{flex:1;max-width:none;width:auto;margin:0;gap:0}
 /* zoom moments: the aim dot and grain on the preview, the timeline's Zooms row */
 .ed-zdot{position:absolute;z-index:7;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.25);
   box-shadow:0 0 0 2px var(--accent);cursor:move;touch-action:none;pointer-events:auto}
@@ -4419,6 +4419,195 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-pnone .ed-help{margin:4px 0 12px}
 .ed-pnone .ed-pacts{grid-template-columns:auto auto;justify-content:start}
 .ed-pnone .ed-pacts .ed-btn{height:32px}
+/* Settings > AI: the state on top, then three numbered steps: service, key, model */
+.ai-state{display:flex;align-items:center;gap:14px;margin:18px 0 6px;padding:14px 16px;border-radius:14px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ai-dot{flex:none;width:10px;height:10px;border-radius:50%;background:#71717A;box-shadow:0 0 0 4px rgba(113,113,122,.15)}
+.ai-state.ok .ai-dot{background:#4ADE80;box-shadow:0 0 0 4px rgba(74,222,128,.14)}
+.ai-state.off .ai-dot{background:#FBBF24;box-shadow:0 0 0 4px rgba(251,191,36,.14)}
+.ai-st{flex:1;min-width:0;display:grid;gap:3px}
+.ai-st b{font-size:14px;font-weight:600;color:#F4F4F5}
+.ai-st span{font-size:12.5px;color:#8E8E96}
+.ai-st code,.ai-chip{font:500 11.5px/1.2 ui-monospace,Consolas,monospace}
+.ai-st code{padding:2px 6px;border-radius:5px;background:#26262B;color:#D4D4D8}
+.ai-state .btn{gap:6px}
+.ai-state .btn svg{width:14px;height:14px}
+.ai-step{display:grid;gap:12px;padding:20px 0;border-bottom:1px solid var(--edge)}
+.ai-sh{display:flex;align-items:flex-start;gap:12px}
+.ai-sh>span{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#26262B;color:#D4D4D8;font-size:11.5px;font-weight:600}
+.ai-sh b{display:block;font-size:14px;font-weight:600;color:var(--text)}
+.ai-sh small{display:block;margin-top:2px;font-size:12.5px;color:var(--dim);line-height:1.45}
+.ai-sh small a{color:var(--accent)}
+.ai-provs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding-left:34px}
+.ai-prov{position:relative;display:grid;gap:3px;padding:11px 12px;border:0;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.ai-prov:hover{background:#222227}
+.ai-prov b{font-size:13px;font-weight:600;color:#F4F4F5}
+.ai-prov small{font-size:11px;color:#8E8E96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-prov[aria-checked=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 7%,#1C1C20)}
+.ai-cur{position:absolute;top:9px;right:9px;font-style:normal;font-size:10px;font-weight:600;color:#4ADE80}
+.ai-key,.ai-model{display:flex;gap:8px;padding-left:34px}
+.ai-key{position:relative}
+.ai-key input,.ai-model input,#ai_basewrap input{flex:1;min-width:0;width:100%}
+.ai-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:#71717A;cursor:pointer}
+.ai-eye:hover,.ai-eye.on{color:#F4F4F5;background:#26262B}
+.ai-eye svg{width:15px;height:15px}
+.ai-key input{padding-right:44px}
+.ai-step.nokey .ai-key{display:none}
+#ai_basewrap{display:grid;gap:6px;padding-left:34px}
+#ai_basewrap[hidden]{display:none}
+.ai-lab{font-size:12.5px;font-weight:500;color:#D4D4D8}.ai-lab small{color:var(--dim);font-weight:400;margin-left:6px}
+.ai-model .btn{gap:6px;white-space:nowrap}
+.ai-model .btn svg{width:14px;height:14px}
+.ai-chips{display:flex;flex-wrap:wrap;gap:6px;padding-left:34px}
+.ai-chips:empty{display:none}
+.ai-chips small{flex-basis:100%;font-size:11.5px;color:var(--dim)}
+.ai-chip{height:28px;padding:0 10px;border:0;border-radius:7px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);color:#D4D4D8;cursor:pointer}
+.ai-chip:hover{background:#26262B;color:#fff}
+.ai-chip.on{box-shadow:inset 0 0 0 1.5px var(--accent);color:#fff}
+.ai-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:18px}
+.ai-foot span{font-size:12.5px;color:var(--dim)}
+@media (max-width:900px){.ai-provs{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-provs,.ai-key,.ai-model,.ai-chips,#ai_basewrap{padding-left:0}}
+/* Frame view: the picture and its help line centred above one tool bar along the bottom of the column, as tall as
+   the transcript's tool bar beside it and on the same line: the layouts, the PiP corner, Reset and Settings */
+.ed-fpre{display:none}
+.ed-fpic{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px}
+.ed-fpic .ed-fview{flex:none;width:min(100%,calc((100cqh - 130px) * var(--ar,1.7778)))}
+.ed-fpic .ed-fhelp{text-align:center;line-height:18px}
+.ed-fdock{flex:none;display:flex;align-items:center;gap:2px;padding:6px;border-top:1px solid var(--ln);background:var(--e1);overflow-x:auto;scrollbar-width:none}
+.ed-fdock::-webkit-scrollbar{display:none}
+.ed-fgrid{flex:1 1 auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(58px,1fr);gap:2px}
+.ed-fgrid>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:48px;padding:0 4px;border:0;border-radius:8px;
+  background:transparent;color:#A1A1AA;font:inherit;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-fgrid>button svg{width:18px;height:18px;flex:none}
+.ed-fgrid>button:hover{background:var(--e3);color:#F4F4F5}
+.ed-fgrid>button[aria-checked=true]{background:color-mix(in srgb,var(--accent) 14%,var(--e1));color:#fff}
+.ed-fgrid>button[aria-checked=true] svg{color:var(--accent)}
+.ed-fsep{flex:none;width:1px;height:28px;margin:0 6px;background:var(--ln2)}
+.ed-fdock>.ed-tf{flex:0 0 76px}
+.ed-fcorner{flex:0 0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:48px;color:#A1A1AA;font-size:11px;font-weight:500}
+.ed-fcgrid{display:grid;grid-template-columns:repeat(2,12px);grid-template-rows:repeat(2,7px);gap:2px;margin-top:-3px;padding:1.5px;border-radius:4px;border:1px solid #52525B}
+.ed-fcorner button{position:relative;width:12px;height:7px;padding:0;border:0;border-radius:1.5px;background:#3F3F46;cursor:pointer;transition:background-color .15s ease}
+.ed-fcorner button::before{content:"";position:absolute;inset:-3px -2px}
+.ed-fcorner button:hover{background:#A1A1AA}
+.ed-fcorner button[aria-pressed=true]{background:var(--accent)}
+.ed-fcorner button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* Trio's three boxes */
+.ed-rg.t0{border-color:#7CC8FF;background:rgba(124,200,255,.08)}.ed-rg.t0 span{background:#7CC8FF}
+.ed-rg.t1{border-color:#FF8BD1;background:rgba(255,139,209,.1)}.ed-rg.t1 span{background:#FF8BD1}
+.ed-rg.t2{border-color:#FACC15;background:rgba(250,204,21,.08)}.ed-rg.t2 span{background:#FACC15}
+/* picture in picture in the preview: the small box over the full picture */
+.ed-pipb{position:absolute!important;z-index:2;width:auto;overflow:hidden}
+/* the small layout pictures (Layout panel and templates) */
+.lp-pip{position:absolute;width:38%;aspect-ratio:3/4;border-radius:4px;box-shadow:0 0 0 1.5px #fff;background-size:cover}
+.lp-pip.br{right:7%;bottom:8%}.lp-pip.bl{left:7%;bottom:8%}.lp-pip.tr{right:7%;top:7%}.lp-pip.tl{left:7%;top:7%}
+.lp-ph.pip .lp-bg{inset:0}
+.lp-part.t{flex:1}
+/* the face box (picture in picture): drag it, resize it from its corner */
+#edBandC.ed-pipb{cursor:grab;touch-action:none;transition:box-shadow .15s ease}
+#edBandC.ed-pipb:active{cursor:grabbing}
+.ed-pipz{position:absolute;right:4px;bottom:4px;z-index:3;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:nwse-resize;
+  opacity:0;transition:opacity .15s ease}
+.ed-phone:hover .ed-pipz{opacity:1}
+/* its settings card */
+.ed-pipset{display:grid;gap:14px}
+.ed-pipset .ed-h{display:grid;gap:2px}
+.ed-pipnote{font-size:11.5px;color:#8E8E96;font-weight:400}
+.ed-pipshapes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ed-pipshapes button{display:grid;justify-items:center;gap:6px;padding:12px 6px 10px;border:0;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  color:#A1A1AA;font:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease,color .15s ease}
+.ed-pipshapes svg{width:26px;height:26px;stroke-width:1.6}
+.ed-pipshapes button:hover{background:#222227;color:#F4F4F5}
+.ed-pipshapes button[aria-checked=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 8%,#1C1C20);color:#fff}
+.ed-piprow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ed-pipl{font-size:12.5px;color:#A1A1AA}
+.ed-pipcorn{display:grid;grid-template-columns:repeat(4,34px);gap:4px;padding:3px;border-radius:10px;background:#1C1C20}
+.ed-pipcorn button{display:grid;place-items:center;height:30px;border:0;border-radius:7px;background:transparent;color:#A1A1AA;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-pipcorn svg{width:16px;height:16px;stroke-width:2}
+.ed-pipcorn button:hover{background:#26262B;color:#fff}
+.ed-pipcorn button[aria-pressed=true]{background:var(--accent);color:#fff}
+.ed-pipcols{display:flex;align-items:center;gap:6px}
+.ed-pipcols button,.ed-pipcp{position:relative;width:20px;height:20px;border:0;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);cursor:pointer}
+.ed-pipcols button[aria-pressed=true]{box-shadow:0 0 0 2px #111,0 0 0 4px var(--c)}
+.ed-pipcp{background:conic-gradient(#EF4444,#F59E0B,#22C55E,#06B6D4,#3B82F6,#A855F7,#EF4444)}
+.ed-pipcp::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--c)}
+.ed-pipcp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.ed-pipframe{justify-content:center;gap:8px}
+/* the score: the song's picture with the volume line rising to the peak */
+.ed-score{display:grid;gap:12px;margin:4px 0 2px;padding:14px;border-radius:14px;background:#151518;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ed-sch{display:flex;align-items:center;gap:12px}
+.ed-scplay{flex:none;display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:var(--accent);color:#fff;cursor:pointer;transition:transform .15s ease}
+.ed-scplay:hover{transform:scale(1.05)}.ed-scplay:active{transform:scale(.96)}
+.ed-scplay svg{width:16px;height:16px;margin-left:2px}
+.ed-sch b{display:block;font-size:13.5px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.ed-sch small{display:block;margin-top:2px;font-size:11.5px;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-scg{position:relative;height:118px;border-radius:10px;background:#0E0E10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);overflow:hidden}
+.ed-scbars{position:absolute;inset:16px 8px;display:flex;align-items:center;gap:2px}
+.ed-scbars i{flex:1;min-width:0;border-radius:2px;background:#52525B}
+.ed-scbars i.r{background:color-mix(in srgb,var(--accent) 80%,#fff)}
+.ed .ed-scg svg.ed-scline{position:absolute;left:8px;top:8px;width:calc(100% - 16px);height:calc(100% - 16px);overflow:visible;stroke:none}
+.ed-scline path{fill:none;stroke:#F4F4F5;stroke-width:1.8;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}
+.ed-sctag{position:absolute;padding:3px 7px;border-radius:999px;font-size:10.5px;font-weight:600;white-space:nowrap;pointer-events:none}
+.ed-sctag.v{left:10px;background:#26262B;color:#D4D4D8}
+.ed-sctag.p{right:10px;background:var(--accent);color:#fff}
+.ed-scph{position:absolute;top:0;bottom:0;left:calc(8px + (100% - 16px) * var(--ph,0%) / 100%);width:2px;margin-left:-1px;background:#FACC15;border-radius:1px}
+.ed-score .ed-sl{margin:0}
+.ed-scsw{margin:0}
+/* the video border in the preview */
+.ed-stroke{position:absolute;inset:0;z-index:3;pointer-events:none}
+.ed-stroke i{position:absolute;display:block}
+.ed-strokeset{display:grid;gap:12px}
+.ed-strokeset .ed-h{display:grid;gap:2px}
+.ed-tedit{cursor:text;border-radius:5px;padding:1px 4px;margin:0 -4px;transition:background-color .15s ease}
+.ed-tedit:hover{background:rgba(255,255,255,.06)}
+.ed .ed-tin{width:62px;height:24px;padding:0 6px;border:0;border-radius:6px;background:#1C1C20;box-shadow:inset 0 0 0 1.5px var(--accent);color:#fff;
+  font:inherit;font-variant-numeric:tabular-nums;text-align:center;outline:0}
+.ed .ed-phone.sq{border-radius:0}
+/* the edit pack: library songs, sound effects, reaction faces */
+.ed-grp small{margin-left:6px;font-weight:400;color:#71717A;font-size:11px}
+.ed-mpack .ed-mrow span{display:grid;gap:1px;min-width:0}
+.ed-mpack .ed-mrow span small{font-size:11px;color:#8E8E96;font-weight:400}
+/* the music list's round play button (an <i>; the <div class="ed-mplay"> under the video is the phones-only play row) */
+.ed i.ed-mplay{flex:none;display:grid;place-items:center;width:26px;height:26px;padding:0;border-radius:50%;background:#26262B;color:#E4E4E7;font-style:normal}
+.ed i.ed-mplay:hover{background:var(--accent);color:#fff}
+.ed i.ed-mplay svg{width:12px;height:12px}
+.ed-sfx{display:grid;gap:12px}
+.ed-sfx .ed-h{display:grid;gap:2px}
+.ed-sfxg button{font-size:11.5px}
+.ed-sfxlist{display:grid;gap:2px;max-height:252px;overflow-y:auto;scrollbar-width:thin}
+.ed-sfxi{display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 4px 4px 6px;border-radius:9px}
+.ed-sfxi:hover{background:#1C1C20}
+.ed-sfxi>span{flex:1;min-width:0;display:grid;gap:1px;font-size:12.5px;color:#E4E4E7}
+.ed-sfxi>span small{font-size:11px;color:#71717A;font-variant-numeric:tabular-nums}
+.ed-sfxp{flex:none;display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:50%;background:#26262B;color:#E4E4E7;cursor:pointer}
+.ed-sfxp:hover{background:var(--accent);color:#fff}
+.ed-sfxp svg{width:12px;height:12px;margin-left:1px}
+.ed-sfxi .ed-btn{gap:4px;height:28px}
+.ed-sfxi .ed-btn svg{width:13px;height:13px}
+.ed-sfxon{display:grid;gap:2px}
+.ed-sfxrow{display:flex;align-items:center;gap:4px;border-radius:8px}
+.ed-sfxrow.on{background:#1C1C20;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent)}
+.ed-sfxname{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border:0;background:none;color:#E4E4E7;font:inherit;font-size:12.5px;text-align:left;cursor:pointer}
+.ed-sfxname span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-sfxname small{color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-sfxname svg{width:14px;height:14px;color:#22D3EE}
+.ed-lane.sfx{height:28px}.ed-th.sfx{height:28px}
+.ed-sfxbar{position:absolute;top:4px;bottom:4px;display:flex;align-items:center;gap:4px;min-width:18px;padding:0 6px;border:0;border-radius:6px;overflow:hidden;white-space:nowrap;
+  background:color-mix(in srgb,#06B6D4 26%,#232327);box-shadow:inset 0 0 0 1px color-mix(in srgb,#06B6D4 50%,transparent);color:#A5F3FC;font:inherit;font-size:10.5px;cursor:grab}
+.ed-sfxbar svg{flex:none;width:11px;height:11px}
+.ed-sfxbar.on{box-shadow:inset 0 0 0 1.5px #fff;color:#fff}
+.ed-faces{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ed-face{display:grid;justify-items:center;gap:4px;padding:8px 4px 6px;border:0;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  color:#A1A1AA;font:inherit;font-size:10.5px;cursor:pointer;transition:background-color .15s ease,transform .15s ease}
+.ed-face:hover{background:#24242A;color:#fff}
+.ed-face:active{transform:scale(.97)}
+.ed-face img{width:52px;height:52px;object-fit:contain}
+.ed-face span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ed-zfaces{display:grid;grid-template-columns:repeat(9,1fr);gap:5px}
+.ed-zface{display:grid;place-items:center;aspect-ratio:1;border:0;border-radius:9px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#71717A;cursor:pointer;padding:3px}
+.ed-zface img{width:100%;height:100%;object-fit:contain}
+.ed-zface svg{width:16px;height:16px}
+.ed-zface[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 9%,#1C1C20)}
+.ed-pic.zr{pointer-events:none}
 </style>
 </head>
 <body>
@@ -6438,6 +6627,7 @@ function aiHints() {
   $("#ai_model").placeholder = pv.example ? "For example " + pv.example : "The model id, exactly as the service names it";
   $("#ai_base").placeholder = pv.address || "http://127.0.0.1:1234/v1";
   $("#ai_basewrap").hidden = pv.id !== "custom" && !(same && k.base_url);
+  $("#ai_keywrap")?.classList.toggle("nokey", !pv.needs_key && pv.id !== "custom");
 }
 async function drawSettings() {
   const box = $("#sform"); if (!box) return;
@@ -6455,15 +6645,28 @@ async function drawSettings() {
   try {
     if (tab === "ai") {
       const k = S.ai = await api("/api/ai");
-      body.innerHTML = head("AI", "SocialShot uses an AI model to pick the moments worth clipping and to write hooks, titles and captions. Use your own key; you pay that service directly. Without a key, clips are picked by loudness.") +
-        `<div class="srows">
-          ${row("Status", "Whether the AI is ready to use", k.ready ? `<span class="pill ok">${ic("check")}Ready</span><span class="sub">${esc(k.label)} · ${esc(k.models[0] || "")}</span>` : `<span class="pill warn">Not set up</span>`, "inline")}
-          ${row("AI service", "Who runs the model", `<select id="ai_provider">${k.providers.map(x => `<option value="${esc(x.id)}" ${x.id === k.provider ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>`)}
-          ${row("Key", `<span id="ai_keyhint"></span>`, `<input id="ai_key" type="password" autocomplete="off" spellcheck="false">`)}
-          ${row("Address", "Where the service answers. Only for a custom service.", `<input id="ai_base" value="${esc(k.base_url || "")}" spellcheck="false">`, "", "ai_basewrap")}
-          ${row("Model", "A fast, inexpensive model is right. Add a second after a comma to fall back on.", `<span class="with"><input id="ai_model" list="ai_models" value="${esc(k.models.join(", "))}" spellcheck="false"><button class="btn" type="button" data-act="aimodels">Find models</button></span><datalist id="ai_models"></datalist>`)}
-        </div>
-        ${foot(`${k.ready ? `<button class="btn" data-act="aitest">Test again</button>` : ""}<button class="btn primary" data-act="aisave">Save and test</button>`)}`;
+      // the state of the AI first, then the three things it needs: who runs it, the key, the model
+      const AI_NOTE = {gemini: "Google", openai: "GPT models", xai: "xAI", groq: "Very fast", openrouter: "Many models, one key",
+                       anthropic: "Anthropic", ollama: "Free, runs here", custom: "Any OpenAI-style service"};
+      body.innerHTML = head("AI", "The AI picks the moments worth clipping and writes hooks, titles and captions. You use your own key and pay that service directly.") +
+        `<section class="ai-state ${k.ready ? "ok" : "off"}">
+          <span class="ai-dot" aria-hidden="true"></span>
+          <div class="ai-st"><b>${k.ready ? `${esc(k.label)} is ready` : "The AI isn't set up"}</b>
+            <span>${k.ready ? `<code>${esc(k.models[0] || "")}</code>${k.models[1] ? ` · falls back on <code>${esc(k.models[1])}</code>` : ""}` : "Until it is, clips are picked by how loud the moment is."}</span></div>
+          ${k.ready ? `<button class="btn sm" data-act="aitest">${ic("refresh")}Test again</button>` : ""}
+        </section>
+        <div class="ai-step"><div class="ai-sh"><span>1</span><div><b>AI service</b><small>Who runs the model</small></div></div>
+          <select id="ai_provider" hidden>${k.providers.map(x => `<option value="${esc(x.id)}" ${x.id === k.provider ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
+          <div class="ai-provs" role="radiogroup" aria-label="AI service">${k.providers.map(x => `<button type="button" role="radio" class="ai-prov" data-act="aiprov" data-v="${esc(x.id)}" aria-checked="${x.id === k.provider}">
+            <b>${esc(x.label.replace(/\s*\(.*\)\s*$/, ""))}</b><small>${esc(AI_NOTE[x.id] || "")}</small>${x.id === k.provider && k.ready ? `<i class="ai-cur">In use</i>` : ""}</button>`).join("")}</div></div>
+        <div class="ai-step" id="ai_keywrap"><div class="ai-sh"><span>2</span><div><b>Key</b><small id="ai_keyhint"></small></div></div>
+          <div class="ai-key"><input id="ai_key" type="password" autocomplete="off" spellcheck="false">
+            <button type="button" class="ai-eye" data-act="aieye" aria-label="Show the key" title="Show what you typed"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          <div id="ai_basewrap" hidden><label class="ai-lab">Address <small>Where the service answers</small></label><input id="ai_base" value="${esc(k.base_url || "")}" spellcheck="false"></div></div>
+        <div class="ai-step"><div class="ai-sh"><span>3</span><div><b>Model</b><small>A fast, inexpensive one is right. Add a second after a comma to fall back on.</small></div></div>
+          <div class="ai-model"><input id="ai_model" list="ai_models" value="${esc(k.models.join(", "))}" spellcheck="false"><button class="btn" type="button" data-act="aimodels">${ic("search")}Find models</button></div>
+          <datalist id="ai_models"></datalist><div class="ai-chips" id="ai_chips"></div></div>
+        <div class="ai-foot"><span>Saving runs a quick test, so you know straight away if it works.</span><button class="btn primary" data-act="aisave">Save and test</button></div>`;
       aiHints();     // what the AI cost per video is on the admin panel, not here
     }
     if (tab === "notify") {
@@ -6764,12 +6967,24 @@ document.addEventListener("click", async e => {
   if (b.tagName === "A") e.preventDefault();
   try {
     if (a === "go") { closePops(); return go(d.v, d.tab); }
+    if (a === "aiprov") {
+      const sel = $("#ai_provider"); sel.value = d.v; sel.dispatchEvent(new Event("change", {bubbles: true}));
+      $$(".ai-prov").forEach(x => x.setAttribute("aria-checked", String(x === b))); $("#ai_chips").innerHTML = "";
+      return;
+    }
+    if (a === "aieye") { const i = $("#ai_key"); i.type = i.type === "password" ? "text" : "password"; b.classList.toggle("on", i.type === "text"); return; }
+    if (a === "aichip") { const i = $("#ai_model"), cur = i.value.split(",").map(x => x.trim()).filter(Boolean);
+      i.value = cur.length && !cur.includes(d.v) && e.shiftKey ? cur.concat(d.v).join(", ") : d.v;
+      $$(".ai-chip").forEach(x => x.classList.toggle("on", i.value.split(",").map(y => y.trim()).includes(x.dataset.v))); return; }
     if (a === "aimodels") {
       b.disabled = true;
       try {
         const r = await send("/api/ai/models", {provider: $("#ai_provider").value, base_url: $("#ai_base").value, key: $("#ai_key").value});
         $("#ai_models").innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join("");
-        toast(r.models.length ? `${r.models.length} models found. Click the model box to pick one.` : "The service listed no models. Type the model yourself.", r.models.length ? "ok" : "");
+        const now = $("#ai_model").value.split(",").map(x => x.trim());
+        $("#ai_chips").innerHTML = r.models.length ? `<small>${r.models.length} found · click one to use it, Shift-click to add a fallback</small>` +
+          r.models.slice(0, 14).map(m => `<button type="button" class="ai-chip ${now.includes(m) ? "on" : ""}" data-act="aichip" data-v="${esc(m)}">${esc(m)}</button>`).join("") : "";
+        if (!r.models.length) toast("The service listed no models. Type the model yourself.");
         if (r.models.length) $("#ai_model").focus();
       } finally { b.disabled = false; }
       return;
@@ -7042,6 +7257,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=106"></script>
+<script src="/assets/editor.js?v=118"></script>
 </body>
 </html>

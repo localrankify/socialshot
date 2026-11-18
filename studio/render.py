@@ -195,6 +195,9 @@ EFFECTS = {
     "vintage": "curves=preset=vintage",
     "bw": "hue=s=0,eq=contrast=1.1",
 }
+from . import pack as _pack                        # noqa: E402 - the built-in edit pack
+for _lk in _pack.looks():                          # its colour looks (LUTs), applied from a copy in the work folder
+    EFFECTS[_lk["key"]] = "lut3d=look.cube"
 FADES = ("none", "black", "white")      # how a clip starts and ends: straight in, or a short fade from or to a colour
 FADE_SECONDS = 0.5
 
@@ -272,8 +275,11 @@ def clean_look(look) -> dict | None:
             "outro": clean_outro(look.get("outro")),           # a few seconds after the clip: a card or a file
             "overlays": clean_overlays(look.get("overlays")),  # pictures placed on the video for a while
             "zooms": clean_zooms(look.get("zooms")),           # moments the video punches in, on a face, with a look
+            "sfx": clean_sfx(look.get("sfx")),                 # sound effects at moments of the video (the built-in pack)
             # Blurred fill and Zoomed: what is behind the video, room around it, and its corners
             "bg": clean_bg(look.get("bg")), "pad": _num(look.get("pad"), 0, 140, 0), "vradius": _num(look.get("vradius"), 0, 60, 0),
+            # a border on the video (Layout): its width at 1080 wide (0: none) and colour
+            "stroke": _num(look.get("stroke"), 0, 24, 0), "stroke_color": _hex(look.get("stroke_color"), "#FFFFFF"),
             # effects: a colour look, and how the clip starts and ends
             "effect": look["effect"] if look.get("effect") in EFFECTS else "none",
             "fade_in": look["fade_in"] if look.get("fade_in") in FADES else "none",
@@ -415,12 +421,27 @@ def round_mask(w: int, h: int, radius: int, out: Path):
     m.resize((w, h), Image.LANCZOS).save(out, "PNG")
 
 
+def pip_ring(g: dict, out: Path):
+    """The white edge around picture in picture's small box: a white rounded rectangle a little bigger than the
+    box (the video covers its middle), with a soft dark line outside so it stands off any picture."""
+    from PIL import Image, ImageDraw
+    b, w, h = g["b"], g["w"] + 2 * g["b"], g["h"] + 2 * g["b"]
+    c = g.get("color") or "#FFFFFF"
+    rgb = tuple(int(c[i:i + 2], 16) for i in (1, 3, 5))
+    im = Image.new("RGBA", (w * 2, h * 2), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, w * 2 - 1, h * 2 - 1), radius=(g["r"] + b) * 2 if g["r"] else 0, fill=rgb + (255 if b else 0,))
+    im.resize((w, h), Image.LANCZOS).save(out, "PNG")
+
+
 def music_path(uid: str, mid: str) -> Path:
-    return config.user_dir(uid) / "music" / f"{mid}.m4a"
+    return _pack.song_path(mid) or config.user_dir(uid) / "music" / f"{mid}.m4a"
 
 
 def media_path(uid: str, mid: str) -> Path:
     """A picture (PNG) or short video (MP4) from the person's media library."""
+    p = _pack.face_path(mid)
+    if p:
+        return p
     d = config.user_dir(uid) / "media"
     png = d / f"{mid}.png"
     return png if png.is_file() else d / f"{mid}.mp4"
@@ -525,8 +546,25 @@ def clean_zooms(v) -> list:
         pct = lambda k, d: max(0.0, min(100.0, float(z.get(k, d))))   # noqa: E731
         out.append({"a": round(a, 2), "b": round(b, 2), "s": round(max(1.1, min(3.0, float(z.get("s") or 1.8))), 2),
                     "x": round(pct("x", 50), 2), "y": round(pct("y", 40), 2),
-                    "fx": z["fx"] if z.get("fx") in ZOOM_FX else "none", "ease": bool(z.get("ease", True))})
+                    "fx": z["fx"] if z.get("fx") in ZOOM_FX else "none", "ease": bool(z.get("ease", True)),
+                    # a reaction face that pops in for the zoom (a built-in face id), with its sound
+                    "react": z["react"] if _pack.face_path(str(z.get("react") or "")) else ""})
     out.sort(key=lambda z: z["a"])
+    return out
+
+
+def clean_sfx(v) -> list:
+    """Sound effects from the built-in pack: which one, when (seconds of the video) and how loud (%)."""
+    out = []
+    for x in (v if isinstance(v, list) else [])[:60]:
+        if not isinstance(x, dict) or not _pack.sfx_path(str(x.get("id") or "")):
+            continue
+        try:
+            t = float(x.get("t"))
+        except (TypeError, ValueError):
+            continue
+        out.append({"id": x["id"], "t": round(max(0.0, t), 2), "vol": _num(x.get("vol"), 0, 200, 100)})
+    out.sort(key=lambda x: x["t"])
     return out
 
 
@@ -599,6 +637,8 @@ def clean_music(v) -> dict:
             # the rise into the outro: from `vol` to `peak` over `rise` seconds, ending as the outro starts. `peak_at`
             # is the moment in the song (its drop) that should land right on the outro; it sets where the song starts.
             "peak": _num(v.get("peak"), 0, 100, 100), "rise": _secs(v.get("rise"), 0, 10, 3),
+            # rise at the end of the clip itself, when there is no outro to rise into
+            "rise_on": bool(v.get("rise_on", False)),
             "peak_at": None if peak_at is None else round(peak_at, 2),
             # where the music sits on the timeline: it starts `off` seconds into the clip and stops at `till` (None: the end)
             "off": round(off, 2), "till": None if till is None else round(till, 2)}
@@ -624,9 +664,12 @@ def music_graph(m: dict, idx: int, dur: float, voice: str, main: float = 0.0) ->
         level = f"volume='if(lt(t,{t0:.2f}),{v:.2f},if(lt(t,{t1:.2f}),{v:.2f}+({p - v:.2f})*(t-{t0:.2f})/{max(.01, t1 - t0):.2f},{p:.2f}))':eval=frame"
     elif main:
         level = f"volume='if(lt(t,{main:.2f}),{v:.2f},{p:.2f})':eval=frame"
-    mus = [fmt, f"atrim=0:{e - s:.2f}", "asetpts=PTS-STARTPTS", "loudnorm=I=-14:TP=-2:LRA=11"]
+    # loudnorm hands a short song over in one big piece; cut it back into small ones, so the volume below (checked
+    # once per piece) really rises over time instead of staying where it started
+    mus = [fmt, f"atrim=0:{e - s:.2f}", "asetpts=PTS-STARTPTS", "loudnorm=I=-14:TP=-2:LRA=11", "aresample=48000", "asetnsamples=n=1024:p=0"]
     if m["fade"]:
-        mus += ["afade=t=in:st=0:d=0.6", f"afade=t=out:st={max(0.0, e - s - 1.5):.2f}:d=1.5"]
+        out_d = 0.3 if m.get("rise_on") and main >= dur - 0.05 else 1.5     # rising to the end: only a short fade
+        mus += ["afade=t=in:st=0:d=0.6", f"afade=t=out:st={max(0.0, e - s - out_d):.2f}:d={out_d}"]
     if s > 0:                                  # silence before it, so the level below runs on the clip's own time
         mus.append(f"adelay={int(s * 1000)}:all=1")
     mus.append(level)
@@ -1241,11 +1284,21 @@ def install_fonts():
 
 
 LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fill", "crop": "Fill the screen (centre crop)",
-           "split": "Split: the stream on top, the face cam below", "card": "Post card: the clip inside a social post"}
+           "split": "Split: the stream on top, the face cam below", "card": "Post card: the clip inside a social post",
+           "pip": "Picture in picture: one part fills the frame, the face cam in a small box in a corner",
+           "trio": "Trio: three parts of the picture stacked, for podcasts with three people"}
+PARTS = ("split", "pip", "trio")      # the layouts made of parts of the picture (the split boxes), not one framed shot
 # The split layout cuts two parts out of the source: the gameplay (or whatever is on stream) and the streamer's face
 # cam, and stacks them. Each part is [left, top, width, height] as fractions of the source picture. Most streamers
 # keep their face cam in the bottom-right corner, so that's where it starts; the editor can move both.
-SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], "cam_at": "bottom", "share": 50}
+SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], "cam_at": "bottom", "share": 50,
+                 # picture in picture: which corner the small box sits in, and how wide it is (% of the frame)
+                 "pip_at": "br", "pip_size": 36,
+                 # its place once dragged (the middle of the box, % of the frame; None: the corner above), its shape,
+                 # how round its corners are (% of its width), and its edge (width at 1080 wide, colour)
+                 "pip_x": None, "pip_y": None, "pip_shape": "rounded", "pip_radius": 10, "pip_border": 6, "pip_color": "#FFFFFF",
+                 # trio: the three parts, top to bottom (a third of the picture each, to start)
+                 "trio": [[0.0, 0.0, 0.3333, 1.0], [0.3333, 0.0, 0.3333, 1.0], [0.6667, 0.0, 0.3333, 1.0]]}
 
 
 def _region(v, default):
@@ -1265,8 +1318,54 @@ def clean_split(v) -> dict:
         share = max(30, min(70, int(share)))
     except (TypeError, ValueError):
         share = SPLIT_DEFAULT["share"]
+    try:
+        size = max(22, min(50, int(v.get("pip_size", SPLIT_DEFAULT["pip_size"]))))
+    except (TypeError, ValueError):
+        size = SPLIT_DEFAULT["pip_size"]
+    trio = v.get("trio") if isinstance(v.get("trio"), list) and len(v.get("trio")) == 3 else SPLIT_DEFAULT["trio"]
+
+    def pct(k, lo, hi):
+        try:
+            return None if v.get(k) is None else round(max(lo, min(hi, float(v[k]))), 2)
+        except (TypeError, ValueError):
+            return None
+    col = str(v.get("pip_color") or "#FFFFFF")
     return {"game": _region(v.get("game"), SPLIT_DEFAULT["game"]), "cam": _region(v.get("cam"), SPLIT_DEFAULT["cam"]),
-            "cam_at": "top" if v.get("cam_at") == "top" else "bottom", "share": share}
+            "cam_at": "top" if v.get("cam_at") == "top" else "bottom", "share": share,
+            "pip_at": v.get("pip_at") if v.get("pip_at") in ("tl", "tr", "bl", "br") else "br", "pip_size": size,
+            "pip_x": pct("pip_x", 0, 100), "pip_y": pct("pip_y", 0, 100),
+            "pip_shape": v.get("pip_shape") if v.get("pip_shape") in ("rounded", "circle", "square") else "rounded",
+            "pip_radius": int(pct("pip_radius", 0, 30) if pct("pip_radius", 0, 30) is not None else 10),
+            "pip_border": int(pct("pip_border", 0, 16) if pct("pip_border", 0, 16) is not None else 6),
+            "pip_color": col.upper() if re.fullmatch(r"#[0-9A-Fa-f]{6}", col) else "#FFFFFF",
+            "trio": [_region(r, d) for r, d in zip(trio, SPLIT_DEFAULT["trio"])]}
+
+
+def pip_geometry(W, H, split, src_w, src_h) -> dict:
+    """Where the small box of picture in picture goes, in pixels of the frame: its place and size (the face cam's
+    own shape, kept between wide and tall), the white edge around it and how round its corners are."""
+    sp = split or SPLIT_DEFAULT
+    pw = int(round(W * sp.get("pip_size", 36) / 100 / 2)) * 2
+    cam, shape = sp["cam"], sp.get("pip_shape", "rounded")
+    ar = (cam[3] * (src_h or 9)) / max(1e-6, cam[2] * (src_w or 16))
+    ph = pw if shape == "circle" else int(round(pw * max(0.75, min(1.5, ar)) / 2)) * 2
+    m = round(W * 0.045)
+    b = int(round(sp.get("pip_border", 6) * W / 1080))
+    if sp.get("pip_x") is not None and sp.get("pip_y") is not None:      # dragged: its middle where it was let go
+        x = round(W * sp["pip_x"] / 100 - pw / 2)
+        y = round(H * sp["pip_y"] / 100 - ph / 2)
+    else:
+        at = sp.get("pip_at", "br")
+        x = W - m - pw if at[1] == "r" else m
+        y = round(H * 0.07) if at[0] == "t" else H - ph - round(H * 0.075)
+    x, y = max(b, min(W - pw - b, x)), max(b, min(H - ph - b, y))       # always whole on the frame, edge too
+    r = pw // 2 if shape == "circle" else 0 if shape == "square" else round(pw * sp.get("pip_radius", 10) / 100)
+    return {"x": x, "y": y, "w": pw, "h": ph, "b": b, "r": r, "color": sp.get("pip_color", "#FFFFFF")}
+
+
+def _trio_heights(H):
+    t = int(round(H / 3 / 2)) * 2
+    return t, t, H - 2 * t
 
 
 def avoid_cam(split, src_w, src_h, W, H):
@@ -1335,6 +1434,12 @@ def geometry(src_w, src_h, layout, split=None):
         gh, ch = _split_heights(sp, H)
         seam = gh if sp["cam_at"] == "bottom" else ch
         return layout, gh, seam - round(H * 0.045), seam     # both in the middle: hook just above, captions on the seam
+    if layout == "trio":                 # the hook just above the first seam, the captions on the second
+        a, b, _ = _trio_heights(H)
+        return layout, H, a - round(H * 0.045), a + b
+    if layout == "pip":                  # like Solo; the captions move up when the small box is at the bottom
+        sp = split or SPLIT_DEFAULT
+        return layout, H, round(H * 300 / 1920), round(H * (1380 if sp.get("pip_at", "br")[0] == "t" else 1180) / 1920)
     if src_h * W >= src_w * H and layout != "crop":
         layout = "crop"  # as tall as the frame or taller: nothing to gain from a blurred fill
     iw = W - 2 * getattr(_frame, "pad", 0)      # room left and right of the video (Blurred fill and Zoomed)
@@ -1588,7 +1693,46 @@ def _cut_words(words, start, keeps):
 
 
 def _filter(layout, fg_h, sel="", split=None):
-    """`sel`: a select step that keeps only some parts (Speech cleanup), put right after the frame rate is set."""
+    """`sel`: a select step that keeps only some parts (Speech cleanup), put right after the frame rate is set.
+    With a border chosen in Layout, it is drawn on the finished picture (see _stroke)."""
+    out = _filter_in(layout, fg_h, sel, split)
+    st = getattr(_frame, "stroke", None)
+    if st and out.endswith("[v0];"):
+        boxes = _stroke(layout, fg_h, st, split)
+        if boxes:
+            out = out[:-len("[v0];")] + "," + boxes + "[v0];"
+    return out
+
+
+def _stroke(layout, fg_h, st, split=None) -> str:
+    """The border, as drawbox steps: around the video box (Centered, Zoomed), along the edge of the frame (Solo,
+    picture in picture) or as lines between the parts (Split, Trio). Square corners only; a rounded video box
+    gets its border from the ring picture under it instead."""
+    W, H = _wh()
+    b = max(2, int(round(st["w"] * W / 1080 / 2)) * 2)
+    c = "0x" + st["color"][1:]
+    if layout in ("blur", "zoom"):
+        if getattr(_frame, "vround", 0):
+            return ""
+        iw = W - 2 * getattr(_frame, "pad", 0)
+        x, y = (W - iw) // 2, (H - fg_h) // 2
+        if iw >= W:                          # the video is as wide as the frame: lines above and below it
+            return f"drawbox=x=0:y={max(0, y - b)}:w={W}:h={b}:color={c}:t=fill,drawbox=x=0:y={min(H - b, y + fg_h)}:w={W}:h={b}:color={c}:t=fill"
+        return f"drawbox=x={x - b}:y={y - b}:w={iw + 2 * b}:h={fg_h + 2 * b}:color={c}:t={b}"
+    if layout in ("crop", "pip"):
+        return f"drawbox=x=0:y=0:w={W}:h={H}:color={c}:t={b}"
+    if layout == "split":
+        sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
+        gh, ch = _split_heights(sp, H)
+        seam = gh if sp["cam_at"] == "bottom" else ch
+        return f"drawbox=x=0:y={seam - b // 2}:w={W}:h={b}:color={c}:t=fill"
+    if layout == "trio":
+        a, m, _ = _trio_heights(H)
+        return ",".join(f"drawbox=x=0:y={y - b // 2}:w={W}:h={b}:color={c}:t=fill" for y in (a, a + m))
+    return ""
+
+
+def _filter_in(layout, fg_h, sel="", split=None):
     W, H = _wh()
     if layout == "split":                # two parts of the source, each filling its band, stacked
         sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
@@ -1601,6 +1745,25 @@ def _filter(layout, fg_h, sel="", split=None):
         order = "[g][c]" if sp["cam_at"] == "bottom" else "[c][g]"
         return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];" + part(sp["game"], gh, "g", "a") + part(sp["cam"], ch, "c", "b")
                 + f"{order}vstack=inputs=2,setsar=1[v0];")
+    if layout in ("pip", "trio"):
+        sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
+        fps = config.OUT_FPS
+
+        def fill(r, w, h, src, tag, end=",setsar=1"):
+            x, y, rw, rh = r
+            return (f"[{src}]crop=iw*{rw}:ih*{rh}:iw*{x}:ih*{y},scale={w}:{h}:force_original_aspect_ratio=increase,"
+                    f"crop={w}:{h}{end}[{tag}];")
+        if layout == "trio":
+            hs = _trio_heights(H)
+            return (f"[0:v]fps={fps},{sel}split=3[a][b][c];" + fill(sp["trio"][0], W, hs[0], "a", "t0")
+                    + fill(sp["trio"][1], W, hs[1], "b", "t1") + fill(sp["trio"][2], W, hs[2], "c", "t2")
+                    + "[t0][t1][t2]vstack=inputs=3,setsar=1[v0];")
+        g, inp = _frame.pip_geo, getattr(_frame, "inputs", None) or {}
+        return (f"[0:v]fps={fps},{sel}split=2[a][b];" + fill(sp["game"], W, H, "a", "pg")
+                + fill(sp["cam"], g["w"], g["h"], "b", "pq", ",setsar=1,format=yuva420p")
+                + f"[{inp['round']}:v]format=gray,scale={g['w']}:{g['h']}[pm];[pq][pm]alphamerge=shortest=1[pc];"
+                + f"[{inp['ring']}:v]fps={fps},format=rgba[pr];[pg][pr]overlay={g['x'] - g['b']}:{g['y'] - g['b']}:shortest=1[pg2];"
+                + f"[pg2][pc]overlay={g['x']}:{g['y']}:shortest=1,setsar=1[v0];")
     r = getattr(_frame, "region", None)             # the part of the picture chosen in the Frame view
     if r and r != [0, 0, 1, 1]:
         sel += f"crop=iw*{r[2]}:ih*{r[3]}:iw*{r[0]}:ih*{r[1]},"
@@ -1634,11 +1797,15 @@ def _filter(layout, fg_h, sel="", split=None):
     else:
         head = f"[0:v]fps={fps},{sel}null[b];color=c=0x{bg['c1'][1:]}:s={W}x{H}:r={fps},format=yuv420p[bg];"
     fg = f"[b]scale={iw}:{fg_h}:force_original_aspect_ratio=increase,crop={iw}:{fg_h},setsar=1"
+    bgl = "bg"
+    if "vring" in inp:                   # the rounded border: a ring under the video, as big as the box and its edge
+        head += f"[{inp['vring']}:v]fps={fps},format=rgba[vr];[bg][vr]overlay=(W-w)/2:(H-h)/2:shortest=1[bgr];"
+        bgl = "bgr"
     if "round" in inp:
         fg += f",format=yuva420p[fq];[{inp['round']}:v]format=gray,scale={iw}:{fg_h}[fm];[fq][fm]alphamerge=shortest=1[fg];"
     else:
         fg += "[fg];"
-    return head + fg + "[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1[v0];"
+    return head + fg + f"[{bgl}][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1[v0];"
 
 
 _qsv_ok = None
@@ -1653,8 +1820,9 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     try:
         return _render_clip(src, out_dir, name, clip, words, src_w, src_h, look)
     finally:
-        _frame.wh, _frame.split, _frame.region, _frame.card_geo = (W, H), None, None, None
+        _frame.wh, _frame.split, _frame.region, _frame.card_geo, _frame.pip_geo = (W, H), None, None, None, None
         _frame.pad, _frame.bg, _frame.inputs, _frame.hook_emoji, _frame.card_blur = 0, None, None, [], False
+        _frame.stroke, _frame.vround, _frame.vring_b = None, 0, 0
 
 
 def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
@@ -1667,13 +1835,16 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     if clip.get("layout") == "split":
         split = avoid_cam(split, src_w, src_h, W, H)   # stream part still the whole picture: keep the face cam out of it
     _frame.split = split                       # the split layout's two parts, for the picture step below
-    region = look["frame"] if look and clip.get("layout") != "split" else None
+    _frame.pip_geo = pip_geometry(W, H, split, src_w, src_h) if clip.get("layout") == "pip" else None
+    region = look["frame"] if look and clip.get("layout") not in PARTS else None
     _frame.region = region
     fw, fh = (src_w * region[2], src_h * region[3]) if region else (src_w, src_h)   # the shape of what is shown
     # Blurred fill and Zoomed: what is behind the video, the room around it and its corners
     framed = look and clip.get("layout") in ("blur", "zoom")
     _frame.pad = round(look["pad"] * W / 1080 / 2) * 2 if framed else 0
     _frame.bg = look["bg"] if framed else None
+    _frame.stroke = {"w": look["stroke"], "color": look["stroke_color"]} if look and look.get("stroke") and clip.get("layout") != "card" else None
+    _frame.vround = look["vradius"] if framed else 0
     style, hook = clip.get("style", "studio"), clip.get("hook", "")
     card = None
     if clip.get("layout") == "card":           # the post card: its own places; the post's words stand in for the hook
@@ -1739,6 +1910,17 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             if look["vradius"]:
                 round_mask(W - 2 * _frame.pad, fg_h, round(look["vradius"] * W / 1080), work / "round.png")
                 stills.append("round")
+                if _frame.stroke:            # a rounded box: its border is a rounded ring under the video
+                    b = max(2, int(round(_frame.stroke["w"] * W / 1080 / 2)) * 2)
+                    pip_ring({"w": W - 2 * _frame.pad, "h": fg_h, "b": b, "r": round(look["vradius"] * W / 1080),
+                              "color": _frame.stroke["color"]}, work / "vring.png")
+                    stills.append("vring")
+                    _frame.vring_b = b
+        elif layout == "pip":
+            g = _frame.pip_geo
+            round_mask(g["w"], g["h"], g["r"], work / "round.png")     # radius 0: square
+            pip_ring(g, work / "ring.png")
+            stills = ["round", "ring"]
         _frame.inputs = {k: i + 1 for i, k in enumerate(stills)}
         main = out_end - start                       # the clip's length once cuts are out
         mdir = Path(clip.get("media_dir") or "")
@@ -1754,10 +1936,17 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             if f:
                 shutil.copyfile(f, work / f"em{i}.png")
                 hook_pics.append((f"em{i}.png", x, y, max(8, round(size / 2) * 2), 0.0, min(show, main), 100))
+        lut = _pack.look_path(look["effect"]) if look else None
+        if lut and lut.is_file():
+            shutil.copyfile(lut, work / "look.cube")
         # pictures placed on the video: frame pixels, and times on the finished clip (cut parts skipped)
         ovs = []
-        for i, o in enumerate(look["overlays"] if look else []):
-            f = mdir / f"{o['id']}.png"
+        placed = list(look["overlays"] if look else [])
+        for zm in (look["zooms"] if look else []):    # a zoom's reaction face: top right, popping in for the zoom
+            if zm.get("react"):
+                placed.append({"id": zm["react"], "x": 74.0, "y": 22.0, "w": 34.0, "a": zm["a"], "b": zm["b"], "op": 100})
+        for i, o in enumerate(placed):
+            f = _pack.face_path(o["id"]) or mdir / f"{o['id']}.png"
             if not f.is_file():
                 continue
             shutil.copyfile(f, work / f"ov{i}.png")
@@ -1786,14 +1975,27 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             music = dict(look["music"], dur=main)
             if outro and music["peak_at"] is not None:      # the song's drop lands right on the outro
                 music["at"] = max(0.0, music["peak_at"] - max(0.0, main - music["off"]))
+        # sound effects: the pack's sounds at their moments on the finished clip, and a zoom's reaction sound
+        hits = [(x["id"], x["t"], x["vol"]) for x in (look["sfx"] if look else [])]
+        for zm in (look["zooms"] if look else []):
+            face = next((f for f in _pack.faces() if f["id"] == zm.get("react")), None)
+            if face and face.get("sfx"):
+                hits.append((face["sfx"], zm["a"], 90))
+        sfx = []
+        for i, (sid, t, vol) in enumerate(hits):
+            at = _out_time(t - start, keeps)
+            if 0 <= at < main and t >= start - 0.05:
+                shutil.copyfile(_pack.sfx_path(sid), work / f"sfx{i}.m4a")
+                sfx.append((f"sfx{i}.m4a", at, vol))
         return _render_in(work, src, out_dir, name, start, end, layout, fg_h, ass, fx, sel, asel,
-                          brand_overlay(brand) if badge else None, stills=stills, music=music, overlays=ovs, outro=outro, over=hook_pics, zooms=zms)
+                          brand_overlay(brand) if badge else None, stills=stills, music=music, overlays=ovs, outro=outro, over=hook_pics, zooms=zms,
+                          sfx=sfx)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
 def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layout, fg_h, ass: str, fx=("", "", ""), sel="", asel="",
-               brand=None, stills=(), music=None, overlays=(), outro=None, over=(), zooms=()) -> dict:
+               brand=None, stills=(), music=None, overlays=(), outro=None, over=(), zooms=(), sfx=()) -> dict:
     """`overlays`: pictures on the video, [(file, x, y, width, from, to, opacity)] in frame pixels and output seconds.
     `outro`: {"file", "video", "secs", "main"}: a card picture or a video joined after the clip (main = clip length)."""
     global _qsv_ok
@@ -1850,13 +2052,23 @@ def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layo
         voice += f",apad=whole_dur={total:.2f}"     # silence under the outro, so the music carries it
     if music:                                  # the music goes in last, and the sound is mixed in the same graph
         extra += (["-stream_loop", "-1"] if music["loop"] else []) + ["-ss", f"{music['at']:.2f}", "-i", "music.m4a"]
-        fc += ";" + music_graph(music, n, total, voice, outro["main"] if outro else 0.0)
+        fc += ";" + music_graph(music, n, total, voice, outro["main"] if outro else (total if music.get("rise_on") else 0.0))
         sound = ["-map", "[a]"]
     elif outro:
         fc += f";[0:a]{voice}[a]"
         sound = ["-map", "[a]"]
     else:
         sound = ["-map", "0:a:0", "-af", voice]
+    if sfx:                                    # sound effects on top, each from its moment, at its level
+        if sound[1] != "[a]":
+            fc += f";[0:a]{voice}[a]"
+        k = n + (1 if music else 0)
+        for i, (f, at, vol) in enumerate(sfx):
+            extra += ["-i", f]
+            ms = int(round(at * 1000))
+            fc += f";[{k + i}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume={vol / 100 * 0.8:.2f},adelay={ms}:all=1[x{i}]"
+        fc += f";[a]{''.join(f'[x{i}]' for i in range(len(sfx)))}amix=inputs={len(sfx) + 1}:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[a2]"
+        sound = ["-map", "[a2]"]
     base = ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(src), *extra,
             "-filter_complex", fc, "-map", "[v]", *sound,
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]

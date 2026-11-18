@@ -234,8 +234,8 @@ def home_schema(land):
     og = og_card("home", "stream-gamer", "Turn long streams into short clips, while you are still live")
     title = html.unescape(re.search(r"<title>(.*?)</title>", land).group(1))
     desc = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', land).group(1))
-    box = land[land.index('<div class="qs'):]
-    faq = [(q, a) for q, a in re.findall(r"<summary>(.*?)<svg.*?</summary>\s*<p>(.*?)</p>", box[:box.index("</section>")], re.S)]
+    box = land[land.index('<div class="qlist'):]
+    faq = re.findall(r'<span class="qt">(.*?)</span>.*?<div class="qa"><p>(.*?)</p>', box[:box.index("</section>")], re.S)
     page = webpage("/", title, desc, og, about={"@id": APP_ID}, mainEntity={"@id": APP_ID})
     page.pop("breadcrumb")
     return graph(ORG, WEBSITE, page, APP, faq_ld("/", faq))

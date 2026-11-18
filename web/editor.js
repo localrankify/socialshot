@@ -104,7 +104,14 @@ const FX_IC = ri("ed_fx", '<path d="M15 4l1.5 3.5L20 9l-3.5 1.5L15 14l-1.5-3.5L1
 const EFFECTS = [["none", "None", ""], ["vivid", "Vivid", "saturate(1.35) contrast(1.08)"], ["bright", "Bright", "brightness(1.08) contrast(1.05) saturate(1.1)"],
   ["warm", "Warm", "sepia(.18) saturate(1.15)"], ["cool", "Cool", "hue-rotate(-10deg) saturate(.95) brightness(1.03)"],
   ["cinematic", "Cinematic", "contrast(1.12) saturate(.85) brightness(.97)"], ["vintage", "Vintage", "sepia(.4) contrast(.92) saturate(.85)"],
-  ["bw", "Black & white", "grayscale(1) contrast(1.1)"]];
+  ["bw", "Black & white", "grayscale(1) contrast(1.1)"],
+  ["lut_cinematic_teal_orange", "Teal & orange", "contrast(1.12) saturate(1.15) sepia(.12) hue-rotate(-8deg)"],
+  ["lut_punchy_viral", "Punchy", "contrast(1.2) saturate(1.45) brightness(1.02)"],
+  ["lut_moody_dark", "Moody", "contrast(1.15) brightness(.86) saturate(.85)"],
+  ["lut_warm_film", "Warm film", "sepia(.28) saturate(1.1) contrast(1.05) brightness(1.02)"],
+  ["lut_vintage_70s", "70s film", "sepia(.45) saturate(.9) contrast(.92) hue-rotate(-6deg)"],
+  ["lut_punch_desaturated", "Muted punch", "contrast(1.22) saturate(.6)"],
+  ["lut_mono_documentary", "Mono doc", "grayscale(1) contrast(1.18) brightness(.97)"]];
 const fxCss = k => (EFFECTS.find(x => x[0] === k) || EFFECTS[0])[2];
 // a field slider: the label inside on the left, the value on the right, the filled part one shade lighter
 const pctOf = (v, lo, hi) => `${Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)).toFixed(1)}%`;
@@ -135,7 +142,7 @@ const CAP_SHADOW = 4;          // the renderer's caption shadow (render.CAP_SHAD
 const FADE_S = 0.5;
 // what belongs to one clip, not to a look: where captions and hook sit, the video's shape, the split boxes (drawn
 // for that clip's own video) and its volume. A brand kit look never carries these, and applying one never changes them.
-const CLIP_OWN = ["x", "y", "hook_x", "hook_y", "aspect", "split", "frame", "card", "volume", "music", "bg", "pad", "vradius", "outro", "overlays", "zooms"];
+const CLIP_OWN = ["x", "y", "hook_x", "hook_y", "aspect", "split", "frame", "card", "volume", "music", "bg", "pad", "vradius", "stroke", "stroke_color", "outro", "overlays", "zooms"];
 const clipOwn = L => Object.fromEntries(CLIP_OWN.filter(k => k in L).map(k => [k, clone(L[k])]));
 const styleOnly = L => Object.fromEntries(Object.entries(L).filter(([k]) => !CLIP_OWN.includes(k)));
 const keepOwn = L => ({...hookOf(L), effect: L.effect || "none", fade_in: L.fade_in || "none", fade_out: L.fade_out || "none",
@@ -191,10 +198,30 @@ function paintMeter(v) {
 
 /* ---------- the same layout and caption grouping the server uses, so the preview matches the clip */
 // the split layout: the stream part and the face cam part as [left, top, width, height] fractions (render.SPLIT_DEFAULT)
-const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at: "bottom", share: 50};
+const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at: "bottom", share: 50, pip_at: "br", pip_size: 36,
+  pip_x: null, pip_y: null, pip_shape: "rounded", pip_radius: 10, pip_border: 6, pip_color: "#FFFFFF",
+  trio: [[0, 0, 0.3333, 1], [0.3333, 0, 0.3333, 1], [0.6667, 0, 0.3333, 1]]};
+// the layouts made of parts of the picture (the split boxes), not one framed shot (render.PARTS)
+const PARTS = ["split", "pip", "trio"];
+const isParts = l => PARTS.includes(l);
+// picture in picture's small box, in frame pixels (render.pip_geometry)
+function pipGeo(sp = splitOf()) {
+  const W = OUT_W, H = OUT_H, pw = Math.round(W * (sp.pip_size || 36) / 100 / 2) * 2, c = sp.cam, shape = sp.pip_shape || "rounded";
+  const ar = (c[3] * (E.sh || 9)) / Math.max(1e-6, c[2] * (E.sw || 16));
+  const ph = shape === "circle" ? pw : Math.round(pw * Math.max(0.75, Math.min(1.5, ar)) / 2) * 2, m = Math.round(W * 0.045);
+  const b = Math.round((sp.pip_border ?? 6) * W / 1080);
+  let x, y;
+  if (sp.pip_x != null && sp.pip_y != null) { x = Math.round(W * sp.pip_x / 100 - pw / 2); y = Math.round(H * sp.pip_y / 100 - ph / 2); }
+  else { const at = sp.pip_at || "br"; x = at[1] === "r" ? W - m - pw : m; y = at[0] === "t" ? Math.round(H * 0.07) : H - ph - Math.round(H * 0.075); }
+  x = Math.max(b, Math.min(W - pw - b, x)); y = Math.max(b, Math.min(H - ph - b, y));
+  const r = shape === "circle" ? Math.floor(pw / 2) : shape === "square" ? 0 : Math.round(pw * (sp.pip_radius ?? 10) / 100);
+  return {x, y, w: pw, h: ph, b, r, color: sp.pip_color || "#FFFFFF"};
+}
+const trioH = () => { const t = Math.round(OUT_H / 3 / 2) * 2; return [t, t, OUT_H - 2 * t]; };
 // the split layout's two parts: as placed here, else where the face cam was found in this clip, else the usual box
 const splitOf = () => {
-  return avoidCam(rawSplit());      // a stream part still the whole picture skips the face cam
+  const sp = rawSplit();
+  return E.layout === "split" ? avoidCam(sp) : sp;      // a stream part still the whole picture skips the face cam
 };
 // the split as saved (before that automatic crop): changes are written on top of this, so the stream part only
 // counts as set by hand once it is actually moved
@@ -257,7 +284,7 @@ function cardGeo(Wd, Hd, fw, fh, text, floating, scale = 100, dx = 0, dy = 0, pa
   return g;
 }
 // the part of the picture shown (set in the Frame view), for every layout but split; null is the whole picture
-const frameRegion = () => (E.layout !== "split" && Array.isArray(E.look?.frame)) ? E.look.frame : null;
+const frameRegion = () => (!isParts(E.layout) && Array.isArray(E.look?.frame)) ? E.look.frame : null;
 // the Frame view's box when nothing was set yet: the whole picture, or for Fill screen the part that fills the frame
 function frameDefault() {
   if (E.layout !== "crop" || !E.sw || !E.sh) return [0, 0, 1, 1];
@@ -293,6 +320,8 @@ function geo(layout, sw, sh) {
     const seam = sp.cam_at === "bottom" ? gh : ch;
     return {layout, fg: gh, ch, hook: seam - Math.round(H * 0.045), cap: seam};
   }
+  if (layout === "trio") { const t = trioH(); return {layout, fg: H, hook: t[0] - Math.round(H * 0.045), cap: t[0] + t[1]}; }
+  if (layout === "pip") return {layout, fg: H, hook: r(300), cap: r((splitOf().pip_at || "br")[0] === "t" ? 1380 : 1180)};
   const fr = frameRegion();
   if (fr) { sw *= fr[2]; sh *= fr[3]; }          // only the chosen part of the picture is shown
   if (layout === "card") { const cc = cardOf(), cg = cardGeo(W, H, sw || 16, sh || 9, cardText(cc), cc.back !== "none", cc.scale, cc.dx, cc.dy, cc.pad); return {layout, fg: cg.vh, hook: cg.vy, cap: cg.cap, card: cg}; }
@@ -459,8 +488,9 @@ window.openClip = async function (jid, cid) {
   try {
     const [cap, brand, mus] = await Promise.all([api(`/api/jobs/${jid}/clips/${cid}/captions`), api("/api/brand").catch(() => ({styles: []})),
       api("/api/music").catch(() => ({tracks: []}))]);
-    E.music = mus.tracks || [];
-    api("/api/media").then(r => { E.media = r.items || []; if (E.tab === "media") drawPanel(); E.picKey = ""; paintOverlay(); }).catch(() => {});
+    E.music = [...(mus.tracks || []), ...(mus.pack || [])];
+    api("/api/media").then(r => { E.media = [...(r.items || []), ...(r.faces || [])]; if (E.tab === "media" || E.tab === "fx") drawPanel(); E.picKey = ""; paintOverlay(); }).catch(() => {});
+    api("/api/pack/sfx").then(r => { E.sfxLib = r; if (E.tab === "audio") drawPanel(); drawTimeline(); }).catch(() => { E.sfxLib = {groups: [], items: []}; });
     if (E.cid !== cid) return;
     Object.assign(E, {words: clone(cap.words), auto: cap.edited ? [] : clone(cap.words), edited: cap.edited,
       off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], brandDef: brand.default, logoV: brand.logo || 0, chat: cap.chat || null});
@@ -732,6 +762,7 @@ function drawPanel() {
     const sp = splitOf(), split = E.layout === "split";
     const LAYS = [["blur", "Centered", "The whole video, a blurred copy behind it"], ["zoom", "Zoomed in", "Closer in, blurred above and below"],
       ["crop", "Solo", "One part of the video fills the screen"], ["split", "Face cam split", "The stream on top, the streamer's face cam below"],
+      ["pip", "Picture in picture", "One part fills the screen, the face cam in a small box in a corner"], ["trio", "Trio", "Three parts stacked, for three people"],
       ["card", "Post card", "The clip inside a social post, with your name"]];
     const lic = k => ({blur: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 9h10M7 15h10"/>', zoom: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 7h10M7 17h10"/>',
       crop: '<rect x="7" y="3" width="10" height="18" rx="2" fill="currentColor" fill-opacity=".25"/>', split: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 12h10"/><circle cx="12" cy="16.5" r="1.8"/>'})[k];
@@ -740,6 +771,8 @@ function drawPanel() {
     const cam = sp.cam, crop = r => `${bg};background-size:${(100 / r[2]).toFixed(1)}% ${(100 / r[3]).toFixed(1)}%;background-position:${(r[2] < 1 ? r[0] / (1 - r[2]) * 100 : 50).toFixed(1)}% ${(r[3] < 1 ? r[1] / (1 - r[3]) * 100 : 50).toFixed(1)}%`;
     const mini = k => k === "split"
       ? `<i class="lp-part" style="${crop(splitOf().game)}"></i><i class="lp-part" style="${crop(cam)}"></i>`
+      : k === "pip" ? `<i class="lp-bg" style="${crop(sp.game)};filter:none"></i><i class="lp-pip ${sp.pip_at || "br"}" style="${crop(cam)}"></i>`
+      : k === "trio" ? sp.trio.map(r => `<i class="lp-part t" style="${crop(r)}"></i>`).join("")
       : k === "card" ? miniCard(bg, cardOf().theme)
       : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${k}" style="${bg}"></i>`;
     const cd = cardOf();
@@ -758,7 +791,13 @@ function drawPanel() {
         <div class="ed-f">Face cam goes<div class="ed-seg">${[["bottom", "Below"], ["top", "Above"]].map(([v, l]) => `<button data-ed="splitpos" data-v="${v}" aria-pressed="${sp.cam_at === v}">${l}</button>`).join("")}</div></div>
         ${slider("Stream part", "split_share", 30, 70, 5, sp.share, sp.share + "%")}
         <button class="ed-link" data-ed="splitreset">Back to the usual spots</button></div>` : ""}
+      ${E.layout === "pip" ? pipCard(sp) : ""}
+      ${E.layout === "trio" ? `<div class="ed-card"><b>Three parts</b>
+        <p class="ed-help">Each band shows one part of the picture. Put a box on each person in the Frame view.</p>
+        <div class="ed-row"><button class="ed-btn" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Place the three parts</button>
+          <button class="ed-btn ghost" data-ed="trioreset">Back to thirds</button></div></div>` : ""}
       ${E.layout === "blur" || E.layout === "zoom" ? bgCard() : ""}
+      ${strokeCard()}
       ${E.layout === "card" ? `<div class="ed-card"><b>Post card</b>
         <div class="ed-f">Style<div class="ed-ctiles">${Object.entries(CARD_THEMES).map(([v, t]) => `<button class="ed-ctile" data-ed="cardset" data-k="theme" data-v="${v}" aria-pressed="${cd.theme === v}">
           <span class="ed-ctile-pv" style="background:${t.bg}"><i style="background:${t.acc}"></i><b style="background:${t.ink}"></b><b class="s" style="background:${t.sub}"></b><em></em></span>${t.label}</button>`).join("")}</div></div>
@@ -817,7 +856,7 @@ function drawPanel() {
         ${slider("Opacity", "brand_op", 20, 100, 5, L.brand_op ?? 90, (L.brand_op ?? 90) + "%")}
       </div>`;
   } else if (E.tab === "media") {
-    p.innerHTML = head("Media", "Your pictures on the video, and an outro after it. Upload once, use on any clip.") + picsCard() + outroCard();
+    p.innerHTML = head("Media", "Your pictures on the video, and an outro after it. Upload once, use on any clip.") + picsCard() + facesCard() + outroCard();
   } else if (E.tab === "fx") {
     const L = E.look, cover = `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`;
     const fade = (k, label, opts) => `<p class="ed-grp">${label}</p><div class="ed-fx three">${opts.map(([v, l]) =>
@@ -915,24 +954,37 @@ function drawStage() {
                split: ["Face cam split: the stream on top, the face cam below", LAY_IC.split],
                card: ["Post card: the clip inside a social post", LAY_IC.card]};
   const LAY_SHORT = {blur: "Centered", zoom: "Zoomed in", crop: "Solo", split: "Face cam split", card: "Post card"};
-  const split = g.layout === "split", sp = splitOf();
+  const split = g.layout === "split", parts = isParts(g.layout), sp = splitOf();
   const band = (id, vidId, muted) => `<div class="ed-band" id="${id}"><video class="ed-bv" id="${vidId}" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" ${muted ? "muted" : ""}></video></div>`;
   const asp = E.look.aspect || "9:16";
   const ASP = [["9:16", "Vertical", "Shorts, Reels, TikTok"], ["4:5", "Portrait", "Instagram and Facebook feed"],
     ["1:1", "Square", "Feeds and ads"], ["16:9", "Wide", "YouTube, X, LinkedIn"]];
   const aspIc = a => { const [w, h] = ASPECTS[a], s = 16 / Math.max(w, h); return svg(`<rect x="${12 - w * s / 2}" y="${12 - h * s / 2}" width="${w * s}" height="${h * s}" rx="2"/>`); };
   const frameLbl = {crop: `Fills the ${asp} frame`, blur: "Shown part", zoom: "Shown part", card: "Shown in the post"}[E.layout] || "Shown part";
-  st.innerHTML = (E.view === "frame" ? `<div class="ed-fwrap"><div class="ed-fview" id="edFview" style="aspect-ratio:${E.sw || 16}/${E.sh || 9}">
+  st.innerHTML = (E.view === "frame" ? `<div class="ed-fwrap"><div class="ed-fpic" style="--ar:${((E.sw || 16) / (E.sh || 9)).toFixed(4)}"><div class="ed-fview" id="edFview" style="aspect-ratio:${E.sw || 16}/${E.sh || 9}">
         <video class="ed-fvid" id="edVid" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto"></video>
-        ${split ? `<div class="ed-rg game" data-rg="game"><span>${sp.cam_at === "top" ? "Bottom" : "Top"} part</span><i class="rz"></i></div>
+        ${g.layout === "trio" ? ["Top", "Middle", "Bottom"].map((l, i) => `<div class="ed-rg t${i}" data-rg="t${i}"><span>${l}</span><i class="rz"></i></div>`).join("")
+          : g.layout === "pip" ? `<div class="ed-rg game" data-rg="game"><span>Full screen</span><i class="rz"></i></div>
+          <div class="ed-rg cam" data-rg="cam"><span>Small box</span><i class="rz"></i></div>`
+          : split ? `<div class="ed-rg game" data-rg="game"><span>${sp.cam_at === "top" ? "Bottom" : "Top"} part</span><i class="rz"></i></div>
           <div class="ed-rg cam" data-rg="cam"><span>${sp.cam_at === "top" ? "Top" : "Bottom"} part</span><i class="rz"></i></div>`
           : `<div class="ed-rg frame" data-rg="frame"><span>${esc(frameLbl)}</span><i class="rz"></i></div>`}</div>
-      <div class="ed-fpre" role="group" aria-label="Layout">${Object.entries(LAY).map(([k, [l, d]]) =>
-        `<button data-ed="layout" data-v="${k}" aria-pressed="${E.layout === k}">${svg(d)}<span>${esc(LAY_SHORT[k])}</span></button>`).join("")}
-        <span class="grow"></span><button class="ed-link" data-ed="framereset">Reset</button></div>
-      <p class="ed-fhelp">${split ? "Drag the boxes onto the stream and onto the face cam. Drag a corner to resize." : "Drag the box to choose what shows. Drag its corner to zoom in or out."}</p></div>`
+      <p class="ed-fhelp">${{trio: "Drag each box onto one person. Drag a corner to resize.", pip: "Drag the boxes: one fills the screen, the other goes in the small box.",
+        split: "Drag the boxes onto the stream and onto the face cam. Drag a corner to resize."}[g.layout] || "Drag the box to choose what shows. Drag its corner to zoom in or out."}</p></div>
+      <div class="ed-fdock" role="toolbar" aria-label="Frame tools">
+        <div class="ed-fgrid" role="radiogroup" aria-label="Layout">${FRAME_LAYS.map(([k, l, v]) => {
+          const duo = E.layout === "split" && rawSplit().game.join() === "0,0,0.5,1" && rawSplit().cam.join() === "0.5,0,0.5,1";
+          const on = v ? duo : E.layout === k && !(k === "split" && duo);
+          return `<button role="radio" data-ed="layout" data-v="${k}" ${v ? `data-kind="${v}"` : ""} aria-checked="${on}" title="${esc(LAY_TIP[v || k] || "")}">${svg(LAY_IC[v || k])}<span>${l}</span></button>`; }).join("")}</div>
+        <span class="ed-fsep" aria-hidden="true"></span>
+        ${g.layout === "pip" ? `<div class="ed-fcorner" role="group" aria-label="Small box corner"><span class="ed-fcgrid">${[["tl", "Top left"], ["tr", "Top right"], ["bl", "Bottom left"], ["br", "Bottom right"]].map(([v, l]) =>
+          `<button data-ed="pipat" data-v="${v}" aria-pressed="${sp.pip_x == null && (sp.pip_at || "br") === v}" aria-label="${l}" title="Small box: ${l.toLowerCase()}"></button>`).join("")}</span><span>Corner</span></div>` : ""}
+        <button class="ed-tf" data-ed="framereset" title="Put the boxes back where they started">${svg('<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/>')}<span>Reset</span></button>
+        <button class="ed-tf" data-ed="tab" data-t="layout" title="${{pip: "Face box settings: shape, size, corners, border", trio: "Settings for the three parts", split: "Settings for the two parts"}[g.layout] || "Layout settings"}">${svg('<path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>')}<span>Settings</span></button></div></div>`
     : `<div class="ed-phone" id="edPhone" style="--aw:${OUT_W};--ah:${OUT_H}">
-      ${E.view === "live" ? `${split
+      ${E.view === "live" ? `${g.layout === "pip" ? band("edBandG", "edVid", false) + `<div class="ed-band ed-pipb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
+        : g.layout === "trio" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) + band("edBandT", "edVid3", true)
+        : split
         ? (sp.cam_at === "bottom" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) : band("edBandC", "edVid2", true) + band("edBandG", "edVid", false))
         : `${g.layout === "card" ? `<div class="ed-post" id="edPost"></div>` : `<img class="ed-bg ${g.layout === "crop" ? "none" : ""}" src="/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}" alt="">`}
         <div class="ed-band ed-fgb" id="edFgBox"><video class="ed-bv" id="edVid" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto"></video></div>`}
@@ -1032,10 +1084,10 @@ function loop() {
       const c = E.cuts.find(([a, b]) => t >= a && t < b - 0.03); if (c) seek(c[1]);
     }
     paintOverlay(t);
-    syncMusic(t, v);
+    syncMusic(t, v); syncSfx(t, v);
     const ph = $e("#edHead"); if (ph) ph.style.left = pct(t) + "%";
     const now = ts(Math.max(0, t - E.start));
-    if (now !== E.shownNow) { E.shownNow = now; const tl = $e("#edNow"); if (tl) tl.textContent = now;
+    if (now !== E.shownNow) { E.shownNow = now; const tl = $e("#edNow"); if (tl && !tl.querySelector("input")) tl.textContent = now;
       const tm = $e("#edNowM"); if (tm) tm.textContent = now;      // the phone's play row under the video
       const tf = $e("#edNowF"); if (tf) tf.textContent = now;      // the bar shown in full screen
       const tb = $e("#edNow2"); if (tb) tb.textContent = clock(t - E.start, true); }
@@ -1143,6 +1195,39 @@ function exDoneHtml() {
           <button class="ed-btn ghost" data-ed="exnew">Export another way</button></div>
       </div></div>`;
 }
+/* ---------- a border on the video (Layout), drawn the way render._stroke draws it: around the video box
+   (Centered, Zoomed), along the frame's edge (Solo, picture in picture), between the parts (Split, Trio) */
+const STROKE_COLS = ["#FFFFFF", "#0A0A0A", "#EA580C", "#FACC15", "#22C55E", "#3B82F6", "#EC4899"];
+function paintStroke() {
+  const ph = $e("#edPhone"); if (!ph) return;
+  let el = $e("#edStroke");
+  const w = E.look.stroke || 0, col = E.look.stroke_color || "#FFFFFF", L = geo(E.layout, E.sw, E.sh).layout;   // a tall video in Centered is shown as Solo
+  const key = [w, col, L, ph.clientWidth, E.look.pad, E.look.vradius, JSON.stringify(E.look.split || {}), E.sw, E.sh].join("|");
+  if (el && el.dataset.k === key) return;
+  if (!el) { el = document.createElement("div"); el.id = "edStroke"; el.className = "ed-stroke"; el.setAttribute("aria-hidden", "true"); ph.append(el); }
+  el.dataset.k = key;
+  ph.classList.toggle("sq", !!w && (L === "crop" || L === "pip") && E.view === "live");   // the video is square: so is its border
+  if (!w || L === "card" || E.view !== "live") { el.innerHTML = ""; return; }
+  const k = ph.clientWidth / OUT_W, b = Math.max(2, Math.round(w * OUT_W / 1080 / 2) * 2) * k;
+  const line = y => `<i style="left:0;right:0;top:${y * k - b / 2}px;height:${b}px;background:${col}"></i>`;
+  if (L === "split") { const sp = splitOf(), gh = Math.round(OUT_H * sp.share / 100 / 2) * 2; el.innerHTML = line(sp.cam_at === "bottom" ? gh : OUT_H - gh); return; }
+  if (L === "trio") { const t = trioH(); el.innerHTML = line(t[0]) + line(t[0] + t[1]); return; }
+  if (L === "crop" || L === "pip") { el.innerHTML = `<i style="inset:0;box-shadow:inset 0 0 0 ${b}px ${col}"></i>`; return; }
+  const box = $e("#edFgBox"); if (!box) { el.innerHTML = ""; return; }
+  const r = box.getBoundingClientRect(), P = ph.getBoundingClientRect(), rad = parseFloat(box.style.borderRadius) || 0;
+  el.innerHTML = r.width >= P.width - 1 ? line((r.top - P.top) / k - b / k / 2) + line((r.bottom - P.top) / k + b / k / 2)
+    : `<i style="left:${r.left - P.left - b}px;top:${r.top - P.top - b}px;width:${r.width + 2 * b}px;height:${r.height + 2 * b}px;border-radius:${rad ? rad + b : 0}px;box-shadow:inset 0 0 0 ${b}px ${col}"></i>`;
+}
+function strokeCard() {
+  if (E.layout === "card") return "";
+  const w = E.look.stroke || 0, col = E.look.stroke_color || "#FFFFFF";
+  const where = {blur: "Around the video", zoom: "Around the video", crop: "Along the edge of the frame", pip: "Along the edge of the frame",
+    split: "On the line between the two parts", trio: "On the lines between the parts"}[E.layout] || "";
+  return `<div class="ed-card ed-strokeset"><div class="ed-h"><b>Border</b><small class="ed-pipnote">${where}</small></div>
+    <label class="ed-sl" style="--p:${pctOf(w, 0, 24)}"><input type="range" min="0" max="24" step="1" value="${w}" data-stroke aria-label="Border width"><span class="ed-sl-l">Width</span><output>${w || "None"}</output></label>
+    ${w ? `<div class="ed-piprow"><span class="ed-pipl">Colour</span><div class="ed-pipcols">${STROKE_COLS.map(c => `<button data-ed="strokecol" data-v="${c}" style="--c:${c}" aria-pressed="${col === c}" aria-label="${c}"></button>`).join("")}
+      <label class="ed-pipcp" style="--c:${col}" title="Any colour"><input type="color" value="${col.toLowerCase()}" data-strokecol aria-label="Any border colour"></label></div></div>` : ""}</div>`;
+}
 /* ---------- what is behind the video in Blurred fill and Zoomed, the room around it, and its corners */
 function bgCard() {
   const b = bgOf(), pad = E.look.pad || 0, vr = E.look.vradius || 0;
@@ -1166,13 +1251,18 @@ async function mediaAdd(file, forWhat) {
   E.medBusy = true; drawPanel();
   try {
     const r = await api("/api/media", {method: "POST", body: fd});
-    E.media = r.items;
+    E.media = [...r.items, ...(E.media || []).filter(m => m.pack)];
     const it = r.items.find(x => x.id === r.id);
     if (forWhat === "outro") { E.look.outro = {...outroOf(), on: true, kind: it?.kind === "video" ? "file" : outroOf().kind, ...(it?.kind === "video" ? {file: r.id} : {pic: r.id})}; E.lookTouched = true; }
     else if (it?.kind === "image") picAdd(r.id);
     toast("Added to your library", "ok");
   } catch (er) { toast(er.message, "bad"); }
   E.medBusy = false; drawPanel(); after("");
+}
+function facesCard() {
+  const F = (E.media || []).filter(m => m.pack); if (!F.length) return "";
+  return `<div class="ed-card"><div class="ed-h"><b>Reaction faces</b><small class="ed-pipnote">Tap one to put it on the video</small></div>
+    <div class="ed-faces">${F.map(f => `<button class="ed-face" data-ed="picadd" data-v="${f.id}" title="${esc(f.name)}: ${esc(f.when || "")}"><img src="${mediaUrl(f.id)}" alt="" loading="lazy"><span>${esc(f.name)}</span></button>`).join("")}</div></div>`;
 }
 function picAdd(id) {
   const m = (E.media || []).find(x => x.id === id); if (!m || m.kind !== "image") return;
@@ -1182,6 +1272,11 @@ function picAdd(id) {
     drawPanel(); drawTimeline(); E.picKey = ""; after(""); return toast("Picture replaced", "ok");
   }
   if (L.length >= 8) return toast("Up to 8 pictures on one clip.", "bad");
+  if (m.pack) {
+    const a = Math.max(E.start, Math.min(E.end - 0.5, nowT()));
+    L.push({id, x: 74, y: 22, w: 34, a: Math.round(a * 100) / 100, b: Math.round(Math.min(E.end, a + 1.5) * 100) / 100, op: 100});
+    if (m.sfx) { const S2 = E.look.sfx || []; S2.push({id: m.sfx, t: Math.round(a * 100) / 100, vol: 90}); S2.sort((p, q) => p.t - q.t); E.look.sfx = S2; sfxTry(m.sfx); }
+  } else
   L.push({id, x: 50, y: 30, w: 30, a: Math.round(E.start * 100) / 100, b: Math.round(E.end * 100) / 100, op: 100});
   E.look.overlays = L; E.picSel = L.length - 1; E.lookTouched = true;
   drawPanel(); drawTimeline(); E.picKey = ""; after(""); toast("Drag it on the video to place it", "ok");
@@ -1204,7 +1299,7 @@ dlg_on("drop", e => {
   catch { if (el.id === "edMusIn") musicAdd(f); else mediaAdd(f, el.dataset.for || ""); }
 });
 function picsCard() {
-  const lib = (E.media || []).filter(m => m.kind === "image"), on = E.look.overlays || [], sel = on[E.picSel];
+  const lib = (E.media || []).filter(m => m.kind === "image" && !m.pack), on = E.look.overlays || [], sel = on[E.picSel];
   const nameOf = id => (E.media || []).find(m => m.id === id)?.name || "Picture";
   return `<div class="ed-card"><div class="ed-h"><b>Pictures on the video</b></div>
     ${dropCard("edMedIn", "image/png,image/jpeg,image/webp", E.medBusy ? "Adding the picture…" : "Upload a picture", "Drop it here or browse · PNG, JPG or WebP", E.medBusy)}
@@ -1228,18 +1323,19 @@ function picsCard() {
 // the pictures on the preview: one image each, shown while the playhead is inside its time; the chosen one is outlined
 function paintPics(t, phone, k) {
   const box = $e("#edPics"); if (!box) return;
-  const L = E.look.overlays || [];
+  const own = E.look.overlays || [];
+  const L = [...own, ...(E.look.zooms || []).filter(z => z.react).map(z => ({id: z.react, x: 74, y: 22, w: 34, a: z.a, b: z.b, op: 100, zoom: true}))];
   const key = JSON.stringify(L) + "|" + E.picSel + "|" + phone.clientWidth;
   if (E.picKey !== key) {
     E.picKey = key;
-    box.innerHTML = L.map((o, i) => `<div class="ed-pic ${i === E.picSel ? "sel" : ""}" data-pi="${i}" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;opacity:${o.op / 100}">
+    box.innerHTML = L.map((o, i) => `<div class="ed-pic ${i === E.picSel ? "sel" : ""} ${o.zoom ? "zr" : ""}" data-pi="${o.zoom ? -1 : i}" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;opacity:${o.op / 100}">
       <img src="${mediaUrl(o.id)}" alt="" draggable="false">${i === E.picSel ? `<i class="rz"></i>` : ""}</div>`).join("");
   }
   [...box.children].forEach((el, i) => { const o = L[i]; if (o) el.hidden = !(t >= o.a && t <= o.b); });
 }
 let picDrag = null;
 dlg_on("pointerdown", e => {
-  const el = e.target.closest(".ed-pic"); if (!el || E.view !== "live") return;
+  const el = e.target.closest(".ed-pic"); if (!el || E.view !== "live" || el.classList.contains("zr")) return;
   e.preventDefault(); e.stopPropagation();
   const i = +el.dataset.pi, o = (E.look.overlays || [])[i]; if (!o) return;
   if (E.picSel !== i) { E.picSel = i; E.picKey = ""; if (E.tab === "media") drawPanel(); }
@@ -1351,16 +1447,115 @@ function outroCard() {
   </div>`;
 }
 // the Audio panel's rise into the outro
+/* the score: one song under the clip, low under the voice, rising to its peak in the final seconds. A picture of
+   the song (its real loudness, the stretch that plays), the volume line, and the three numbers that shape it. */
+function musicPeaks(id) {
+  E.musPeaks = E.musPeaks || {};
+  if (E.musPeaks[id] !== undefined) return E.musPeaks[id];
+  E.musPeaks[id] = null;
+  fetch(`/api/music/${id}`).then(r => r.arrayBuffer()).then(b => new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(b)).then(buf => {
+    const ch = buf.getChannelData(0), per = Math.max(1, Math.floor(buf.sampleRate / 4)), out = [];   // a quarter of a second each
+    for (let i = 0; i < ch.length; i += per) { let pk = 0; for (let j = i; j < Math.min(ch.length, i + per); j += 16) pk = Math.max(pk, Math.abs(ch[j])); out.push(pk); }
+    E.musPeaks[id] = out;
+    if (E.tab === "audio") drawPanel();
+  }).catch(() => { E.musPeaks[id] = []; });
+  return null;
+}
+function scoreCard(m, cur) {
+  const o = outroOf(), len = (E.end - E.start) + (o.on ? o.secs : 0), riseOn = o.on || m.rise_on;
+  const pk = musicPeaks(m.id), N = 72, bars = [];
+  for (let i = 0; i < N; i++) {                    // the stretch of the song that plays under the clip (it loops if short)
+    let v = 0.25;
+    if (pk && pk.length) { const t = (m.at || 0) + len * (i + 0.5) / N, k = Math.floor((t % Math.max(0.25, cur.dur)) * 4); v = pk[Math.min(pk.length - 1, k)] || 0; }
+    bars.push(v);
+  }
+  const top = Math.max(0.05, ...bars), rf = riseOn ? Math.min(1, m.rise / Math.max(0.1, len)) : 0;
+  const yv = 100 - m.vol * 0.86, yp = 100 - m.peak * 0.86, x0 = (1 - rf) * 100;
+  const line = riseOn && m.rise > 0 ? `M0 ${yv} L${x0} ${yv} L100 ${yp}` : `M0 ${yv} L100 ${yv}`;
+  return `<div class="ed-score" id="edScore">
+    <div class="ed-sch"><button class="ed-scplay" data-ed="scoreplay" aria-label="Play from the start">${ic("play")}</button>
+      <div><b>${esc(cur.name)}</b><small>${ts(len)} · ${m.vol}% under the voice${riseOn && m.rise ? ` · peaks at ${m.peak}%` : ""}</small></div></div>
+    <div class="ed-scg" aria-hidden="true">
+      <div class="ed-scbars">${bars.map((v, i) => `<i class="${riseOn && i / N >= 1 - rf ? "r" : ""}" style="height:${Math.max(10, Math.sqrt(v / top) * 100).toFixed(0)}%"></i>`).join("")}</div>
+      <svg class="ed-scline" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${line}"/></svg>
+      <span class="ed-sctag v" style="top:min(calc(100% - 26px), calc(${yv}% + 4px))">Volume ${m.vol}%</span>
+      ${riseOn && m.rise ? `<span class="ed-sctag p" style="top:max(6px, calc(${yp}% - 24px))">Peak ${m.peak}%</span>` : ""}
+      <i class="ed-scph"></i></div>
+    <label class="ed-ck ed-scsw"><input type="checkbox" data-mus="rise_on" ${riseOn ? "checked" : ""} ${o.on ? "disabled" : ""}><span>${o.on ? "Rises into the outro" : "Rise at the end"}<small>${o.on ? "The outro is on, so the music always peaks as it starts" : "Low under the voice, then up to its peak in the last seconds"}</small></span></label>
+    ${slider("Volume", "mus_vol", 0, 100, 5, m.vol, m.vol + "%")}
+    ${riseOn ? `${slider("Peak", "mus_peak", 0, 100, 5, m.peak, m.peak + "%")}${slider("Riser", "mus_rise", 0, 10, 0.5, m.rise, m.rise + " s")}` : ""}
+  </div>`;
+}
+// the score picture follows a slider without redrawing the whole panel (the slider keeps its drag)
+function redrawScore() {
+  const old = $e("#edScore"), m = musicOf(), cur = (E.music || []).find(t => t.id === m.id); if (!old || !cur) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = scoreCard(m, cur);
+  const nw = tmp.firstElementChild;
+  for (const sel of [".ed-sch", ".ed-scg"]) old.querySelector(sel)?.replaceWith(nw.querySelector(sel));
+}
+/* ---------- sound effects from the built-in pack: placed at moments of the video (look.sfx: [{id, t, vol}]).
+   render mixes them in at those moments; the preview plays each one as the playhead passes it. */
+const SFX_IC = svg('<path d="M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2"/>');
+const sfxOf = id => (E.sfxLib?.items || []).find(x => x.id === id);
+const sfxUrl = id => `/api/pack/sfx/${id}`;
+function sfxTry(id) {                  // hear a sound in the list
+  try { E.sfxTry?.pause(); const a = new Audio(sfxUrl(id)); a.volume = 0.8; a.play().catch(() => {}); E.sfxTry = a; } catch {}
+}
+function sfxCard() {
+  const lib = E.sfxLib; if (!lib) return `<div class="ed-card"><b>Sound effects</b><p class="ed-help">Loading the sounds…</p></div>`;
+  const grp = E.sfxGrp || lib.groups[0]?.key, L = E.look.sfx || [], sel = L[E.sfxSel];
+  const zooms = E.look.zooms || [], popped = zooms.length && zooms.every(z => L.some(x => Math.abs(x.t - z.a) < 0.05));
+  return `<div class="ed-card ed-sfx"><div class="ed-h"><b>Sound effects</b><small class="ed-pipnote">A sound on every cut keeps people watching</small></div>
+    <div class="ed-seg ed-sfxg" role="tablist">${lib.groups.map(g => `<button role="tab" data-ed="sfxgrp" data-v="${g.key}" aria-selected="${grp === g.key}" aria-pressed="${grp === g.key}" title="${esc(g.label)}">${esc({transitions: "Whoosh", impacts: "Impact", ui: "Pops", comic: "Comic"}[g.key] || g.label)}</button>`).join("")}</div>
+    <div class="ed-sfxlist">${lib.items.filter(x => x.group === grp).map(x => `<div class="ed-sfxi">
+      <button class="ed-sfxp" data-ed="sfxtry" data-v="${x.id}" title="Listen">${ic("play")}</button><span>${esc(x.name)}<small>${x.dur.toFixed(1)} s</small></span>
+      <button class="ed-btn sm ghost" data-ed="sfxadd" data-v="${x.id}" title="Add at the playhead">${ic("plus")}Add</button></div>`).join("")}</div>
+    ${zooms.length ? `<label class="ed-ck"><input type="checkbox" data-ed="sfxzoom" ${popped ? "checked" : ""}><span>A pop on every zoom<small>${zooms.length} zoom${zooms.length === 1 ? "" : "s"} in this clip</small></span></label>` : ""}
+    ${L.length ? `<p class="ed-grp">On this clip <small>${L.length}</small></p><div class="ed-sfxon">${L.map((x, i) => `<div class="ed-sfxrow ${i === E.sfxSel ? "on" : ""}">
+        <button class="ed-sfxname" data-ed="sfxsel" data-v="${i}">${SFX_IC}<span>${esc(sfxOf(x.id)?.name || "Sound")}</span><small>${ts(x.t - E.start)}</small></button>
+        <button class="ed-ib sm ed-tip" data-ed="sfxdel" data-v="${i}" aria-label="Remove this sound" data-tip="Remove">${ic("x")}</button></div>`).join("")}</div>
+      ${sel ? slider("Loudness", "sfx_vol", 0, 200, 5, sel.vol ?? 100, (sel.vol ?? 100) + "%") : ""}
+      <p class="ed-help">Drag a sound on the timeline's Sounds row to move it.</p>` : `<p class="ed-help">Press Add to drop a sound where the playhead is.</p>`}
+  </div>`;
+}
+function sfxLane() {
+  const L = E.look.sfx || []; if (!L.length) return "";
+  return `<div class="ed-lane sfx">${L.map((x, i) => `<button class="ed-sfxbar ${i === E.sfxSel ? "on" : ""}" data-sb="${i}" data-ed="sfxsel" data-v="${i}"
+    style="left:${pct(x.t)}%;width:${Math.max(0.5, pct(x.t + (sfxOf(x.id)?.dur || 0.6)) - pct(x.t))}%" title="${esc(sfxOf(x.id)?.name || "Sound")}">${SFX_IC}<span>${esc(sfxOf(x.id)?.name || "")}</span></button>`).join("")}</div>`;
+}
+// the preview: each sound plays once as the playhead passes its moment
+function syncSfx(t, v) {
+  const L = E.look.sfx || [], last = E.sfxT ?? t;
+  E.sfxT = t;
+  if (!L.length || v.paused || E.muted || t < last || t - last > 0.5) return;
+  for (const x of L) if (x.t > last && x.t <= t) {
+    try { const a = new Audio(sfxUrl(x.id)); a.volume = Math.min(1, (x.vol ?? 100) / 100 * 0.8); a.play().catch(() => {}); } catch {}
+  }
+}
+let sfxDrag = null;
+dlg_on("pointerdown", e => {
+  const bar = e.target.closest(".ed-sfxbar"); if (!bar) return;
+  const i = +bar.dataset.sb, x = (E.look.sfx || [])[i]; if (!x) return;
+  const tr = $e("#edTrack").getBoundingClientRect();
+  sfxDrag = {i, sx: e.clientX, t0: x.t, k: (E.max - E.min) / tr.width, moved: false, bar};
+  bar.setPointerCapture?.(e.pointerId);
+});
+dlg_on("pointermove", e => {
+  const d = sfxDrag; if (!d) return;
+  if (Math.abs(e.clientX - d.sx) > 3) d.moved = true; if (!d.moved) return;
+  const x = E.look.sfx[d.i]; x.t = Math.round(Math.max(E.start, Math.min(E.end - 0.1, d.t0 + (e.clientX - d.sx) * d.k)) * 100) / 100;
+  d.bar.style.left = pct(x.t) + "%";
+});
+dlg_on("pointerup", () => {
+  const d = sfxDrag; sfxDrag = null; if (!d || !d.moved) return;
+  E.justMoved = Date.now(); E.lookTouched = true; E.look.sfx.sort((p, q) => p.t - q.t); E.sfxSel = -1;
+  if (E.tab === "audio") drawPanel(); drawTimeline(); after("");
+});
 function riseCard(m, cur) {
   const o = outroOf(), total = (E.end - E.start) + (o.on ? o.secs : 0), at = m.peak_at != null && o.on ? Math.max(0, m.peak_at - Math.max(0, E.end - E.start - (m.off || 0))) : m.at;
   const loops = cur && cur.dur - at < total;
-  return `<p class="ed-grp">Rise into the outro</p>
-    ${o.on ? `${slider("Peak volume", "mus_peak", 0, 100, 5, m.peak, m.peak + "%")}
-      ${slider("Rise time", "mus_rise", 0, 10, 0.5, m.rise, m.rise + " s")}
-      <label class="ed-ck"><input type="checkbox" data-ed="musdrop" ${m.peak_at != null ? "checked" : ""}><span>Drop lands on the outro<small>Pick the moment in the song that should hit as the outro starts</small></span></label>
-      ${m.peak_at != null ? slider("Drop at", "mus_drop", 0, Math.max(1, Math.floor(cur.dur)), 0.5, m.peak_at, mmss(m.peak_at)) : ""}
-      <div class="ed-note ok">${ic("check")}Volume rises from ${m.vol}% to ${m.peak}% over ${m.rise} s, just as the outro starts</div>`
-      : `<p class="ed-help">Turn on an outro in Media and the music rises into it.</p>`}
+  return `${o.on ? `<label class="ed-ck"><input type="checkbox" data-ed="musdrop" ${m.peak_at != null ? "checked" : ""}><span>Drop lands on the outro<small>Pick the moment in the song that should hit as the outro starts</small></span></label>
+      ${m.peak_at != null ? slider("Drop at", "mus_drop", 0, Math.max(1, Math.floor(cur.dur)), 0.5, m.peak_at, mmss(m.peak_at)) : ""}` : ""}
     ${loops ? `<div class="ed-note">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>')}The song is ${Math.round(total - (cur.dur - at))} s shorter than the clip${o.on ? " and outro" : ""}, so it loops</div>` : ""}
     <button class="ed-btn ghost sm" data-ed="musauto">Suggest levels</button>`;
 }
@@ -1497,6 +1692,9 @@ function zoomSet(z) {
       <label class="ed-sl" style="--p:${pctOf(z.s, 1.1, 3)}"><input type="range" min="1.1" max="3" step="0.1" value="${z.s}" data-zm="s" aria-label="How far in"><span class="ed-sl-l">Fine-tune</span><output>${z.s.toFixed(1)}×</output></label></div>
     <div class="ed-zsec"><div class="ed-zhd"><span>Look</span><em>${(ZOOM_FX.find(f => f[0] === fx) || ZOOM_FX[0])[1]}</em></div>
       <div class="ed-zlooks">${ZOOM_FX.map(tile).join("")}</div></div>
+    ${(E.media || []).some(m => m.pack) ? `<div class="ed-zsec"><div class="ed-zhd"><span>Reaction face</span><em>${esc((E.media || []).find(m => m.id === z.react)?.name || "None")}</em></div>
+      <div class="ed-zfaces"><button class="ed-zface none" data-ed="facepick" data-v="" aria-pressed="${!z.react}" title="No face">${svg('<circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/>')}</button>
+        ${(E.media || []).filter(m => m.pack).map(f => `<button class="ed-zface" data-ed="facepick" data-v="${f.id}" aria-pressed="${z.react === f.id}" title="${esc(f.name)}"><img src="${mediaUrl(f.id)}" alt="${esc(f.name)}"></button>`).join("")}</div></div>` : ""}
     <div class="ed-zsec"><div class="ed-zhd"><span>Motion</span><em>${len.toFixed(1)} s</em></div>
       <div class="ed-seg" role="radiogroup" aria-label="Motion"><button role="radio" data-ed="zoomeaseset" data-v="1" aria-checked="${z.ease !== false}">Smooth in and out</button>
         <button role="radio" data-ed="zoomeaseset" data-v="0" aria-checked="${z.ease === false}">Hard cut</button></div></div>
@@ -1634,7 +1832,7 @@ $("#clipdlg").addEventListener("dblclick", e => {
 /* ---------- background music: a track from the person's library under the clip. The preview plays it beside the
    video with the same steps as render.music_graph: evened out, set to a share of the voice, lowered while someone
    speaks (ducking), looped, faded in and out. */
-const MUSIC_DEFAULT = {id: "", vol: 25, duck: true, loop: true, fade: true, at: 0, peak: 100, rise: 3, peak_at: null, off: 0, till: null};
+const MUSIC_DEFAULT = {id: "", vol: 25, duck: true, loop: true, fade: true, at: 0, peak: 100, rise: 3, peak_at: null, off: 0, till: null, rise_on: false};
 const musicOf = () => ({...MUSIC_DEFAULT, ...(E.look.music || {})});
 // where the music plays, in source seconds: from `off` after the clip's start to `till` (null: the end, outro included)
 function musSpan(m = musicOf()) {
@@ -1650,11 +1848,15 @@ function musicCard() {
     ${dropCard("edMusIn", "audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac", E.musBusy ? "Adding the song…" : "Upload a song", "Drop it here or browse · MP3, M4A or WAV", E.musBusy)}
     <div class="ed-mlist" role="radiogroup" aria-label="Music">
       <button role="radio" class="ed-mrow" data-ed="muspick" data-v="" aria-checked="${!m.id}"><span>No music</span></button>
-      ${list.map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
+      ${list.filter(t => !t.pack).map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
         ${svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>')}<span>${esc(t.name)}</span><small>${mmss(t.dur)}</small>
         <i class="ed-x" data-ed="musdel" data-v="${t.id}" title="Remove from your library">${ic("x")}</i></button>`).join("")}</div>
-    ${list.length ? "" : `<p class="ed-help">It's kept in your library for every clip.</p>`}
-    ${cur ? `${slider("Music volume", "mus_vol", 0, 100, 5, m.vol, m.vol + "%")}
+    ${list.some(t => t.pack) ? `<p class="ed-grp">SocialShot library <small>Free to use, no copyright claims</small></p>
+      <div class="ed-mlist ed-mpack" role="radiogroup" aria-label="SocialShot library">${list.filter(t => t.pack).map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
+        <i class="ed-mplay" data-ed="mustry" data-v="${t.id}" title="Listen">${ic(E.musTry === t.id ? "pause" : "play")}</i><span>${esc(t.name)}<small>${esc(t.mood || "")}</small></span><small>${mmss(t.dur)}</small></button>`).join("")}</div>` : ""}
+    ${list.some(t => !t.pack) ? "" : `<p class="ed-help">Your own songs are kept in your library for every clip.</p>`}
+    ${sfxCard()}
+    ${cur ? `${scoreCard(m, cur)}
       ${slider("Start the song at", "mus_at", 0, Math.max(1, Math.floor(cur.dur - 1)), 1, Math.min(m.at, cur.dur), mmss(Math.min(m.at, cur.dur)))}
       ${sw("duck", "Lower it while someone talks", "Words stay clear")}${sw("loop", "Loop it", "Plays again if the clip is longer")}${sw("fade", "Fade in and out", "Starts softly and ends smoothly")}
       ${riseCard(m, cur)}` : ""}
@@ -1667,7 +1869,7 @@ async function musicAdd(file) {
   E.musBusy = true; drawPanel();
   try {
     const r = await api("/api/music", {method: "POST", body: fd});
-    E.music = r.tracks; E.look.music = {...musicOf(), id: r.id, at: 0}; E.lookTouched = true;
+    E.music = [...r.tracks, ...(E.music || []).filter(t => t.pack)]; E.look.music = {...musicOf(), id: r.id, at: 0}; E.lookTouched = true;
     toast("Song added", "ok");
   } catch (er) { toast(er.message, "bad"); }
   E.musBusy = false; drawPanel(); after("");
@@ -1691,9 +1893,10 @@ function syncMusic(t, v) {
   if (a.paused) a.play().catch(() => {});
   let g = m.vol / 100 * 0.7;
   const ot = outroOf();
-  if (ot.on && m.rise > 0) { const r0 = E.end - m.rise; if (t >= r0) g = (m.vol + (m.peak - m.vol) * Math.min(1, (t - r0) / m.rise)) / 100 * 0.7; }
+  if ((ot.on || m.rise_on) && m.rise > 0) { const r0 = E.end - m.rise; if (t >= r0) g = (m.vol + (m.peak - m.vol) * Math.min(1, (t - r0) / m.rise)) / 100 * 0.7; }
+  const sc = $e("#edScore"); if (sc) sc.style.setProperty("--ph", Math.max(0, Math.min(100, (t - E.start) / Math.max(0.1, E.end - E.start) * 100)) + "%");
   if (m.duck && E.words.some(w => t >= w.s - 0.05 && t < w.e + 0.2)) g *= 0.3;      // someone is talking: lower it
-  if (m.fade) g *= Math.min(1, Math.max(0, rel / 0.6), Math.max(0, (Math.min(me, E.end + (ot.on ? ot.secs : 0)) - t) / 1.5));
+  if (m.fade) g *= Math.min(1, Math.max(0, rel / 0.6), Math.max(0, (Math.min(me, E.end + (ot.on ? ot.secs : 0)) - t) / (m.rise_on && !ot.on ? 0.3 : 1.5)));
   a.volume = Math.max(0, Math.min(1, g));
 }
 /* ---------- the social watermark (Brand > Social watermark): header, platform icon + handle, hashtag line.
@@ -1764,7 +1967,34 @@ const LAY_IC = {
   zoom: PH + '<rect x="6" y="6" width="12" height="12" fill="currentColor" stroke="none"/><path d="M9.5 4.3h5M9.5 19.7h5" stroke-opacity=".5"/>',
   crop: '<rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="currentColor" fill-opacity=".22"/><circle cx="12" cy="10" r="2.3"/><path d="M8 17.5c.5-2.5 2.1-3.7 4-3.7s3.5 1.2 4 3.7"/>',
   split: PH + '<path d="M6 2.5h12v9.5H6z" fill="currentColor" stroke="none" fill-opacity=".85"/><circle cx="12" cy="15.4" r="1.6"/><path d="M9.4 19.6c.4-1.3 1.4-1.9 2.6-1.9s2.2.6 2.6 1.9"/>',
-  card: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.6"/><circle cx="7.4" cy="7.6" r="1.4"/><path d="M10.2 7.6h6.3"/><rect x="6.3" y="11" width="11.4" height="6.6" rx="1.2" fill="currentColor" stroke="none"/>'};
+  card: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.6"/><circle cx="7.4" cy="7.6" r="1.4"/><path d="M10.2 7.6h6.3"/><rect x="6.3" y="11" width="11.4" height="6.6" rx="1.2" fill="currentColor" stroke="none"/>',
+  pip: '<rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="currentColor" fill-opacity=".22"/><rect x="11.2" y="13.6" width="5" height="5.6" rx="1.2" fill="currentColor" stroke="none"/>',
+  trio: PH + '<path d="M6 8.8h12M6 15.2h12"/>'};
+// picture in picture's settings: the box's shape, where it sits, its size, corners and edge
+const PIP_COLS = ["#FFFFFF", "#0A0A0A", "#EA580C", "#FACC15", "#22C55E", "#3B82F6", "#EC4899"];
+function pipCard(sp) {
+  const shape = sp.pip_shape || "rounded", free = sp.pip_x != null, at = sp.pip_at || "br", col = sp.pip_color || "#FFFFFF";
+  const SH = [["rounded", "Rounded", '<rect x="4" y="5" width="16" height="14" rx="4"/>'], ["circle", "Circle", '<circle cx="12" cy="12" r="8"/>'],
+    ["square", "Square", '<rect x="4" y="5" width="16" height="14" rx=".5"/>']];
+  const ARR = {tl: '<path d="M17 17L7 7M7 15V7h8"/>', tr: '<path d="M7 17L17 7M9 7h8v8"/>', bl: '<path d="M17 7L7 17M7 9v8h8"/>', br: '<path d="M7 7l10 10M17 9v8H9"/>'};
+  return `<div class="ed-card ed-pipset"><div class="ed-h"><b>Face box</b><small class="ed-pipnote">Drag it on the video to move it, its corner to resize</small></div>
+    <div class="ed-pipshapes" role="radiogroup" aria-label="Shape">${SH.map(([v, l, d]) => `<button role="radio" data-ed="pipshape" data-v="${v}" aria-checked="${shape === v}">${svg(d)}<span>${l}</span></button>`).join("")}</div>
+    <div class="ed-piprow"><span class="ed-pipl">Snap to a corner</span>
+      <div class="ed-pipcorn" role="group" aria-label="Corner">${["tl", "tr", "bl", "br"].map(v => `<button data-ed="pipat" data-v="${v}" aria-pressed="${!free && at === v}"
+        aria-label="${{tl: "Top left", tr: "Top right", bl: "Bottom left", br: "Bottom right"}[v]}" title="${{tl: "Top left", tr: "Top right", bl: "Bottom left", br: "Bottom right"}[v]}">${svg(ARR[v])}</button>`).join("")}</div></div>
+    ${slider("Size", "pip_size", 22, 50, 1, sp.pip_size || 36, (sp.pip_size || 36) + "%")}
+    ${shape === "rounded" ? slider("Corners", "pip_radius", 0, 30, 1, sp.pip_radius ?? 10, sp.pip_radius ?? 10) : ""}
+    ${slider("Border", "pip_border", 0, 16, 1, sp.pip_border ?? 6, (sp.pip_border ?? 6) ? sp.pip_border ?? 6 : "None")}
+    ${(sp.pip_border ?? 6) ? `<div class="ed-piprow"><span class="ed-pipl">Border colour</span><div class="ed-pipcols">${PIP_COLS.map(c => `<button data-ed="pipcol" data-v="${c}" style="--c:${c}" aria-pressed="${col === c}" aria-label="${c}"></button>`).join("")}
+      <label class="ed-pipcp" style="--c:${col}" title="Any colour"><input type="color" value="${col.toLowerCase()}" data-pipcol aria-label="Any border colour"></label></div></div>` : ""}
+    <button class="ed-btn ed-pipframe" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Choose what fills the screen and the box</button></div>`;
+}
+// the Frame view's layout grid: Duo is the split with a person in each half
+const FRAME_LAYS = [["crop", "Solo"], ["split", "Split"], ["pip", "PiP"], ["trio", "Trio"], ["split", "Duo", "duo"], ["blur", "Centered"], ["zoom", "Zoomed"], ["card", "Post card"]];
+LAY_IC.duo = PH + '<path d="M6 12h12"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="16.8" r="1.5"/>';
+const LAY_TIP = {crop: "One part of the video fills the screen", split: "Two parts stacked: the stream, the face cam", pip: "One part fills the screen, the face cam in a small box",
+  trio: "Three parts stacked: three people", duo: "Two people: the left half on top, the right half below", blur: "The whole video on a blurred copy",
+  zoom: "Closer in, blurred above and below", card: "The clip inside a social post"};
 /* ---------- templates: a layout, a shape and a caption look chosen together in one click. The clip's own words,
    trim and brand stay; caption and hook positions go back to automatic for the new layout. */
 const POST_CAPS = {font: "Inter", size: 64, outline: 0, per: 3, upper: false, active: CARD_BLUE, weight: 600};
@@ -1772,6 +2002,7 @@ const TPLS = [
   {k: "stream", cat: "streams", name: "Stream + face cam", sub: "Gameplay on top, the face cam under it", layout: "split", cam_at: "bottom", style: "boldpop"},
   {k: "camtop", cat: "streams", name: "Face cam on top", sub: "The streamer first, the game below", layout: "split", cam_at: "top", style: "studio"},
   {k: "solo", cat: "streams", name: "Solo full screen", sub: "One part of the stream fills the phone", layout: "crop", style: "hype"},
+  {k: "pipcam", cat: "streams", name: "Face cam corner", sub: "The game full screen, the streamer in a small box", layout: "pip", style: "boldpop"},
   {k: "xlight", cat: "posts", name: "X post, light", sub: "The clip inside a post, white card", layout: "card", theme: "light", caps: {...POST_CAPS, base: "#0F1419"}},
   {k: "xdark", cat: "posts", name: "X post, dark", sub: "The clip inside a post, black card", layout: "card", theme: "dark", caps: {...POST_CAPS, base: "#E7E9EA"}},
   {k: "linkedin", cat: "posts", name: "LinkedIn post", sub: "A professional post with your headline", layout: "card", theme: "linkedin", caps: {...POST_CAPS, base: "#191919", active: "#0A66C2"}},
@@ -1784,6 +2015,9 @@ const TPLS = [
     hook: {hook_font: "Bebas Neue", hook_size: 96, hook_box: "#C8102E", hook_ink: "#FFFFFF", hook_op: 100, hook_round: 0, hook_y: 72, hook_dur: 0},
     extra: {y: 22, bg: {kind: "color", c1: "#0B0D12"}}},
   {k: "podcast", cat: "podcasts", name: "Podcast close-up", sub: "Closer in on the speakers", layout: "zoom", style: "podcast"},
+  {k: "trio", cat: "podcasts", name: "Three people", sub: "Each person in a band of their own", layout: "trio", style: "podcast"},
+  {k: "pipguest", cat: "podcasts", name: "Guest corner", sub: "The host full screen, the guest in a small box", layout: "pip", style: "podcast",
+    split: {game: [0, 0, 0.5, 1], cam: [0.5, 0, 0.5, 1], pip_at: "br"}},
   {k: "centered", cat: "simple", name: "Centered", sub: "The whole video on a blurred copy", layout: "blur", style: "clean"},
   {k: "wide", cat: "simple", name: "Wide 16:9", sub: "For YouTube and desktop", layout: "crop", aspect: "16:9", style: "studio"}];
 const TPL_CATS = [["all", "All"], ["streams", "Streams"], ["posts", "Social posts"], ["podcasts", "Podcasts"], ["simple", "Simple"]];
@@ -1795,7 +2029,10 @@ const miniCard = (bg, theme) => `<i class="lp-card ${theme === "dark" ? "dark" :
 function miniTpl(t) {
   const bg = `background-image:url('${stillOf()}')`, sp = rawSplit();
   const crop = r => `${bg};background-size:${(100 / r[2]).toFixed(1)}% ${(100 / r[3]).toFixed(1)}%;background-position:${(r[2] < 1 ? r[0] / (1 - r[2]) * 100 : 50).toFixed(1)}% ${(r[3] < 1 ? r[1] / (1 - r[3]) * 100 : 50).toFixed(1)}%`;
+  const ts = {...sp, ...(t.split || {})};
   const inner = t.layout === "split" ? `<i class="lp-part" style="${crop(sp.game)}"></i><i class="lp-part" style="${crop(sp.cam)}"></i>`
+    : t.layout === "pip" ? `<i class="lp-bg" style="${crop(ts.game)};filter:none"></i><i class="lp-pip ${ts.pip_at || "br"}" style="${crop(ts.cam)}"></i>`
+    : t.layout === "trio" ? ts.trio.map(r => `<i class="lp-part t" style="${crop(r)}"></i>`).join("")
     : t.layout === "card" ? miniCard(bg, t.theme) : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${t.layout}" style="${bg}"></i>`;
   const [w, h] = ASPECTS[t.aspect || "9:16"];
   return `<span class="lp-ph ${t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}">${inner}</span>`;
@@ -1824,19 +2061,39 @@ function applyTpl(k) {
   delete E.look.frame;                                  // a new layout starts from the whole picture
   if (t.hook) Object.assign(E.look, t.hook);
   if (t.extra) Object.assign(E.look, clone(t.extra));
-  if (t.layout === "split") E.look.split = {...rawSplit(), ...(t.split ? clone(t.split) : {}), cam_at: t.cam_at || "bottom"};
+  if (isParts(t.layout)) E.look.split = {...rawSplit(), ...(t.split ? clone(t.split) : {}), cam_at: t.cam_at || "bottom"};
   if (t.layout === "card") E.look.card = {...cardOf(), theme: t.theme};
   E.layout = t.layout; E.tplOn = k; E.lookTouched = true; E.tplOpen = false;
   setFrame(); drawTpl(); E.tab = "layout"; drawPanel(); drawStage();
-  if (t.layout === "split") findFacecam();
+  if (t.layout === "split" || t.layout === "pip" && !t.split) findFacecam();
   after("p"); toast(`${t.name} applied`, "ok");
 }
 /* ---------- the split layout in the preview: two bands, each showing one part of the same video.
    Each band crops its part and fills its band exactly like render._filter: crop the part, cover the band, centre. */
 function placeSplit() {
-  if (E.layout !== "split" || E.view !== "live") return;
+  if (!isParts(E.layout) || E.view !== "live") return;
   const ph = $e("#edPhone"); if (!ph || !E.sw || !E.sh) return;
-  const W = ph.clientWidth, H = ph.clientHeight, sp = splitOf(), g = geo("split", E.sw, E.sh);
+  const W = ph.clientWidth, H = ph.clientHeight, sp = splitOf(), k = W / OUT_W;
+  const fit = (b, v, r, bw, bh) => {             // the part covers its band and is centred, like render._filter
+    const rw = r[2] * E.sw, rh = r[3] * E.sh, s = Math.max(bw / rw, bh / rh);
+    v.style.cssText = `width:${E.sw * s}px;height:${E.sh * s}px;left:${-r[0] * E.sw * s - (rw * s - bw) / 2}px;top:${-r[1] * E.sh * s - (rh * s - bh) / 2}px`;
+  };
+  if (E.layout === "pip") {
+    const G = $e("#edBandG"), C = $e("#edBandC"), q = pipGeo(sp);
+    if (G) { G.style.height = H + "px"; fit(G, $e("#edVid"), sp.game, W, H); }
+    if (C) {
+      C.style.cssText = `left:${q.x * k}px;top:${q.y * k}px;width:${q.w * k}px;height:${q.h * k}px;border-radius:${q.r * k}px;box-shadow:0 0 0 ${q.b * k}px ${q.b ? q.color : "transparent"}`;
+      if (!C.querySelector(".ed-pipz")) C.insertAdjacentHTML("beforeend", `<i class="ed-pipz" title="Drag to resize"></i>`);
+      fit(C, $e("#edVid2"), sp.cam, q.w * k, q.h * k);
+    }
+    return;
+  }
+  if (E.layout === "trio") {
+    trioH().forEach((h, i) => { const b = $e(["#edBandG", "#edBandC", "#edBandT"][i]), v = $e(["#edVid", "#edVid2", "#edVid3"][i]);
+      if (b && v) { b.style.height = h * k + "px"; fit(b, v, sp.trio[i], W, h * k); } });
+    return;
+  }
+  const g = geo("split", E.sw, E.sh);
   const set = (bandId, vidId, r, h) => {
     const b = $e("#" + bandId), v = $e("#" + vidId); if (!b || !v) return;
     const bh = H * h / OUT_H, rw = r[2] * E.sw, rh = r[3] * E.sh, s = Math.max(W / rw, bh / rh);
@@ -1845,12 +2102,46 @@ function placeSplit() {
   };
   set("edBandG", "edVid", sp.game, g.fg); set("edBandC", "edVid2", sp.cam, g.ch);
 }
-function syncSplit() {                  // the face cam band plays the same moment as the main one
-  const a = $e("#edVid"), b = $e("#edVid2"); if (!a || !b || b.readyState < 1) return;
-  if (Math.abs(b.currentTime - a.currentTime) > 0.15) b.currentTime = a.currentTime;
-  b.playbackRate = a.playbackRate;
-  if (a.paused && !b.paused) b.pause(); else if (!a.paused && b.paused) b.play().catch(() => {});
+function syncSplit() {                  // the other bands play the same moment as the main one
+  const a = $e("#edVid"); if (!a) return;
+  for (const id of ["#edVid2", "#edVid3"]) {
+    const b = $e(id); if (!b || b.readyState < 1) continue;
+    if (Math.abs(b.currentTime - a.currentTime) > 0.15) b.currentTime = a.currentTime;
+    b.playbackRate = a.playbackRate;
+    if (a.paused && !b.paused) b.pause(); else if (!a.paused && b.paused) b.play().catch(() => {});
+  }
 }
+/* picture in picture: drag the small box anywhere on the video, or its corner to resize it. Stored as its middle
+   (% of the frame) and its width (% of the frame), the numbers render.pip_geometry uses. */
+let pipDrag = null;
+dlg_on("pointerdown", e => {
+  if (E.layout !== "pip" || E.view !== "live") return;
+  const box = e.target.closest("#edBandC"); if (!box) return;
+  e.preventDefault(); e.stopPropagation();
+  const ph = $e("#edPhone").getBoundingClientRect(), q = pipGeo();
+  pipDrag = {rz: !!e.target.closest(".ed-pipz"), sx: e.clientX, sy: e.clientY, pw: ph.width, ph: ph.height,
+    cx: (q.x + q.w / 2) / OUT_W * 100, cy: (q.y + q.h / 2) / OUT_H * 100, s0: splitOf().pip_size || 36, moved: false};
+  box.setPointerCapture?.(e.pointerId);
+});
+dlg_on("pointermove", e => {
+  const d = pipDrag; if (!d) return;
+  const mx = e.clientX - d.sx, my = e.clientY - d.sy;
+  if (!d.moved && Math.hypot(mx, my) < 3) return;
+  d.moved = true;
+  const sp = rawSplit();
+  if (d.rz) E.look.split = {...sp, pip_size: Math.round(Math.max(22, Math.min(50, d.s0 + mx / d.pw * 100 * 2))), pip_x: d.cx, pip_y: d.cy};
+  else E.look.split = {...sp, pip_x: Math.round((d.cx + mx / d.pw * 100) * 10) / 10, pip_y: Math.round((d.cy + my / d.ph * 100) * 10) / 10};
+  placeSplit();
+});
+dlg_on("pointerup", () => {
+  const d = pipDrag; pipDrag = null; if (!d || !d.moved) return;
+  const q = pipGeo();          // keep what was shown: the middle of the box as it sits, inside the frame
+  E.look.split = {...rawSplit(), pip_x: Math.round((q.x + q.w / 2) / OUT_W * 1000) / 10, pip_y: Math.round((q.y + q.h / 2) / OUT_H * 1000) / 10};
+  E.justMoved = Date.now(); E.lookTouched = true; if (E.tab === "layout") drawPanel(); after("");
+});
+$("#clipdlg").addEventListener("click", e => {      // the click that ends a drag doesn't also play or pause
+  if (E.justMoved && Date.now() - E.justMoved < 350 && e.target.closest("#edBandC")) { e.stopPropagation(); e.preventDefault(); }
+}, true);
 /* the Layout tool's picker: a frame of the video with two boxes, Stream and Face cam, to move and resize */
 /* A clean still of the footage for the caption style tiles: a hidden copy of the video jumps a third of the way into
    the clip (the playhead stays put); a frame that's nearly black (an intro, a fade) is skipped for a later one. */
@@ -1883,8 +2174,8 @@ function drawPickFrame() {
   const img = new Image(); img.onload = () => x.drawImage(img, 0, 0, cv.width, cv.height); img.src = `/media/${E.jid}/thumb.jpg`;
 }
 function placeRegions() {               // the boxes in the Layout panel's picker and in the Frame view
-  const sp = splitOf(), at = {...sp, frame: E.look.frame || frameDefault()};
-  for (const k of ["game", "cam", "frame"]) {
+  const sp = splitOf(), at = {...sp, frame: E.look.frame || frameDefault(), t0: sp.trio[0], t1: sp.trio[1], t2: sp.trio[2]};
+  for (const k of ["game", "cam", "frame", "t0", "t1", "t2"]) {
     const [x, y, w, h] = at[k];
     $$e(`.ed-rg[data-rg="${k}"]`).forEach(el => { el.style.cssText = `left:${x * 100}%;top:${y * 100}%;width:${w * 100}%;height:${h * 100}%`; });
   }
@@ -2016,7 +2307,7 @@ $("#clipdlg").addEventListener("pointerdown", e => {
   const box = e.target.closest(".ed-rg"); if (!box) return;
   e.preventDefault();
   const pick = box.parentElement.getBoundingClientRect(), k = box.dataset.rg;
-  const r0 = k === "frame" ? [...(E.look.frame || frameDefault())] : [...splitOf()[k]];
+  const r0 = k === "frame" ? [...(E.look.frame || frameDefault())] : k[0] === "t" ? [...splitOf().trio[+k[1]]] : [...splitOf()[k]];
   rgDrag = {k, resize: !!e.target.closest(".rz"), x0: e.clientX, y0: e.clientY, r0, pw: pick.width, ph: pick.height};
   box.setPointerCapture(e.pointerId);
 });
@@ -2031,7 +2322,9 @@ $("#clipdlg").addEventListener("pointermove", e => {
     if (lock) { h = w * lock; if (y + h > 1) { h = 1 - y; w = h / lock; } } else h = Math.max(0.08, Math.min(1 - y, h + dy));
   } else { x = Math.max(0, Math.min(1 - w, x + dx)); y = Math.max(0, Math.min(1 - h, y + dy)); }
   const r = [x, y, w, h].map(n => Math.round(n * 1e4) / 1e4);
-  if (d.k === "frame") E.look.frame = r; else E.look.split = {...rawSplit(), [d.k]: r};
+  if (d.k === "frame") E.look.frame = r;
+  else if (d.k[0] === "t") { const t = clone(rawSplit().trio); t[+d.k[1]] = r; E.look.split = {...rawSplit(), trio: t}; }
+  else E.look.split = {...rawSplit(), [d.k]: r};
   placeRegions(); placeSplit();
 });
 $("#clipdlg").addEventListener("pointerup", () => { if (rgDrag) { rgDrag = null; E.lookTouched = true; after(""); } });
@@ -2095,7 +2388,8 @@ function paintOverlay(t = nowT()) {
   paintFx(t, phone);
   paintBrand(t - E.start, phone, k);
   paintPics(t, phone, k);
-  if (E.layout === "split") { placeSplit(); syncSplit(); } else placeFg();
+  if (isParts(E.layout)) { placeSplit(); syncSplit(); } else placeFg();
+  paintStroke();
   applyZoom(t, phone);
   const ls = lines();
   let gi = -1;
@@ -2233,9 +2527,9 @@ function drawTimeline() {
         <span class="ed-tlsep"></span><button class="ed-ib sm" data-ed="zoom" data-d="-1" aria-label="Zoom out">${svg('<circle cx="10" cy="10" r="7"/><path d="M7 10h6M21 21l-6-6"/>')}</button>
         <input type="range" id="edZoom" min="1" max="${E.zmax || 8}" step="0.5" value="${E.zoom}" aria-label="Zoom the timeline">
         <button class="ed-ib sm" data-ed="zoom" data-d="1" aria-label="Zoom in">${svg('<circle cx="10" cy="10" r="7"/><path d="M7 10h6M10 7v6M21 21l-6-6"/>')}</button></div>
-      <div class="ed-play"><span class="ed-now" id="edNow">0:00.0</span>
+      <div class="ed-play"><span class="ed-now ed-tedit" id="edNow" title="Double-click to go to an exact time">0:00.0</span>
         <button class="ed-pbtn" data-ed="play" aria-label="Play or pause">${ic("play")}</button>
-        <span class="ed-dur" title="${E.cuts?.length ? "Length after Speech cleanup" : "Length"}">${ts(keptLen())}</span></div>
+        <span class="ed-dur ed-tedit" title="${E.cuts?.length ? "Length after Speech cleanup" : "Length"} · double-click to type a new length">${ts(keptLen())}</span></div>
       <div class="ed-tl-right"><button class="ed-rate" data-ed="rate" title="Playback speed">${E.rate}x</button></div>
     </div>
     <div class="ed-tlw">
@@ -2246,6 +2540,7 @@ function drawTimeline() {
           ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`)}
           ${(E.look.overlays || []).length ? head("pics", PIC_IC, "Pictures") : ""}
           ${head("music", MUSIC_IC, "Music", `<button class="ed-tb" data-ed="tab" data-t="audio" title="Add or change the music" aria-label="Music">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
+          ${(E.look.sfx || []).length ? head("sfx", SFX_IC, "Sounds", `<button class="ed-tb" data-ed="tab" data-t="audio" title="Add a sound effect" aria-label="Sounds">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`) : ""}
           ${head("zooms", ZOOM_IC, "Zooms", `<button class="ed-tb" data-ed="zoomadd" title="Add a zoom at the playhead (Z)" aria-label="Add a zoom">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${E.chat?.counts?.length ? head("chat", ic("chat"), "Chat") : ""}
           ${head("film", ic("film"), "Video", `<button class="ed-tb" data-ed="mute" aria-pressed="${!E.muted}" title="${E.muted ? "Turn the preview's sound on" : "Mute the preview"}">${SOUND(!E.muted)}</button>`)}
@@ -2257,7 +2552,7 @@ function drawTimeline() {
           <div class="ed-lanes" style="--gs:${step / span * 100}%">
             <div class="ed-lane hook">${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
               ${fx !== "None" ? `<button class="ed-fxchip" data-ed="tab" data-t="fx" style="left:${pct(hookEnd())}%;width:${Math.max(6, pct(E.end) - pct(hookEnd()))}%"><i>${FX_IC}</i><span>Filter: ${esc(fx)}</span></button>` : ""}</div>
-            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${musicLane()}${zoomsLane()}${chatLane()}
+            <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${musicLane()}${sfxLane()}${zoomsLane()}${chatLane()}
             <div class="ed-lane film" style="background-image:url('/media/${E.jid}/thumb.jpg'),url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')">
               <div class="ed-shade l" style="width:${pct(E.start)}%"></div><div class="ed-shade r" style="left:${pct(E.end)}%"></div>
               ${(E.cuts || []).map(([a, b]) => `<i class="ed-cutmark" style="left:${pct(a)}%;width:${Math.max(0.2, pct(b) - pct(a))}%" title="Cut by Speech cleanup"></i>`).join("")}
@@ -2340,6 +2635,28 @@ function setTrim(k, v) {
   else E.end = Math.min(E.max, Math.max(v, E.start + 3));
   if (E.end - E.start > 180) { if (k === "start") E.end = E.start + 180; else E.start = E.end - 180; }
 }
+// double-click the time or the length under the preview to type it: go to an exact moment, or set how long the clip is
+const parseTime = t => { const m = String(t).trim().match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/); return m ? (+(m[1] || 0)) * 60 + +m[2] : null; };
+dlg_on("dblclick", e => {
+  const el = e.target.closest("#edTl .ed-tedit"); if (!el || el.querySelector("input")) return;
+  const dur = el.classList.contains("ed-dur"), old = el.textContent;
+  el.innerHTML = `<input class="ed-tin" value="${esc(old)}" aria-label="${dur ? "Clip length" : "Go to time"}" spellcheck="false">`;
+  const i = el.querySelector("input"); i.focus(); i.select();
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const v = ok ? parseTime(i.value) : null;
+    el.textContent = old; E.shownNow = "";          // the time label fills in again on the next frame
+    if (v == null) { if (ok && i.value.trim() !== old) toast("Type a time like 0:45 or 1:05.5", "bad"); return; }
+    if (dur) {
+      const want = Math.max(3, Math.min(180, v)); setTrim("end", E.start + want);
+      if (Math.abs(E.end - E.start - want) > 0.06) toast(`The clip can be ${ts(E.end - E.start)} at most here`, "");
+      E.lookTouched = true; after("pt");
+    } else showAt(Math.max(E.start, Math.min(E.end, E.start + v)));
+  };
+  i.addEventListener("keydown", k => { if (k.key === "Enter") { k.preventDefault(); finish(true); } else if (k.key === "Escape") { k.preventDefault(); k.stopPropagation(); finish(false); } });
+  i.addEventListener("blur", () => finish(true));
+});
 function aspClose() { document.querySelectorAll("#clipdlg > .ed-aspop").forEach(x => x.remove()); }
 function dlg_on(type, fn) { $("#clipdlg").addEventListener(type, fn); }   // safe to use above where `dlg` is set
 /* one word of the transcript, fixed in place: a new spelling, several words for a missing one (they share its time),
@@ -2698,9 +3015,22 @@ dlg.addEventListener("click", async e => {
     const th = CARD_THEMES[cardOf().theme] || CARD_THEMES.light, lightCard = parseInt(th.bg.slice(1), 16) > 0x888888;
     if (lightCard && /^#F/i.test(E.look.base || "#FFFFFF")) { Object.assign(E.look, {base: th.ink, active: th.acc, outline: 0}); E.lookTouched = true; }
   }
-  if (a === "layout") { E.layout = d.v; if ((d.v === "split" || d.v === "card") && !b.closest("#edPanel")) E.tab = "layout"; drawPanel(); drawStage(); if (d.v === "split") findFacecam(); return after(""); }
+  if (a === "layout") {
+    E.layout = d.v; E.splitKind = d.kind || "";
+    if (d.kind === "duo") E.look.split = {...rawSplit(), game: [0, 0, 0.5, 1], cam: [0.5, 0, 0.5, 1], share: 50, cam_at: "bottom"};
+    else if (d.v === "split" && E.look.split && E.look.split.game?.join() === "0,0,0.5,1" && E.look.split.cam?.join() === "0.5,0,0.5,1")
+      E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {})};      // back from Duo: the stream and face cam spots
+    if ((isParts(d.v) || d.v === "card") && !b.closest("#edPanel") && E.view !== "frame") E.tab = "layout";
+    E.lookTouched = true; drawPanel(); drawStage(); if (d.v === "split" && !d.kind || d.v === "pip") findFacecam(); return after("");
+  }
+  if (a === "strokecol") { E.look.stroke_color = d.v; E.lookTouched = true; paintStroke(); drawPanel(); return after(""); }
+  if (a === "pipat") { E.look.split = {...rawSplit(), pip_at: d.v, pip_x: null, pip_y: null}; E.lookTouched = true; placeSplit(); drawPanel(); return after("p"); }
+  if (a === "pipshape" || a === "pipcol") { E.look.split = {...rawSplit(), [a === "pipshape" ? "pip_shape" : "pip_color"]: d.v}; E.lookTouched = true; placeSplit(); drawPanel(); return after(""); }
+  if (a === "trioreset") { E.look.split = {...rawSplit(), trio: clone(SPLIT_DEFAULT.trio)}; E.lookTouched = true; drawStage(); drawPanel(); return after("p"); }
   if (a === "framereset") {             // the Frame view's Reset: the whole picture (or the usual face cam spots)
-    if (E.layout === "split") E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {})}; else delete E.look.frame;
+    if (E.layout === "trio") E.look.split = {...rawSplit(), trio: clone(SPLIT_DEFAULT.trio)};
+    else if (isParts(E.layout)) E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {}), pip_at: rawSplit().pip_at, pip_size: rawSplit().pip_size};
+    else delete E.look.frame;
     E.lookTouched = true; placeRegions(); return after("p");
   }
   if (a === "muspick") {
@@ -2710,7 +3040,7 @@ dlg.addEventListener("click", async e => {
   if (a === "musdel") {
     e.stopPropagation();
     const t = (E.music || []).find(x => x.id === d.v); if (!t || !confirm(`Remove "${t.name}" from your library? Clips already made keep their sound.`)) return;
-    try { E.music = (await api(`/api/music/${d.v}`, {method: "DELETE"})).tracks; } catch (er) { return toast(er.message, "bad"); }
+    try { E.music = [...(await api(`/api/music/${d.v}`, {method: "DELETE"})).tracks, ...(E.music || []).filter(t => t.pack)]; } catch (er) { return toast(er.message, "bad"); }
     if (musicOf().id === d.v) { E.look.music = {...musicOf(), id: ""}; E.lookTouched = true; }
     drawPanel(); return after("");
   }
@@ -2737,7 +3067,7 @@ dlg.addEventListener("click", async e => {
   if (a === "medialdel") {
     e.stopPropagation();
     const m = (E.media || []).find(x => x.id === d.v); if (!m || !confirm(`Remove "${m.name}" from your library? Clips already made keep it.`)) return;
-    try { E.media = (await api(`/api/media/${d.v}`, {method: "DELETE"})).items; } catch (er) { return toast(er.message, "bad"); }
+    try { E.media = [...(await api(`/api/media/${d.v}`, {method: "DELETE"})).items, ...(E.media || []).filter(m => m.pack)]; } catch (er) { return toast(er.message, "bad"); }
     E.look.overlays = (E.look.overlays || []).filter(o => o.id !== d.v); E.picSel = -1; E.lookTouched = true; drawPanel(); drawTimeline(); return after("");
   }
   if (a === "outroset") {
@@ -2748,6 +3078,30 @@ dlg.addEventListener("click", async e => {
   }
   if (a === "outroplay") return playOutro(false);
   if (a === "outrojump") { E.tab = "media"; drawPanel(); return playOutro(false); }
+  if (a === "scoreplay") { showAt(E.start); const v = $e("#edVid"); if (v && v.paused) togglePlay(); return; }
+  if (a === "sfxgrp") { E.sfxGrp = d.v; return drawPanel(); }
+  if (a === "sfxtry") { e.stopPropagation(); return sfxTry(d.v); }
+  if (a === "sfxadd") {
+    const L = E.look.sfx || [], t = Math.round(Math.max(E.start, Math.min(E.end - 0.1, nowT())) * 100) / 100;
+    if (L.length >= 60) return toast("Up to 60 sounds on one clip.", "bad");
+    L.push({id: d.v, t, vol: 100}); L.sort((p, q) => p.t - q.t); E.look.sfx = L; E.sfxSel = L.findIndex(x => x.t === t && x.id === d.v);
+    E.lookTouched = true; sfxTry(d.v); drawPanel(); drawTimeline(); after(""); return toast(`${sfxOf(d.v)?.name || "Sound"} at ${ts(t - E.start)}`, "ok");
+  }
+  if (a === "sfxsel") { E.sfxSel = +d.v; if (E.tab !== "audio") E.tab = "audio"; drawPanel(); drawTimeline(); const x = (E.look.sfx || [])[E.sfxSel]; if (x) showAt(x.t); return; }
+  if (a === "sfxdel") { const L = E.look.sfx || []; L.splice(+d.v, 1); E.look.sfx = L; E.sfxSel = -1; E.lookTouched = true; drawPanel(); drawTimeline(); return after(""); }
+  if (a === "mustry") {                 // hear a library song without choosing it
+    e.stopPropagation();
+    if (E.musTry === d.v) { E.musTryEl?.pause(); E.musTry = null; return drawPanel(); }
+    try { E.musTryEl?.pause(); E.musTryEl = new Audio(`/api/music/${d.v}`); E.musTryEl.volume = 0.6; E.musTryEl.play().catch(() => {}); E.musTry = d.v;
+      E.musTryEl.onended = () => { E.musTry = null; if (E.tab === "audio") drawPanel(); }; } catch {}
+    return drawPanel();
+  }
+  if (a === "facepick") {              // a reaction face for the chosen zoom ("" takes it away)
+    const z = (E.look.zooms || [])[E.zSel]; if (!z) return;
+    z.react = d.v; E.lookTouched = true; E.picKey = ""; drawPanel(); paintOverlay(); after("");
+    const f = (E.media || []).find(m => m.id === d.v); if (f?.sfx) sfxTry(f.sfx);
+    return;
+  }
   if (a === "musauto") { E.look.music = {...musicOf(), vol: 18, peak: 95, rise: 3, duck: true}; E.lookTouched = true; drawPanel(); return after(""); }
   if (a === "musdrop") { const m = musicOf(); E.look.music = {...m, peak_at: m.peak_at == null ? Math.max(0, (m.at || 0) + (E.end - E.start)) : null}; E.lookTouched = true; drawPanel(); return after(""); }
   if (a === "hookbanner" || a === "hookcase") { E.look[a === "hookbanner" ? "hook_banner" : "hook_case"] = d.v; E.lookTouched = true; drawPanel(); after(""); return showHook(); }
@@ -2807,6 +3161,27 @@ dlg.addEventListener("click", async e => {
   if (a === "toplayhead") { setTrim(d.k, nowT()); return after("pt"); }
 });
 dlg.addEventListener("input", e => {
+  if (e.target.matches?.('[data-look="sfx_vol"]')) {     // the chosen sound's loudness
+    const x = (E.look.sfx || [])[E.sfxSel]; if (!x) return;
+    x.vol = +e.target.value; e.target.parentElement.style.setProperty("--p", pctOf(x.vol, 0, 200));
+    const o = e.target.parentElement.querySelector("output"); if (o) o.textContent = x.vol + "%";
+    E.lookTouched = true; return after("");
+  }
+  if (e.target.matches?.("[data-stroke]")) {        // the border's width: seen at once; the colour row shows with a border
+    const v = +e.target.value, had = (E.look.stroke || 0) > 0;
+    E.look.stroke = v; E.lookTouched = true;
+    e.target.parentElement.style.setProperty("--p", pctOf(v, 0, 24));
+    const o = e.target.parentElement.querySelector("output"); if (o) o.textContent = v || "None";
+    paintStroke(); if (had !== v > 0) drawPanel(); return after("");
+  }
+  if (e.target.matches?.("[data-strokecol]")) {
+    E.look.stroke_color = e.target.value.toUpperCase(); e.target.parentElement.style.setProperty("--c", e.target.value);
+    E.lookTouched = true; paintStroke(); return after("");
+  }
+  if (e.target.matches?.("[data-pipcol]")) {        // the face box's border colour, any colour
+    E.look.split = {...rawSplit(), pip_color: e.target.value.toUpperCase()}; e.target.parentElement.style.setProperty("--c", e.target.value);
+    E.lookTouched = true; placeSplit(); return after("");
+  }
   const el = e.target, k = el.dataset.look;
   if (el.dataset.bg) {                    // a background colour: the preview follows as it is picked
     E.look.bg = {...bgOf(), [el.dataset.bg]: el.value.toUpperCase()}; el.parentElement.style.background = el.value;
@@ -2837,17 +3212,19 @@ dlg.addEventListener("input", e => {
     el.closest(".ed-sl")?.style.setProperty("--p", pctOf(v, +el.min, +el.max));
     E.look.music = {...musicOf(), [{mus_peak: "peak", mus_rise: "rise", mus_drop: "peak_at"}[k]]: v}; E.lookTouched = true;
     if (out) out.textContent = k === "mus_peak" ? v + "%" : k === "mus_rise" ? v + " s" : mmss(v);
-    return after("");
+    redrawScore(); return after("");
   }
   if (el.dataset.mus) {                   // music switches: duck, loop, fade
-    E.look.music = {...musicOf(), [el.dataset.mus]: el.checked}; E.lookTouched = true; return after("");
+    E.look.music = {...musicOf(), [el.dataset.mus]: el.checked}; E.lookTouched = true;
+    if (el.dataset.mus === "rise_on") drawPanel();
+    return after("");
   }
   if (k === "mus_vol" || k === "mus_at") {  // music volume and where in the song it starts
     const v = +el.value, o = el.parentElement.querySelector("output");
     el.closest(".ed-sl")?.style.setProperty("--p", pctOf(v, +el.min, +el.max));
     E.look.music = {...musicOf(), [k === "mus_vol" ? "vol" : "at"]: v}; E.lookTouched = true;
     if (o) o.textContent = k === "mus_vol" ? v + "%" : mmss(v);
-    return after("");
+    redrawScore(); return after("");
   }
   if (el.dataset.card) {                  // the post card's name, handle, words and corners: seen on the preview at once
     const ck = el.dataset.card, sl = el.closest(".ed-sl");
@@ -2872,6 +3249,15 @@ dlg.addEventListener("input", e => {
     }
     if (k === "brand_color") { E.look.brand_color = el.value.toUpperCase(); el.parentElement.style.background = el.value; return wmRefresh(); }
     if (k === "brand_tag_on") { E.look.brand_tag_on = el.checked; drawPanel(); return wmRefresh(); }
+    if (k === "pip_size" || k === "pip_radius" || k === "pip_border") {
+      const lim = {pip_size: [22, 50], pip_radius: [0, 30], pip_border: [0, 16]}[k], v = +el.value;
+      const had = (rawSplit().pip_border ?? 6) > 0;
+      E.look.split = {...rawSplit(), [k]: v}; const o = el.parentElement.querySelector("output");
+      if (o) o.textContent = k === "pip_size" ? v + "%" : k === "pip_border" && !v ? "None" : v;
+      el.parentElement.style.setProperty("--p", pctOf(v, lim[0], lim[1])); E.lookTouched = true; placeSplit(); paintOverlay();
+      if (k === "pip_border" && had !== v > 0) drawPanel();            // the colour row shows only with a border
+      return after("");
+    }
     if (k === "split_share") {              // how much of the frame the stream takes; the face cam gets the rest
       E.look.split = {...rawSplit(), share: +el.value}; const o = el.parentElement.querySelector("output"); if (o) o.textContent = el.value + "%";
       E.lastKey = ""; placeSplit(); after(""); return;
@@ -2917,6 +3303,12 @@ dlg.addEventListener("input", e => {
   if (el.id === "edDesc") { E.description = el.value; const n = $e("#edDescN"); if (n) n.textContent = `${el.value.length}/2000`; return drawClipDlg(); }
 });
 dlg.addEventListener("change", e => {
+  if (e.target.matches?.('[data-ed="sfxzoom"]')) {        // a pop on every zoom: added (or taken away) in one go
+    const pop = (E.sfxLib?.items || []).find(x => x.name === "Zoom Pop")?.id; if (!pop) return;
+    const L = (E.look.sfx || []).filter(x => !(x.id === pop && (E.look.zooms || []).some(z => Math.abs(x.t - z.a) < 0.05)));
+    if (e.target.checked) for (const z of E.look.zooms || []) L.push({id: pop, t: z.a, vol: 100});
+    L.sort((p, q) => p.t - q.t); E.look.sfx = L; E.lookTouched = true; drawPanel(); drawTimeline(); return after("");
+  }
   if (e.target.matches?.("[data-pacc]")) {          // an account tile ticked: remember it, and wake the post buttons
     const set = E.postPick || (E.postPick = new Set());
     e.target.checked ? set.add(e.target.value) : set.delete(e.target.value);
