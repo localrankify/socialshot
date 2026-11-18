@@ -110,7 +110,8 @@ _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
 
 DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "studio", "layout": "blur", "quality": 720,
-            "range_start": None, "range_end": None, "use_chat": True}
+            "range_start": None, "range_end": None, "use_chat": True,
+            "ai_edit": True}      # the AI editor: music, zooms, sound effects (and a reaction) on every new clip
 
 
 LIMITS = {"max_clips": (1, 20), "min_len": (5, 120), "max_len": (10, 180), "quality": (360, 1080)}
@@ -129,7 +130,7 @@ def clean_options(options) -> dict:
             v = v if v in render.STYLES else DEFAULTS["style"]
         elif k == "layout":
             v = v if v in render.LAYOUTS else DEFAULTS["layout"]
-        elif k == "use_chat":                    # read the chat for its spikes, when the video has one
+        elif k in ("use_chat", "ai_edit"):        # on/off settings
             v = v is True or v in (1, "1", "true", "on")
         else:                                    # range_start, range_end: seconds into the video
             v = float(v)
@@ -358,7 +359,10 @@ def request_render(jid, cid, changes: dict, render_now: bool = True):
         new["end"] = min(new["end"], clip["src_end"])
     if not (math.isfinite(new["start"]) and math.isfinite(new["end"])) or new["start"] < 0:
         raise ValueError("Those times aren't valid.")
-    if not 3 <= new["end"] - new["start"] <= 180:
+    shots = changes.get("shots") if "shots" in changes else clip.get("shots")
+    if shots:                                 # several stretches joined: the clip spans them, the gaps are cut out
+        shots = clean_shots(shots, new["start"], new["end"])
+    if not 3 <= new["end"] - new["start"] <= (3600 if shots else 180):
         raise ValueError("A clip can be 3 to 180 seconds long.")
     for k in ("hook", "title", "description", "style", "layout"):
         if k in changes:
@@ -371,8 +375,13 @@ def request_render(jid, cid, changes: dict, render_now: bool = True):
         new["look"] = render.clean_look(changes["look"])
     if "captions" in changes:                 # caption words typed in the editor; null goes back to what was heard
         new["caption_words"] = clean_caption_words(changes["captions"])
-    if "cuts" in changes:                     # parts taken out by Speech cleanup: filler words and long pauses
+    if "cuts" in changes:                     # parts taken out by Speech cleanup (and the gaps between shots)
         new["cuts"] = clean_cuts(changes["cuts"], new["start"], new["end"])
+    if "shots" in changes:
+        new["shots"] = shots or None
+    kept = (new["end"] - new["start"]) - sum(b - a for a, b in new.get("cuts") or [])
+    if kept > 180.5:
+        raise ValueError("Together the shots are longer than 3 minutes. Make them shorter.")
     if not render_now:
         clip.update(new, unrendered=True)     # saved only: the video is made with these the next time it is rendered
         save(job)
@@ -380,6 +389,25 @@ def request_render(jid, cid, changes: dict, render_now: bool = True):
     clip.update(new, status="queued", unrendered=False)
     save(job)
     _q.put(("clip", jid, cid))
+
+
+def clean_shots(shots, start, end) -> list | None:
+    """The stretches of the video joined into this clip ([[from, to], ...]): in order, not overlapping, each at least
+    half a second, inside the clip. One stretch is just a normal clip (None)."""
+    if not isinstance(shots, list) or len(shots) > 20:
+        raise ValueError("Those shots can't be used.")
+    out = []
+    for x in shots:
+        if not isinstance(x, (list, tuple)) or len(x) != 2:
+            raise ValueError("Those shots can't be used.")
+        a, b = max(float(x[0]), start), min(float(x[1]), end)
+        if math.isfinite(a) and math.isfinite(b) and b - a >= 0.5:
+            out.append([round(a, 2), round(b, 2)])
+    out.sort()
+    for i in range(1, len(out)):
+        if out[i][0] < out[i - 1][1]:
+            raise ValueError("Two shots overlap. Move one so they don't.")
+    return out if len(out) > 1 else None
 
 
 def clean_cuts(cuts, start, end) -> list:
@@ -488,11 +516,29 @@ def retranscribe(job, clip) -> list:
     return words
 
 
+def _ai_edit(job, clip, words, src):
+    """A new clip, before its first render: the AI editor adds music, zooms and sound effects (when it's on)."""
+    if clip.get("auto_edited") or clip.get("version", 0) or not (job.get("options") or {}).get("ai_edit", True):
+        return
+    from . import autoedit
+    try:
+        db = json.loads((Path(job["dir"]) / "loudness.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        db = None
+    try:
+        usage.set_context(job.get("creator"), job.get("title") or "")
+        p = autoedit.apply(clip, words, job.get("title") or "", db, src)
+        clip["ai_note"] = autoedit.describe(p)
+    except Exception:  # noqa: BLE001 - the clip is still made, just without the extra edit
+        clip["auto_edited"] = "failed"
+
+
 def render_one(job, clip, words):
     d = Path(job["dir"])
     clip["status"] = "rendering"
     save(job)
     try:
+        _ai_edit(job, clip, words, Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "") if job.get("source_path") else None)
         words = with_heard(clip, words)
         off = clip.get("src_offset", 0.0)
         src = Path(clip["src"]) if clip.get("src") else Path(job["source_path"])

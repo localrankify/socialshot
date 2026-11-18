@@ -137,6 +137,10 @@ FONTS = {
     "Ms Madi": {"google": "Ms Madi", "weight": 400},
     "Oooh Baby": {"google": "Oooh Baby", "weight": 400},
     "Nothing You Could Do": {"google": "Nothing You Could Do", "weight": 400},
+    "Pinyon Script": {"google": "Pinyon Script", "weight": 400},
+    "Great Vibes": {"google": "Great Vibes", "weight": 400},
+    "Playball": {"google": "Playball", "weight": 400},
+    "Dancing Script": {"google": "Dancing Script", "weight": 700},
     "DM Mono": {"google": "DM Mono", "weight": 500},
     "Geist Mono": {"google": "Geist Mono", "weight": 600},
     "Martian Mono": {"google": "Martian Mono", "weight": 600},
@@ -144,6 +148,23 @@ FONTS = {
 
 # Ready-made caption looks for the editor. A look is everything about the captions a person can change.
 PRESETS = {
+    # trending: plain words with one word in a second font (a script or an italic serif) and its own colour
+    "script": {"label": "Script accent", "font": "Inter", "size": 96, "base": "#FFFFFF", "active": "#FFFFFF", "upper": False, "per": 4,
+               "outline": 0, "weight": 500, "kw_font": "Pinyon Script", "kw_color": "#A855F7", "kw_scale": 150},
+    "scriptgold": {"label": "Script gold", "font": "Manrope", "size": 92, "base": "#FFFFFF", "active": "#FFFFFF", "upper": False, "per": 4,
+                   "outline": 0, "weight": 600, "kw_font": "Great Vibes", "kw_color": "#F5C451", "kw_scale": 175},
+    "serifmix": {"label": "Serif accent", "font": "Inter Tight", "size": 98, "base": "#FFFFFF", "active": "#FFFFFF", "upper": False, "per": 4,
+                 "outline": 0, "weight": 600, "kw_font": "Instrument Serif", "kw_color": "#FFFFFF", "kw_scale": 125, "kw_italic": True},
+    "boldword": {"label": "Bold word", "font": "Inter", "size": 94, "base": "#E5E5E5", "active": "#FFFFFF", "upper": False, "per": 4,
+                 "outline": 0, "weight": 400, "kw_font": "Archivo Black", "kw_color": "#FFFFFF", "kw_scale": 110},
+    # from the Viral Reel Edit Pack's caption styles
+    "yellowpunch": {"label": "Yellow punch", "font": "Archivo Black", "size": 118, "base": "#FFD400", "active": "#FFFFFF", "upper": True, "per": 2, "outline": 5},
+    "karaoke": {"label": "Karaoke", "font": "Poppins", "size": 104, "base": "#A1A1AA", "active": "#FFD400", "upper": False, "per": 4, "outline": 3},
+    "mystery": {"label": "Mystery", "font": "Space Grotesk", "size": 104, "base": "#7DD3FC", "active": "#FFFFFF", "upper": False, "per": 3, "outline": 4},
+    "heritage": {"label": "Heritage", "font": "Marcellus", "size": 108, "base": "#E7C88A", "active": "#FFFFFF", "upper": False, "per": 3, "outline": 3},
+    "danger": {"label": "Danger", "font": "Anton", "size": 140, "base": "#FF4D4D", "active": "#FFFFFF", "upper": True, "per": 2, "outline": 4},
+    "premium": {"label": "Premium", "font": "Playfair Display", "size": 100, "base": "#F5EFE3", "active": "#C8A96A", "upper": False, "per": 4, "outline": 1, "sp": 4},
+    "gamingneon": {"label": "Gaming", "font": "Barlow Condensed", "size": 132, "base": "#00F0FF", "active": "#FF2BD6", "upper": True, "per": 3, "outline": 4},
     "studio": {"label": "Studio", "font": "Apfel Grotezk", "size": 104, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 3},
     "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": False, "per": 3, "outline": 4},
     "hype": {"label": "Hype", "font": "Anton", "size": 152, "base": "#FFFFFF", "active": "#FF3C3C", "upper": False, "per": 2, "outline": 4},
@@ -250,6 +271,10 @@ def clean_look(look) -> dict | None:
             "cap_round": _num(look.get("cap_round"), 0, 60, 18),
             # how heavy and in what style the letters are (None: the font's own weight), for captions and hook
             "weight": _weight(look.get("weight")), "italic": bool(look.get("italic")), "underline": bool(look.get("underline")),
+            # the key word: one word a line drawn in its own font, colour and size ("" font and colour: off)
+            "kw_font": look["kw_font"] if look.get("kw_font") in FONTS else "",
+            "kw_color": look["kw_color"] if isinstance(look.get("kw_color"), str) and _HEX.fullmatch(look["kw_color"]) else "",
+            "kw_scale": _num(look.get("kw_scale"), 80, 180, 100), "kw_italic": bool(look.get("kw_italic")),
             "hook_weight": _weight(look.get("hook_weight")), "hook_italic": bool(look.get("hook_italic")),
             "hook_underline": bool(look.get("hook_underline")),
             # the person's brand on the video: their logo and name, where it sits, how big, how solid, how it moves
@@ -1227,7 +1252,23 @@ def look_style(look: dict) -> dict:
             "bold": bool(local and w and w >= 600), "italic": look.get("italic", False), "underline": look.get("underline", False), "base": bgr(look["base"]), "active": bgr(look["active"]),
             "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"],
             "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"],
-            "x": look.get("x")}
+            "x": look.get("x"),
+            "kw_font": ensure_font(look["kw_font"]) if look.get("kw_font") else None,
+            "kw": bgr(look["kw_color"]) if look.get("kw_color") else None,
+            "kw_scale": look.get("kw_scale", 100), "kw_italic": bool(look.get("kw_italic"))}
+
+
+def accent_index(texts, keys, strong) -> int:
+    """Which word of a caption line gets the key-word look: the first one the AI marked as a punch word, otherwise
+    the longest word of four letters or more (the editor's preview picks the same one). -1: none."""
+    for i, k in enumerate(keys):
+        if k and k in strong:
+            return i
+    best, n = -1, 3
+    for i, t in enumerate(texts):
+        if len(t) > n:
+            best, n = i, len(t)
+    return best
 
 
 class _Font:
@@ -1286,8 +1327,9 @@ def install_fonts():
 LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fill", "crop": "Fill the screen (centre crop)",
            "split": "Split: the stream on top, the face cam below", "card": "Post card: the clip inside a social post",
            "pip": "Picture in picture: one part fills the frame, the face cam in a small box in a corner",
-           "trio": "Trio: three parts of the picture stacked, for podcasts with three people"}
-PARTS = ("split", "pip", "trio")      # the layouts made of parts of the picture (the split boxes), not one framed shot
+           "trio": "Trio: three parts of the picture stacked, for podcasts with three people",
+           "grid": "Face grid: two to four people, each in a cell of their own, and stretches that show one of them"}
+PARTS = ("split", "pip", "trio", "grid")      # the layouts made of parts of the picture (the split boxes), not one framed shot
 # The split layout cuts two parts out of the source: the gameplay (or whatever is on stream) and the streamer's face
 # cam, and stacks them. Each part is [left, top, width, height] as fractions of the source picture. Most streamers
 # keep their face cam in the bottom-right corner, so that's where it starts; the editor can move both.
@@ -1298,7 +1340,13 @@ SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], 
                  # how round its corners are (% of its width), and its edge (width at 1080 wide, colour)
                  "pip_x": None, "pip_y": None, "pip_shape": "rounded", "pip_radius": 10, "pip_border": 6, "pip_color": "#FFFFFF",
                  # trio: the three parts, top to bottom (a third of the picture each, to start)
-                 "trio": [[0.0, 0.0, 0.3333, 1.0], [0.3333, 0.0, 0.3333, 1.0], [0.6667, 0.0, 0.3333, 1.0]]}
+                 "trio": [[0.0, 0.0, 0.3333, 1.0], [0.3333, 0.0, 0.3333, 1.0], [0.6667, 0.0, 0.3333, 1.0]],
+                 # face grid: one part of the picture per person (2 to 4, left to right to start), how much of the
+                 # height the top row takes (%, the line dragged in the editor), and the stretches of the clip that
+                 # show something else: {"a", "b"} in source seconds like zooms, "v": "all" or the one person shown
+                 # full screen, "share": that stretch's own line (None: the clip's)
+                 "faces": [[0.0, 0.0, 0.5, 1.0], [0.5, 0.0, 0.5, 1.0]], "grid_share": 50, "scenes": []}
+GRID_MAX = 4
 
 
 def _region(v, default):
@@ -1323,6 +1371,8 @@ def clean_split(v) -> dict:
     except (TypeError, ValueError):
         size = SPLIT_DEFAULT["pip_size"]
     trio = v.get("trio") if isinstance(v.get("trio"), list) and len(v.get("trio")) == 3 else SPLIT_DEFAULT["trio"]
+    faces = v.get("faces") if isinstance(v.get("faces"), list) and 2 <= len(v.get("faces")) <= GRID_MAX else SPLIT_DEFAULT["faces"]
+    faces = [_region(r, d) for r, d in zip(faces, _even_faces(len(faces)))]
 
     def pct(k, lo, hi):
         try:
@@ -1338,7 +1388,95 @@ def clean_split(v) -> dict:
             "pip_radius": int(pct("pip_radius", 0, 30) if pct("pip_radius", 0, 30) is not None else 10),
             "pip_border": int(pct("pip_border", 0, 16) if pct("pip_border", 0, 16) is not None else 6),
             "pip_color": col.upper() if re.fullmatch(r"#[0-9A-Fa-f]{6}", col) else "#FFFFFF",
-            "trio": [_region(r, d) for r, d in zip(trio, SPLIT_DEFAULT["trio"])]}
+            "trio": [_region(r, d) for r, d in zip(trio, SPLIT_DEFAULT["trio"])],
+            "faces": faces, "grid_share": int(pct("grid_share", 20, 80) if pct("grid_share", 20, 80) is not None else 50),
+            "scenes": clean_scenes(v.get("scenes"), len(faces))}
+
+
+def _even_faces(n):
+    """n people side by side across the picture: a slice each, the usual podcast wide shot."""
+    return [[round(i / n, 4), 0.0, round(1 / n, 4), 1.0] for i in range(n)]
+
+
+def clean_scenes(v, n) -> list:
+    """The face grid's stretches: who is shown from when to when (source seconds), in order, not overlapping."""
+    rows = []
+    for s in (v if isinstance(v, list) else [])[:40]:
+        if not isinstance(s, dict):
+            continue
+        try:
+            a, b = float(s.get("a")), float(s.get("b"))
+        except (TypeError, ValueError):
+            continue
+        show = s.get("v", "all")
+        if show != "all":
+            try:
+                show = int(show)
+            except (TypeError, ValueError):
+                continue
+            if not 0 <= show < n:
+                continue
+        try:
+            share = None if s.get("share") is None else int(max(20, min(80, float(s["share"]))))
+        except (TypeError, ValueError):
+            share = None
+        rows.append((a, b, show, share))
+    out = []
+    for a, b, show, share in sorted(rows, key=lambda r: r[0]):
+        if out and a < out[-1]["b"]:
+            a = out[-1]["b"]                  # overlapping the one before: starts where it ends
+        if b - a >= 0.3:
+            out.append({"a": round(a, 2), "b": round(b, 2), "v": show, "share": share})
+    return out
+
+
+def grid_cells(W, H, n, share):
+    """The face grid's cells, person by person, as (x, y, w, h) pixels of the frame. Two people: one above the other.
+    Three: the first across the top, two side by side below. Four: two by two. `share`: the top row's height (%)."""
+    th = int(round(H * share / 100 / 2)) * 2
+    hw = int(round(W / 2 / 2)) * 2
+    if n <= 2:
+        return [(0, 0, W, th), (0, th, W, H - th)][:max(1, n)]
+    if n == 3:
+        return [(0, 0, W, th), (0, th, hw, H - th), (hw, th, W - hw, H - th)]
+    return [(0, 0, hw, th), (hw, 0, W - hw, th), (0, th, hw, H - th), (hw, th, W - hw, H - th)]
+
+
+def grid_seams(W, H, n, share, b):
+    """The lines between the face grid's cells, as (x, y, w, h) boxes b pixels thick."""
+    th = int(round(H * share / 100 / 2)) * 2
+    hw = int(round(W / 2 / 2)) * 2
+    out = [(0, th - b // 2, W, b)]
+    if n == 3:
+        out.append((hw - b // 2, th, b, H - th))
+    elif n >= 4:
+        out.append((hw - b // 2, 0, b, H))
+    return out
+
+
+def grid_segments(split, start, keeps, main) -> list:
+    """The face grid on the finished clip: [(from, to, show, share)] back to back from 0 to its end (cut parts
+    skipped, seconds). Between the stretches set in the editor everyone is shown, with the clip's own line."""
+    base = ("all", split["grid_share"])
+    out, t = [], 0.0
+    for s in split.get("scenes") or []:
+        a, b = _out_time(s["a"] - start, keeps), min(main, _out_time(s["b"] - start, keeps))
+        a = max(a, t)
+        if b - a < 0.2:
+            continue                           # cut away, or outside the clip
+        if a - t > 0.01:
+            out.append([t, a, *base])
+        out.append([a, b, s["v"], s["share"] or split["grid_share"]])
+        t = b
+    if main - t > 0.01 or not out:
+        out.append([t, main, *base])
+    merged = []
+    for seg in out:                            # next to each other and the same: one stretch
+        if merged and merged[-1][2:] == seg[2:]:
+            merged[-1][1] = seg[1]
+        else:
+            merged.append(seg)
+    return [tuple(x) for x in merged]
 
 
 def pip_geometry(W, H, split, src_w, src_h) -> dict:
@@ -1434,6 +1572,9 @@ def geometry(src_w, src_h, layout, split=None):
         gh, ch = _split_heights(sp, H)
         seam = gh if sp["cam_at"] == "bottom" else ch
         return layout, gh, seam - round(H * 0.045), seam     # both in the middle: hook just above, captions on the seam
+    if layout == "grid":                 # like split: the hook just above the line under the top row, captions on it
+        th = grid_cells(W, H, 2, (split or SPLIT_DEFAULT)["grid_share"])[0][3]
+        return layout, H, th - round(H * 0.045), th
     if layout == "trio":                 # the hook just above the first seam, the captions on the second
         a, b, _ = _trio_heights(H)
         return layout, H, a - round(H * 0.045), a + b
@@ -1605,15 +1746,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         size, sp, wgap = st["size"], st.get("sp", 0), st.get("wgap", 0)     # extra room between letters and between words
         if st.get("italic"):
             wgap += st["size"] * 0.14       # slanted letters lean past their width: a little more room so words don't touch
-        wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)          # noqa: E731
+        # the key word: one word of the line in its own font, size and colour (Script accent and the like)
+        kwi = accent_index(texts, [_key(x["w"]) for x in g], strong) if (st.get("kw_font") or st.get("kw")) else -1
+        fk = _Font.get(st["kw_font"]) if kwi >= 0 and st.get("kw_font") else f
+        kz = st.get("kw_scale", 100) / 100 if kwi >= 0 else 1
+        wid = lambda t, z, sp=sp, i=-1: (fk.width(t, z * kz) if i == kwi else f.width(t, z)) + sp * max(0, len(t) - 1) + (z * kz * 0.12 if i == kwi and st.get("kw_italic") else 0)   # noqa: E731
         gap = f.width("n n", size) - 2 * f.width("n", size) + (st["outline"] + 2) * size / st["size"] + wgap   # a normal space, a little room for the outline, and any extra
-        total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
+        total = sum(wid(t, size, i=i) for i, t in enumerate(texts)) + gap * (len(texts) - 1)
         if total > CAP_MAX_W:                                  # a long phrase: shrink it to fit, never run off the frame
             k = CAP_MAX_W / total
             size, sp, wgap = max(36, int(size * k)), sp * k, wgap * k
-            wid = lambda t, z, sp=sp: f.width(t, z) + sp * max(0, len(t) - 1)      # noqa: E731
+            wid = lambda t, z, sp=sp, i=-1: (fk.width(t, z * kz) if i == kwi else f.width(t, z)) + sp * max(0, len(t) - 1) + (z * kz * 0.12 if i == kwi and st.get("kw_italic") else 0)   # noqa: E731
             gap = f.width("n n", size) - 2 * f.width("n", size) + (st["outline"] + 2) * size / st["size"] + wgap
-            total = sum(wid(t, size) for t in texts) + gap * (len(texts) - 1)
+            total = sum(wid(t, size, i=i) for i, t in enumerate(texts)) + gap * (len(texts) - 1)
         cy = cap_y - f.cap_shift(size)
         # across: where the captions were dragged in the editor (their middle), kept inside the frame
         ccx = W / 2 if st.get("x") is None else W * st["x"] / 100
@@ -1625,17 +1770,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             ev.append(f"Dialogue: 0,{_ts(g_start)},{_ts(g_end)},Cap,,0,0,0,,{{\\an7\\pos(0,0)\\bord0\\shad0\\c&H{st['box']}&\\1a&H{_alpha(st['box_op'])}&\\p1}}{box}{{\\p0}}")
         p = st["pop"]
         for i, (w, t) in enumerate(zip(g, texts)):
-            wd = wid(t, size)
+            wd = wid(t, size, i=i)
             p = max(104, min(st["pop"], 100 + int(2200 / max(wd, 1))))   # long words grow less, so they never touch their neighbours
-            pos = f"\\an5\\pos({x + wd / 2:.0f},{cy:.0f})\\fs{size}" + (f"\\fsp{sp:.1f}" if sp else "")
+            if i == kwi:                                         # the key word: its font, size and colour, centred on the line
+                kfs = int(size * kz)
+                pos = (f"\\an5\\pos({x + wd / 2:.0f},{cap_y - fk.cap_shift(kfs):.0f})\\fs{kfs}" + (f"\\fn{st['kw_font']}" if st.get("kw_font") else "")
+                       + ("\\i1" if st.get("kw_italic") else "") + (f"\\fsp{sp:.1f}" if sp else ""))
+            else:
+                pos = f"\\an5\\pos({x + wd / 2:.0f},{cy:.0f})\\fs{size}" + (f"\\fsp{sp:.1f}" if sp else "")
             x += wd + gap
             a = max(g_start, w["s"] - start)
             b = (g[i + 1]["s"] - start) if i + 1 < len(g) else g_end
-            base = st["strong"] if _key(w["w"]) in strong else st["base"]
+            base = st["kw"] if i == kwi and st.get("kw") else st["strong"] if _key(w["w"]) in strong else st["base"]
             if a - g_start >= 0.02:                                                   # waiting to be said
                 ev.append(f"Dialogue: 1,{_ts(g_start)},{_ts(a)},Cap,,0,0,0,,{{{pos}\\c&H{base}&}}{t}")
             if b - a >= 0.02:                                                         # being said: colour and a quick pop, in front
-                ev.append(f"Dialogue: 2,{_ts(a)},{_ts(b)},Cap,,0,0,0,,{{{pos}\\c&H{st['active']}&\\fscx94\\fscy94"
+                ev.append(f"Dialogue: 2,{_ts(a)},{_ts(b)},Cap,,0,0,0,,{{{pos}\\c&H{st['kw'] if i == kwi and st.get('kw') else st['active']}&\\fscx94\\fscy94"
                           f"\\t(0,90,\\fscx{p}\\fscy{p})\\t(90,200,\\fscx{p - 5}\\fscy{p - 5})}}{t}")
             if g_end - b >= 0.02:                                                     # said
                 ev.append(f"Dialogue: 1,{_ts(b)},{_ts(g_end)},Cap,,0,0,0,,{{{pos}\\c&H{base}&\\fscx{p - 5}\\fscy{p - 5}"
@@ -1726,14 +1876,53 @@ def _stroke(layout, fg_h, st, split=None) -> str:
         gh, ch = _split_heights(sp, H)
         seam = gh if sp["cam_at"] == "bottom" else ch
         return f"drawbox=x=0:y={seam - b // 2}:w={W}:h={b}:color={c}:t=fill"
+    if layout == "grid":                 # on the lines between the people, in the stretches that show them all
+        sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
+        segs = getattr(_frame, "grid_segs", None) or [(0.0, None, "all", sp["grid_share"])]
+        out = []
+        for a, e, show, share in segs:
+            if show != "all":
+                continue
+            on = f":enable='between(t,{a:.3f},{e + 0.05:.3f})'" if len(segs) > 1 else ""
+            out += [f"drawbox=x={x}:y={y}:w={w}:h={h}:color={c}:t=fill{on}" for x, y, w, h in grid_seams(W, H, len(sp["faces"]), share, b)]
+        return ",".join(out)
     if layout == "trio":
         a, m, _ = _trio_heights(H)
         return ",".join(f"drawbox=x=0:y={y - b // 2}:w={W}:h={b}:color={c}:t=fill" for y in (a, a + m))
     return ""
 
 
+def _grid_part(sp, show, share, src, out, W, H):
+    """One stretch of the face grid: everyone in their cell, or one person filling the frame. Each cell crops its
+    person's part of the picture and covers the cell, centred, like the split bands."""
+    def fill(r, w, h, s, tag):
+        x, y, rw, rh = r
+        return (f"[{s}]crop=iw*{rw}:ih*{rh}:iw*{x}:ih*{y},scale={w}:{h}:force_original_aspect_ratio=increase,"
+                f"crop={w}:{h},setsar=1,format=yuv420p[{tag}];")
+    faces = sp["faces"]
+    if show != "all":
+        return fill(faces[show], W, H, src, out)
+    cells = grid_cells(W, H, len(faces), share)
+    n = len(cells)
+    f = f"[{src}]split={n}" + "".join(f"[{out}i{k}]" for k in range(n)) + ";"
+    f += "".join(fill(r, cw, ch, f"{out}i{k}", f"{out}c{k}") for k, (r, (_, _, cw, ch)) in enumerate(zip(faces, cells)))
+    lay = "|".join(f"{x}_{y}" for x, y, _, _ in cells)
+    return f + "".join(f"[{out}c{k}]" for k in range(n)) + f"xstack=inputs={n}:layout={lay},setsar=1[{out}];"
+
+
 def _filter_in(layout, fg_h, sel="", split=None):
     W, H = _wh()
+    if layout == "grid":                 # the face grid, stretch by stretch, joined back into one picture
+        sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
+        segs = getattr(_frame, "grid_segs", None) or [(0.0, None, "all", sp["grid_share"])]
+        head = f"[0:v]fps={config.OUT_FPS},{sel}"
+        if len(segs) == 1:
+            return head + "null[gs0];" + _grid_part(sp, segs[0][2], segs[0][3], "gs0", "gv0", W, H) + "[gv0]null[v0];"
+        f = head + f"split={len(segs)}" + "".join(f"[gs{i}]" for i in range(len(segs))) + ";"
+        for i, (a, b, show, share) in enumerate(segs):
+            end = "" if i == len(segs) - 1 else f":end={b:.3f}"     # the last runs to the end: no frame lost
+            f += f"[gs{i}]trim=start={a:.3f}{end},setpts=PTS-STARTPTS[gt{i}];" + _grid_part(sp, show, share, f"gt{i}", f"gv{i}", W, H)
+        return f + "".join(f"[gv{i}]" for i in range(len(segs))) + f"concat=n={len(segs)}:v=1:a=0,setsar=1[v0];"
     if layout == "split":                # two parts of the source, each filling its band, stacked
         sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
         gh, ch = _split_heights(sp, H)
@@ -1822,7 +2011,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     finally:
         _frame.wh, _frame.split, _frame.region, _frame.card_geo, _frame.pip_geo = (W, H), None, None, None, None
         _frame.pad, _frame.bg, _frame.inputs, _frame.hook_emoji, _frame.card_blur = 0, None, None, [], False
-        _frame.stroke, _frame.vround, _frame.vring_b = None, 0, 0
+        _frame.stroke, _frame.vround, _frame.vring_b, _frame.grid_segs = None, 0, 0, None
 
 
 def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
@@ -1889,6 +2078,7 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
         sel, asel = f"select='{expr}',setpts=N/FRAME_RATE/TB,", f"aselect='{expr}',asetpts=N/SR/TB,"
         words = _cut_words(words, start, keeps)
         out_end = start + sum(b - a for a, b in keeps)
+    _frame.grid_segs = grid_segments(split, start, keeps, out_end - start) if layout == "grid" else None
     ass = build_ass(words, start, out_end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show, hk)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other

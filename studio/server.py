@@ -413,11 +413,14 @@ def healthz():
     return {"ok": True}
 
 
-@app.get("/brand/{name}")
+@app.get("/brand/{name:path}")
 def brand(name: str):
-    if not re.fullmatch(r"[\w\-]+\.(svg|png|ico|webp|jpg|mp4|woff2|otf)", name) or not (WEB / "brand" / name).is_file():
+    # a file in the brand folder, or one folder down (brand/yt/..., brand/podcast-frames/...); names are letters, digits,
+    # dashes and underscores only, so a request can never climb out of the folder
+    if not re.fullmatch(r"(?:[\w\-]+/)?[\w\-]+\.(svg|png|ico|webp|jpg|mp4|woff2|otf|webmanifest)", name) or not (WEB / "brand" / name).is_file():
         raise HTTPException(404)
-    kind = "font/otf" if name.endswith(".otf") else None      # the heading font (Mazzard H)
+    kind = ("font/otf" if name.endswith(".otf") else      # the heading font (Mazzard H)
+            "application/manifest+json" if name.endswith(".webmanifest") else None)   # the app icon and name for phones
     return FileResponse(WEB / "brand" / name, media_type=kind, headers={"Cache-Control": "public, max-age=604800, stale-while-revalidate=86400"})
 
 
@@ -431,7 +434,7 @@ def asset(name: str):
 
 @app.get("/favicon.ico")
 def favicon():
-    return RedirectResponse("/brand/favicon.svg?v=5", 308)
+    return FileResponse(WEB / "brand" / "favicon.ico", media_type="image/x-icon", headers={"Cache-Control": "public, max-age=604800"})
 
 
 # ================================================================ sign up, sign in, sign out
@@ -1182,6 +1185,33 @@ def find_facecam(jid: str, cid: str):
         clip["auto_split"] = dict(render.SPLIT_DEFAULT, cam=cam) if cam else None
         jobs.save(job)
     return {"split": clip["auto_split"]}
+
+
+@app.post("/api/jobs/{jid}/clips/{cid}/autoedit")
+def clip_autoedit(jid: str, cid: str, body: dict = Body(default={})):
+    """The AI editor on one clip, for the editor: music, zooms, sound effects and maybe a reaction face, planned from
+    the clip's words and loudness. Nothing is saved; the editor shows it and the person keeps or changes it."""
+    _throttle("autoedit:" + ctx.uid(), 30, 600)
+    job, clip = _clip_or_404(jid, cid)
+    from . import autoedit
+    try:
+        words = json.loads((Path(job["dir"]) / "words.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        words = []
+    try:
+        db = json.loads((Path(job["dir"]) / "loudness.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        db = None
+    probe = {k: clip.get(k) for k in ("start", "end", "title", "reason", "style", "src_offset")}
+    s, e = body.get("start"), body.get("end")
+    if isinstance(s, (int, float)) and isinstance(e, (int, float)) and e - s >= 3:   # the trim as it is in the editor
+        probe.update(start=float(s), end=float(e))
+    probe["look"] = body.get("look") if isinstance(body.get("look"), dict) else clip.get("look")
+    src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "") if job.get("source_path") else None
+    usage.set_context(job.get("creator"), job.get("title") or "")
+    p = autoedit.apply(probe, words, job.get("title") or "", db, src if src and src.is_file() else None)
+    lk = probe["look"] or {}
+    return {"music": lk.get("music"), "zooms": lk.get("zooms"), "sfx": lk.get("sfx"), "by": p["by"], "note": autoedit.describe(p)}
 
 
 @app.post("/api/jobs/{jid}/more")

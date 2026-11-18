@@ -345,9 +345,19 @@ function groups(words, per) {
 }
 const inClip = () => E.words.map((w, i) => [w, i]).filter(([w]) => w.s >= E.start - 0.05 && w.s < E.end);
 // Speech cleanup: stretches taken out of the clip ([[from, to], ...] in seconds of the video)
-const inCut = t => (E.cuts || []).some(([a, b]) => t >= a - 0.01 && t < b);
+/* shots: several stretches of the video joined into one clip (E.shots, [[from, to], ...] in order). The clip spans
+   from the first to the last; the gaps between them are cut out, the same way Speech cleanup's cuts are. */
+const hasShots = () => (E.shots || []).length > 1;
+const shotGaps = () => hasShots() ? E.shots.slice(1).map((s, i) => [E.shots[i][1], s[0]]).filter(([a, b]) => b - a > 0.01) : [];
+const allCuts = () => mergeCuts([...(E.cuts || []), ...shotGaps()]);
+function fitShots() {                // the clip's start and end follow its shots
+  if (!hasShots()) return;
+  E.shots.sort((p, q) => p[0] - q[0]);
+  E.start = E.shots[0][0]; E.end = E.shots[E.shots.length - 1][1];
+}
+const inCut = t => allCuts().some(([a, b]) => t >= a - 0.01 && t < b);
 const wordCut = w => inCut((w.s + w.e) / 2);
-const cutLen = () => (E.cuts || []).reduce((n, [a, b]) => n + Math.max(0, Math.min(b, E.end) - Math.max(a, E.start)), 0);
+const cutLen = () => allCuts().reduce((n, [a, b]) => n + Math.max(0, Math.min(b, E.end) - Math.max(a, E.start)), 0);
 const keptLen = () => Math.max(0, E.end - E.start - cutLen());
 function mergeCuts(list) {
   const out = [];
@@ -419,12 +429,11 @@ const WEIGHT_NAMES = [[300, "Light"], [400, "Regular"], [500, "Medium"], [600, "
 // One button; pressing it opens the name field in the same bar.
 function saveLook() {
   const n = (E.brand || []).length;
-  if (!E.saveOpen) return `<div class="ed-savebar"><button class="ed-savego" data-ed="saveopen">
-      <span class="ed-saveic">${svg('<path d="M6 3h12v18l-6-4-6 4z"/>')}</span><span class="ed-savet"><b>Save as a brand look</b><small>${n ? `${n} saved · use them on any clip` : "Use this caption and hook style on any clip"}</small></span>
-      <span class="ed-savearr">${ic("plus")}</span></button></div>`;
+  if (!E.saveOpen) return `<div class="ed-savebar"><button class="ed-savego" data-ed="saveopen" title="Keep the captions and hook as they look now, for any clip">
+      ${svg('<path d="M6 3h12v18l-6-4-6 4z"/>')}<b>Save as brand</b>${n ? `<small>${n} saved</small>` : ""}${ic("plus")}</button></div>`;
   return `<div class="ed-savebar open"><div class="ed-savein"><input id="edBrandName" placeholder="Name this look, e.g. Podcast" maxlength="40" aria-label="Name this look">
       <button class="ed-btn sm primary" data-ed="brandsave">Save</button><button class="ed-qx" data-ed="saveclose" aria-label="Cancel" title="Cancel">${ic("x")}</button></div>
-    <small class="ed-savenote">Keeps the captions and the hook exactly as they look now.</small></div>`;
+    <small class="ed-savenote">Keeps the captions and hook as they look now. Every new clip starts with it, live ones too.</small></div>`;
 }
 function brandBody(styles) {
   const out = {styles};
@@ -464,7 +473,7 @@ function loadFonts() {
 
 /* ---------- open, close, dirty */
 const snap = () => JSON.stringify({s: E.start, e: E.end, h: E.hook, t: E.title, d: E.description, l: E.layout, k: E.look,
-  w: E.edited ? E.words : null, c: E.cuts || []});
+  w: E.edited ? E.words : null, c: E.cuts || [], sh: E.shots || []});
 const dirty = () => E.saved !== snap();
 
 window.openClip = async function (jid, cid) {
@@ -476,7 +485,9 @@ window.openClip = async function (jid, cid) {
     start: c.start, end: c.end, hook: c.hook || "", title: c.title || "", description: c.description || "", layout: c.layout || "blur",
     look: c.look ? {...HOOK_DEFAULT, ...clone(c.look)} : lookFromStyle(c.style), lookTouched: !!c.look, off: c.src_offset || 0, min: c.src_offset || 0,
     max: c.src_end || j.duration || c.end, version: c.version || 0, waiting: 0, brand: [], sw: j.width || 1280, sh: j.height || 720, shot: null,
-    cuts: clone(c.cuts || []), cl: {fill: true, pause: true, min: 0.8}, cleanOpen: false, hideCut: false,
+    shots: clone(c.shots || []),
+    cuts: clone(c.cuts || []).filter(([a, b]) => !(c.shots || []).some((s, i, L) => i && Math.abs(a - L[i - 1][1]) < 0.02 && Math.abs(b - s[0]) < 0.02)),
+    cl: {fill: true, pause: true, min: 0.8}, cleanOpen: false, hideCut: false,
     zoom: phone() ? 3 : 1, rate: 1, q: "", sheet: null,       // phones: a wider film strip that scrolls, like an editing app
     // phones start with the timeline folded (more room for the preview) until it is opened once; computers start with it open
     tlHidden: (() => { try { return phone() ? localStorage.getItem("ed_tl_phone") !== "shown" : !!localStorage.getItem("ed_tl_hidden"); } catch { return phone(); } })()});
@@ -656,11 +667,15 @@ function drawPanel() {
   const head = (title, sub) => `<div class="ed-hero"><span class="ed-hero-ic">${toolIc}</span><div><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ""}</div></div>`;
   drawTx();
   if (E.tab === "audio") {
-    const vol = E.look.volume ?? 100;
-    p.innerHTML = head("Audio", "How loud the clip is. Every clip is evened out first, so 100% is its normal level.") +
-      `<div class="ed-card"><b>Volume</b>${slider("Volume", "volume", 0, 200, 5, vol, vol + "%")}
-        <div class="ed-seg">${[[50, "Quieter"], [100, "Normal"], [150, "Louder"]].map(([v, l]) => `<button data-ed="vol" data-v="${v}" aria-pressed="${vol === v}">${l}</button>`).join("")}</div>
-        <p class="ed-help">Heard in the preview right away, and in the video when you save and render. On a computer, the meter beside the timeline shows the level as it plays.</p></div>` + musicCard();
+    const vol = E.look.volume ?? 100, at = E.atab || "music", nS = (E.look.sfx || []).length, m0 = musicOf();
+    const tab = (k, l, n) => `<button role="tab" data-ed="atab" data-t="${k}" aria-selected="${at === k}">${l}${n ? `<small class="ed-atn">${n}</small>` : ""}</button>`;
+    p.innerHTML = head("Audio", "Music under the clip, sound effects on its moments, and how loud the voice is.") +
+      `<div class="ed-stick"><div class="ed-ptabs pill wide ed-atabs" role="tablist">${tab("music", "Music", m0.id ? "1" : "")}${tab("sfx", "Sounds", nS || "")}${tab("voice", "Voice")}</div></div>` +
+      (at === "voice" ? `<div class="ed-card ed-avoice"><div class="ed-h"><b>Voice level</b><small class="ed-pipnote">Every clip is evened out first; 100% is its normal level</small></div>
+          ${slider("Volume", "volume", 0, 200, 5, vol, vol + "%")}
+          <div class="ed-seg">${[[50, "Quieter"], [100, "Normal"], [150, "Louder"]].map(([v, l]) => `<button data-ed="vol" data-v="${v}" aria-pressed="${vol === v}">${l}</button>`).join("")}</div>
+          <p class="ed-help">The meter beside the timeline shows the level as it plays.</p></div>`
+        : at === "sfx" ? sfxCard() : musicCard());
   } else if (E.tab === "style") {
     const L = E.look, f = FONTS();
     // each style drawn over a frame of this very clip, where captions sit (the lower third), its name on a strip inside
@@ -671,7 +686,9 @@ function drawPanel() {
           <span class="ed-pt" style="font-family:${fc.family};font-weight:${fc.weight};color:${look.base};${look.cap_op > 0
             ? `background:${rgba(look.cap_box || "#000000", look.cap_op)};padding:3px 8px;border-radius:6px;-webkit-text-stroke:0`
             : `-webkit-text-stroke:${look.outline ? Math.max(2, look.outline / 2.4).toFixed(1) : 0}px #000`}">
-          ${look.upper ? "CLIP" : "Clip"} <em style="color:${look.active}">${look.upper ? "THIS" : "this"}</em></span><b>${esc(label)}</b></span>
+          ${look.upper ? "CLIP" : "Clip"} ${look.kw_font || look.kw_color
+            ? `<em class="kw" style="color:${look.kw_color || look.active};${look.kw_font ? `font-family:${fontCss(look.kw_font).family};font-weight:${fontCss(look.kw_font).weight};` : ""}font-size:${Math.min(1.6, (look.kw_scale || 100) / 100)}em;${look.kw_italic ? "font-style:italic;" : ""}-webkit-text-stroke:0">${look.upper ? "THIS" : "this"}</em>`
+            : `<em style="color:${look.active}">${look.upper ? "THIS" : "this"}</em>`}</span><b>${esc(label)}</b></span>
         ${del ? `<i class="ed-x" data-ed="branddel" data-k="${esc(key)}" title="Remove from brand kit">${ic("x")}</i>` : ""}</button>`; };
     const fold = (k, title, note, body) => `<details class="ed-fold" data-fold="${k}" ${E.shut?.has(k) ? "" : "open"}><summary>${title}${note ? `<small>${note}</small>` : ""}</summary><div>${body}</div></details>`;
     const st = E.stab || "presets";
@@ -726,9 +743,9 @@ function drawPanel() {
     p.innerHTML = head("Text", "The hook: the big line at the top that makes people stop scrolling.") +
       `<div class="ed-card">
         <div class="ed-h"><b>Show the hook</b><label class="ed-sw2"><input type="checkbox" data-look="hook" ${L.hook ? "checked" : ""}><span></span></label></div>
-        <div class="ed-hookin"><textarea id="edHook" rows="2" maxlength="60" placeholder="The big line at the top" ${L.hook ? "" : "disabled"}>${esc(E.hook)}</textarea>
-          <button class="ed-emjbtn ${E.emjOpen ? "on" : ""}" data-ed="emjopen" aria-expanded="${!!E.emjOpen}" title="Add an emoji">${emojiImg("1f525", "")}Emoji</button></div>
-        <span class="ed-count"><span id="edHookN">${E.hook.length}</span>/60</span>
+        <div class="ed-hookin ${L.hook ? "" : "off"}"><textarea id="edHook" rows="2" maxlength="60" placeholder="The big line at the top" ${L.hook ? "" : "disabled"}>${esc(E.hook)}</textarea>
+          <div class="ed-hookbar"><button class="ed-emjbtn ed-tip ${E.emjOpen ? "on" : ""}" data-ed="emjopen" aria-expanded="${!!E.emjOpen}" aria-label="Add an emoji" data-tip="Emoji">${svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8M9 9.5h.01M15 9.5h.01"/>')}</button>
+            <span class="ed-count ${E.hook.length > 50 ? "near" : ""}"><span id="edHookN">${E.hook.length}</span>/60</span></div></div>
         ${E.emjOpen ? emojiPicker() : ""}
       </div>
       <div class="ed-card"><b>Style</b>
@@ -798,31 +815,7 @@ function drawPanel() {
           <button class="ed-btn ghost" data-ed="trioreset">Back to thirds</button></div></div>` : ""}
       ${E.layout === "blur" || E.layout === "zoom" ? bgCard() : ""}
       ${strokeCard()}
-      ${E.layout === "card" ? `<div class="ed-card"><b>Post card</b>
-        <div class="ed-f">Style<div class="ed-ctiles">${Object.entries(CARD_THEMES).map(([v, t]) => `<button class="ed-ctile" data-ed="cardset" data-k="theme" data-v="${v}" aria-pressed="${cd.theme === v}">
-          <span class="ed-ctile-pv" style="background:${t.bg}"><i style="background:${t.acc}"></i><b style="background:${t.ink}"></b><b class="s" style="background:${t.sub}"></b><em></em></span>${t.label}</button>`).join("")}</div></div>
-        <div class="ed-f">Behind the card<div class="ed-seg">${[["none", "Plain"], ["gradient", "Gradient"], ["blur", "Blurred video"]].map(([v, l]) =>
-          `<button data-ed="cardset" data-k="back" data-v="${v}" aria-pressed="${cd.back === v}">${l}</button>`).join("")}</div></div>
-        ${cd.back === "gradient" ? `<div class="ed-gradsw">${CARD_BACKS.map(([l, a, b]) => `<button data-ed="cardgrad" data-a="${a}" data-b="${b}" title="${l}" aria-pressed="${cd.g1 === a && cd.g2 === b}" style="background:linear-gradient(135deg,${a},${b})"></button>`).join("")}</div>
-          <div class="ed-row"><label class="ed-f ed-colf">From<span class="ed-swc" style="background:${cd.g1}"><input type="color" data-card="g1" value="${cd.g1}" aria-label="Gradient from"></span></label>
-            <label class="ed-f ed-colf">To<span class="ed-swc" style="background:${cd.g2}"><input type="color" data-card="g2" value="${cd.g2}" aria-label="Gradient to"></span></label></div>
-          <label class="ed-ck"><input type="checkbox" data-ed="cardgrain" ${cd.grain ? "checked" : ""}><span>Film grain<small>A fine texture so the colour doesn't look flat</small></span></label>` : ""}
-        <label class="ed-f">Name<input class="ed-text" data-card="name" value="${esc(cd.name)}" maxlength="40" placeholder="${esc(cardName() || "Your name")}"></label>
-        <label class="ed-f">${(CARD_THEMES[cd.theme] || {}).kind === "linkedin" ? "Headline" : "Handle"}<input class="ed-text" data-card="handle" value="${esc(cd.handle)}" maxlength="30" placeholder="@${esc((cardName() || "yourname").toLowerCase().replace(/[^a-z0-9_]/g, ""))}"></label>
-        <label class="ed-f">Post text<textarea class="ed-text" data-card="text" maxlength="220" rows="3" placeholder="${esc(E.hook || "What the post says")}">${esc(cd.text)}</textarea></label>
-        <p class="ed-help">Left empty, the post says the clip's hook.</p>
-        <div class="ed-f">Picture<div class="ed-seg"><button data-ed="cardset" data-k="avatar" data-v="logo" aria-pressed="${cd.avatar !== "initial"}" ${E.logoV ? "" : "disabled title=\"Upload a logo in Brand first\""}>My logo</button>
-          <button data-ed="cardset" data-k="avatar" data-v="initial" aria-pressed="${cd.avatar === "initial" || !E.logoV}">First letter</button></div></div>
-        <div class="ed-f">Blue check<div class="ed-seg"><button data-ed="cardset" data-k="verified" data-v="1" aria-pressed="${cd.verified}">Show</button>
-          <button data-ed="cardset" data-k="verified" data-v="0" aria-pressed="${!cd.verified}">Hide</button></div></div>
-        <label class="ed-sl" style="--p:${pctOf(cd.scale, 50, 130)}"><input type="range" min="50" max="130" step="1" value="${cd.scale}" data-card="scale" aria-label="Card size">
-          <span class="ed-sl-l">Card size</span><output>${cd.scale}</output></label>
-        ${cd.back !== "none" ? `<label class="ed-sl" style="--p:${pctOf(cd.pad, 16, 90)}"><input type="range" min="16" max="90" step="2" value="${cd.pad}" data-card="pad" aria-label="Room inside the card">
-          <span class="ed-sl-l">Room inside</span><output>${cd.pad}</output></label>` : ""}
-        <div class="ed-row"><button class="ed-btn ghost sm" data-ed="cardcentre" ${cd.dx || cd.dy ? "" : "disabled"}>Centre the card</button>
-          <span class="ed-help" style="margin:0">Drag the card on the video to move it, its corner to resize.</span></div>
-        <label class="ed-sl" style="--p:${pctOf(cd.radius, 0, 60)}"><input type="range" min="0" max="60" step="2" value="${cd.radius}" data-card="radius" aria-label="Video corners">
-          <span class="ed-sl-l">Video corners</span><output>${cd.radius}</output></label></div>` : ""}`;
+      ${E.layout === "card" ? cardPanel(cd) : ""}`;
     if (split) { placeRegions(); drawPickFrame(); }
   } else if (E.tab === "brand") {
     const L = E.look, on = !!L.brand_on;
@@ -848,7 +841,8 @@ function drawPanel() {
         <div class="ed-posgrid">${BRAND_POSES.map(([k, l]) => `<button data-ed="brandpos" data-v="${k}" aria-pressed="${(L.brand_pos || "tr") === k}" aria-label="${l}" title="${l}"><i></i></button>`).join("")}</div>
       </div>
       <div class="ed-card"><b>Motion</b>
-        <div class="ed-chips">${BRAND_ANIMS.map(([k, l]) => `<button data-ed="brandanim" data-v="${k}" aria-pressed="${(L.brand_anim || "float") === k}">${l}</button>`).join("")}</div>
+        <div class="ed-bmot">${BRAND_ANIMS.map(([k, l]) => `<button data-ed="brandanim" data-v="${k}" aria-pressed="${(L.brand_anim || "float") === k}">
+          <span class="ed-bmpv"><i class="ed-bmlogo m-${k}"></i></span><b>${l}</b></button>`).join("")}</div>
         <p class="ed-help">${{none: "Stays in one place.", float: "Bobs gently up and down.", slide: "Slides in from its side at the start.", drift: "Glides from one side to the other and back, so it's never in one fixed spot.", fade: "Fades in at the start."}[L.brand_anim || "float"]}</p>
       </div>
       <div class="ed-card"><b>Size and look</b>
@@ -890,6 +884,15 @@ function drawPanel() {
             : `No ${[E.cl.fill && "filler words", E.cl.pause && `pauses over ${E.cl.min} s`].filter(Boolean).join(" or ")} in this clip. It's ${ts(keptLen())}.`}</p></div></div>`}
       ${E.cuts?.length ? `<div class="ed-card ed-cdone"><span>Already cut <b>${ts(cutLen())}</b></span><button class="ed-btn sm ghost" data-ed="cleanundo">Undo all</button></div>` : ""}
       <p class="ed-help ed-cfoot">Cuts can be undone any time before you render.</p>`;
+  } else if (E.tab === "trim" && hasShots()) {
+    p.innerHTML = head("Trim", "This clip joins several shots from the video, played one after another.") +
+      `<div class="ed-card ed-trim2"><div class="ed-tlen"><span>Clip length</span><b>${ts(keptLen())}</b></div>
+        <div class="ed-trange" aria-hidden="true">${E.shots.map(([a, b]) => `<i style="left:${(a - E.min) / Math.max(0.1, E.max - E.min) * 100}%;width:${(b - a) / Math.max(0.1, E.max - E.min) * 100}%"></i>`).join("")}</div>
+        <div class="ed-shots">${E.shots.map(([a, b], i) => `<div class="ed-shotrow ${i === E.shotSel ? "on" : ""}">
+          <button class="ed-shotgo" data-ed="shotgo" data-v="${i}"><span class="ed-shotn">${i + 1}</span><span>${ts(a - E.min)} – ${ts(b - E.min)}</span><small>${ts(b - a)}</small></button>
+          <button class="ed-ib sm ed-tip" data-ed="shotdel" data-v="${i}" aria-label="Remove shot ${i + 1}" data-tip="Remove">${ic("x")}</button></div>`).join("")}</div>
+        <button class="ed-btn" data-ed="shotadd">${svg('<path d="M12 5v14M5 12h14"/>')}Add a shot at the playhead</button></div>
+      <p class="ed-help ed-cfoot">Drag a shot's ends on the timeline to choose its moment, or the shot itself to move it. Double-click the film strip to add one there.</p>`;
   } else if (E.tab === "trim") {
     p.innerHTML = head("Trim", "Set where the clip starts and ends here, or drag the yellow edges on the timeline.") +
       `<div class="ed-card ed-trim2">
@@ -901,6 +904,8 @@ function drawPanel() {
           <span class="ed-step" role="group" aria-label="${l}"><button data-ed="nudge" data-k="${k}" data-d="-0.5" aria-label="${l} half a second earlier" title="Half a second earlier">−0.5</button><button data-ed="nudge" data-k="${k}" data-d="0.5" aria-label="${l} half a second later" title="Half a second later">+0.5</button></span>
           <button class="ed-ib sm ed-tip ed-tph" data-ed="toplayhead" data-k="${k}" aria-label="${l} at the playhead" data-tip="${l} at the playhead">${svg('<path d="M12 3v18M7 3h10l-5 5z"/>')}</button></div>`).join("")}
       </div>
+      <button class="ed-aicard ed-shotoffer" data-ed="shotadd"><span class="ed-aiic">${svg('<rect x="3" y="6" width="7" height="12" rx="1.5"/><rect x="14" y="6" width="7" height="12" rx="1.5"/><path d="M10 12h4"/>')}</span>
+        <span><b>Join another moment</b><small>Add a second shot from anywhere in the video; they play one after another.</small></span></button>
       <p class="ed-help ed-cfoot">3 seconds to 3 minutes. Or drag the yellow edges on the timeline.</p>`;
   } else {
     const c = clipNow();
@@ -1005,6 +1010,7 @@ function drawStage() {
       <button class="ed-pbtn" data-ed="play" aria-label="Play or pause">${ic("play")}</button>
       <span class="ed-dur" id="edDurM">${ts(keptLen())}</span></div>
     <div class="ed-bar">
+      <button class="ed-bar-lbl ed-aibtn ed-tip ${E.aiBusy ? "busy" : ""}" data-ed="aiedit" aria-label="AI edit" data-tip="Let the AI add music, zooms and sound effects" ${E.aiBusy ? "disabled" : ""}>${svg('<path d="M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 9l1.6-4.2a1 1 0 0 1 1.2-.6L20 7.6M9.5 5.4l-1.8 3.6M14.8 6.8L13 9"/>')}<span>${E.aiBusy ? "Editing…" : "AI edit"}</span></button>
       <button class="ed-bar-lbl ed-tpbtn ed-tip" data-ed="tpl" aria-label="Templates" data-tip="Ready-made layouts and looks">${svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>')}Templates</button>
       <div class="ed-asp"><button class="ed-bar-lbl ed-aspbtn ed-tip" data-ed="aspmenu" aria-haspopup="menu" aria-label="Shape of the video: ${asp}" data-tip="Shape of the video">${aspIc(asp)}${asp}${svg('<path d="M7 10l5 5l5-5"/>')}</button>
         <div class="ed-aspop" id="edAsp" role="menu" hidden>${ASP.map(([k, l, u]) => `<button role="menuitemradio" data-ed="aspect" data-v="${k}" aria-checked="${asp === k}">
@@ -1080,8 +1086,8 @@ function loop() {
     if (!$("#clipdlg").open || !vid()) return;
     const v = vid(), t = nowT();
     if (E.view !== "rendered" && !v.paused && t >= E.end) { v.pause(); if (outroOf().on) playOutro(true); else seek(E.start); }
-    else if (E.view !== "rendered" && !v.paused && E.cuts?.length) {          // playing over a cut part: jump past it
-      const c = E.cuts.find(([a, b]) => t >= a && t < b - 0.03); if (c) seek(c[1]);
+    else if (E.view !== "rendered" && !v.paused && (E.cuts?.length || hasShots())) {   // playing over a cut part (or a gap between shots): jump past it
+      const c = allCuts().find(([a, b]) => t >= a && t < b - 0.03); if (c) seek(c[1]);
     }
     paintOverlay(t);
     syncMusic(t, v); syncSfx(t, v);
@@ -1357,8 +1363,11 @@ dlg_on("pointerup", () => {
   E.lookTouched = true; if (E.tab !== "media") { E.tab = "media"; } drawPanel(); after("");
 });
 // the timeline's Pictures row: a bar per picture, dragged to move it in time or by an end to change when it shows
+// an empty row: a quiet dashed hint across the clip that opens the tool that fills it
+const emptyRow = (cls, tab, icon, text) => `<div class="ed-lane ${cls} znone"><button class="ed-ehint ${cls}" data-ed="tab" data-t="${tab}"
+  style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${icon}<span>${text}</span></button></div>`;
 function picsLane() {
-  const L = E.look.overlays || []; if (!L.length) return "";
+  const L = E.look.overlays || []; if (!L.length) return emptyRow("pics", "media", PIC_IC, "Add a picture or a reaction face");
   return `<div class="ed-lane pics">${L.map((o, i) => `<button class="ed-picbar ${i === E.picSel ? "on" : ""}" data-pb="${i}" data-ed="picsel" data-v="${i}"
     style="left:${pct(o.a)}%;width:${Math.max(0.6, pct(o.b) - pct(o.a))}%"><i class="pe l"></i><img src="${mediaUrl(o.id)}" alt=""><i class="pe r"></i></button>`).join("")}</div>`;
 }
@@ -1475,10 +1484,13 @@ function scoreCard(m, cur) {
   return `<div class="ed-score" id="edScore">
     <div class="ed-sch"><button class="ed-scplay" data-ed="scoreplay" aria-label="Play from the start">${ic("play")}</button>
       <div><b>${esc(cur.name)}</b><small>${ts(len)} · ${m.vol}% under the voice${riseOn && m.rise ? ` · peaks at ${m.peak}%` : ""}</small></div></div>
-    <div class="ed-scg" aria-hidden="true">
+    <div class="ed-scg" aria-label="Drag the line to set the volume, the bend to set the rise, the end to set the peak">
       <div class="ed-scbars">${bars.map((v, i) => `<i class="${riseOn && i / N >= 1 - rf ? "r" : ""}" style="height:${Math.max(10, Math.sqrt(v / top) * 100).toFixed(0)}%"></i>`).join("")}</div>
       <svg class="ed-scline" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${line}"/></svg>
       <span class="ed-sctag v" style="top:min(calc(100% - 26px), calc(${yv}% + 4px))">Volume ${m.vol}%</span>
+      <i class="ed-sch1 vol" style="left:calc(8px + (100% - 16px) * ${(riseOn && m.rise ? x0 : 100) / 2} / 100);top:calc(8px + (100% - 16px) * ${yv} / 100)" title="Drag up or down: the volume under the voice"></i>
+      ${riseOn ? `<i class="ed-sch1 knee" style="left:calc(8px + (100% - 16px) * ${x0} / 100);top:calc(8px + (100% - 16px) * ${yv} / 100)" title="Drag left or right: when the rise starts"></i>
+      <i class="ed-sch1 peak" style="left:calc(100% - 8px);top:calc(8px + (100% - 16px) * ${yp} / 100)" title="Drag up or down: the peak"></i>` : ""}
       ${riseOn && m.rise ? `<span class="ed-sctag p" style="top:max(6px, calc(${yp}% - 24px))">Peak ${m.peak}%</span>` : ""}
       <i class="ed-scph"></i></div>
     <label class="ed-ck ed-scsw"><input type="checkbox" data-mus="rise_on" ${riseOn ? "checked" : ""} ${o.on ? "disabled" : ""}><span>${o.on ? "Rises into the outro" : "Rise at the end"}<small>${o.on ? "The outro is on, so the music always peaks as it starts" : "Low under the voice, then up to its peak in the last seconds"}</small></span></label>
@@ -1486,12 +1498,47 @@ function scoreCard(m, cur) {
     ${riseOn ? `${slider("Peak", "mus_peak", 0, 100, 5, m.peak, m.peak + "%")}${slider("Riser", "mus_rise", 0, 10, 0.5, m.rise, m.rise + " s")}` : ""}
   </div>`;
 }
+/* drag on the score: the flat line up and down is the volume, the bend left and right is how long the rise takes,
+   the end point up and down is the peak. The picture follows as you drag; the sliders catch up when you let go. */
+let scDrag = null;
+dlg_on("pointerdown", e => {
+  const g = e.target.closest(".ed-scg"); if (!g) return;
+  e.preventDefault();
+  const r = g.getBoundingClientRect(), box = {l: r.left + 8, t: r.top + 8, w: r.width - 16, h: r.height - 16};
+  const m = musicOf(), o = outroOf(), len = (E.end - E.start) + (o.on ? o.secs : 0), riseOn = o.on || m.rise_on;
+  const px = x => box.l + box.w * x / 100, py = y => box.t + box.h * y / 100;
+  const yv = 100 - m.vol * 0.86, yp = 100 - m.peak * 0.86, x0 = (1 - Math.min(1, m.rise / Math.max(0.1, len))) * 100;
+  const near = (x, y) => Math.hypot(e.clientX - x, e.clientY - y) < 16;
+  const mode = riseOn && near(px(100), py(yp)) ? "peak" : riseOn && m.rise && near(px(x0), py(yv)) ? "knee"
+    : riseOn && e.clientX > px(x0) + 6 ? "peak" : "vol";
+  scDrag = {mode, box, len};
+  g.setPointerCapture?.(e.pointerId); g.classList.add("drag", mode);
+  scoreMove(e);
+});
+function scoreMove(e) {
+  const d = scDrag; if (!d) return;
+  const fx = Math.max(0, Math.min(1, (e.clientX - d.box.l) / d.box.w)), fy = Math.max(0, Math.min(1, (e.clientY - d.box.t) / d.box.h));
+  const level = Math.round(Math.max(0, Math.min(100, (1 - fy) * 100 / 0.86)) / 5) * 5;
+  const m = musicOf();
+  if (d.mode === "vol") m.vol = level;
+  else if (d.mode === "peak") m.peak = level;
+  else { m.rise = Math.round(Math.max(0, Math.min(10, (1 - fx) * d.len)) * 2) / 2; }
+  E.look.music = m; E.lookTouched = true;
+  redrawScore();
+}
+dlg_on("pointermove", scoreMove);
+dlg_on("pointerup", () => {
+  if (!scDrag) return;
+  scDrag = null; E.lookTouched = true; drawPanel(); after("");
+});
 // the score picture follows a slider without redrawing the whole panel (the slider keeps its drag)
 function redrawScore() {
   const old = $e("#edScore"), m = musicOf(), cur = (E.music || []).find(t => t.id === m.id); if (!old || !cur) return;
   const tmp = document.createElement("div"); tmp.innerHTML = scoreCard(m, cur);
   const nw = tmp.firstElementChild;
-  for (const sel of [".ed-sch", ".ed-scg"]) old.querySelector(sel)?.replaceWith(nw.querySelector(sel));
+  old.querySelector(".ed-sch")?.replaceWith(nw.querySelector(".ed-sch"));
+  const g = old.querySelector(".ed-scg"), ng = nw.querySelector(".ed-scg");
+  if (g && ng) g.innerHTML = ng.innerHTML;
 }
 /* ---------- sound effects from the built-in pack: placed at moments of the video (look.sfx: [{id, t, vol}]).
    render mixes them in at those moments; the preview plays each one as the playhead passes it. */
@@ -1502,24 +1549,33 @@ function sfxTry(id) {                  // hear a sound in the list
   try { E.sfxTry?.pause(); const a = new Audio(sfxUrl(id)); a.volume = 0.8; a.play().catch(() => {}); E.sfxTry = a; } catch {}
 }
 function sfxCard() {
-  const lib = E.sfxLib; if (!lib) return `<div class="ed-card"><b>Sound effects</b><p class="ed-help">Loading the sounds…</p></div>`;
+  const lib = E.sfxLib; if (!lib) return `<div class="ed-card"><b>Sounds</b><p class="ed-help">Loading the sounds…</p></div>`;
   const grp = E.sfxGrp || lib.groups[0]?.key, L = E.look.sfx || [], sel = L[E.sfxSel];
-  const zooms = E.look.zooms || [], popped = zooms.length && zooms.every(z => L.some(x => Math.abs(x.t - z.a) < 0.05));
-  return `<div class="ed-card ed-sfx"><div class="ed-h"><b>Sound effects</b><small class="ed-pipnote">A sound on every cut keeps people watching</small></div>
-    <div class="ed-seg ed-sfxg" role="tablist">${lib.groups.map(g => `<button role="tab" data-ed="sfxgrp" data-v="${g.key}" aria-selected="${grp === g.key}" aria-pressed="${grp === g.key}" title="${esc(g.label)}">${esc({transitions: "Whoosh", impacts: "Impact", ui: "Pops", comic: "Comic"}[g.key] || g.label)}</button>`).join("")}</div>
-    <div class="ed-sfxlist">${lib.items.filter(x => x.group === grp).map(x => `<div class="ed-sfxi">
-      <button class="ed-sfxp" data-ed="sfxtry" data-v="${x.id}" title="Listen">${ic("play")}</button><span>${esc(x.name)}<small>${x.dur.toFixed(1)} s</small></span>
-      <button class="ed-btn sm ghost" data-ed="sfxadd" data-v="${x.id}" title="Add at the playhead">${ic("plus")}Add</button></div>`).join("")}</div>
-    ${zooms.length ? `<label class="ed-ck"><input type="checkbox" data-ed="sfxzoom" ${popped ? "checked" : ""}><span>A pop on every zoom<small>${zooms.length} zoom${zooms.length === 1 ? "" : "s"} in this clip</small></span></label>` : ""}
-    ${L.length ? `<p class="ed-grp">On this clip <small>${L.length}</small></p><div class="ed-sfxon">${L.map((x, i) => `<div class="ed-sfxrow ${i === E.sfxSel ? "on" : ""}">
+  const id = name => lib.items.find(x => x.name === name)?.id;
+  const zooms = E.look.zooms || [], pop = id("Zoom Pop"), whoosh = id("Whoosh Fast");
+  const popped = zooms.length && zooms.every(z => L.some(x => x.id === pop && Math.abs(x.t - z.a) < 0.05));
+  const hooked = L.some(x => x.id === whoosh && Math.abs(x.t - E.start) < 0.3);
+  const sw = (k, on, label, sub, off) => `<label class="ed-ck ed-cksw"><span>${label}<small>${sub}</small></span>
+      <span class="ed-sw2"><input type="checkbox" data-ed="${k}" ${on ? "checked" : ""} ${off ? "disabled" : ""}><span></span></span></label>`;
+  return `${aiCard()}
+    <div class="ed-card ed-sfxeasy"><b>Quick sounds</b>
+      ${sw("sfxhook", hooked, "A whoosh as the clip starts", "Grabs attention in the first second")}
+      ${sw("sfxzoom", popped, "A pop on every zoom", zooms.length ? `${zooms.length} zoom${zooms.length === 1 ? "" : "s"} in this clip` : "Add a zoom in Effects first", !zooms.length)}</div>
+    ${L.length ? `<div class="ed-card ed-sfx"><div class="ed-h"><b>On this clip</b><small class="ed-pipnote">${L.length} sound${L.length === 1 ? "" : "s"} · drag them on the timeline</small></div>
+      <div class="ed-sfxon">${L.map((x, i) => `<div class="ed-sfxrow ${i === E.sfxSel ? "on" : ""}">
         <button class="ed-sfxname" data-ed="sfxsel" data-v="${i}">${SFX_IC}<span>${esc(sfxOf(x.id)?.name || "Sound")}</span><small>${ts(x.t - E.start)}</small></button>
         <button class="ed-ib sm ed-tip" data-ed="sfxdel" data-v="${i}" aria-label="Remove this sound" data-tip="Remove">${ic("x")}</button></div>`).join("")}</div>
-      ${sel ? slider("Loudness", "sfx_vol", 0, 200, 5, sel.vol ?? 100, (sel.vol ?? 100) + "%") : ""}
-      <p class="ed-help">Drag a sound on the timeline's Sounds row to move it.</p>` : `<p class="ed-help">Press Add to drop a sound where the playhead is.</p>`}
-  </div>`;
+      ${sel ? slider("Loudness", "sfx_vol", 0, 200, 5, sel.vol ?? 100, (sel.vol ?? 100) + "%") : ""}</div>` : ""}
+    <details class="ed-more" ${E.sfxMore ? "open" : ""} data-more="sfx"><summary>Add a sound yourself<small>32 sounds: whooshes, hits, pops</small></summary>
+      <div class="ed-sfx">
+      <div class="ed-seg ed-sfxg" role="tablist">${lib.groups.map(g => `<button role="tab" data-ed="sfxgrp" data-v="${g.key}" aria-selected="${grp === g.key}" aria-pressed="${grp === g.key}" title="${esc(g.label)}">${esc({transitions: "Whoosh", impacts: "Impact", ui: "Pops", comic: "Comic"}[g.key] || g.label)}</button>`).join("")}</div>
+      <div class="ed-sfxlist">${lib.items.filter(x => x.group === grp).map(x => `<div class="ed-sfxi">
+        <button class="ed-sfxp" data-ed="sfxtry" data-v="${x.id}" title="Listen">${ic("play")}</button><span>${esc(x.name)}<small>${x.dur.toFixed(1)} s</small></span>
+        <button class="ed-btn sm ghost" data-ed="sfxadd" data-v="${x.id}" title="Add at the playhead">${ic("plus")}Add</button></div>`).join("")}</div>
+      <p class="ed-help">Add puts the sound where the playhead is.</p></div></details>`;
 }
 function sfxLane() {
-  const L = E.look.sfx || []; if (!L.length) return "";
+  const L = E.look.sfx || []; if (!L.length) return emptyRow("sfx", "audio", SFX_IC, "Add a sound effect").replace('data-t="audio"', 'data-t="audio" data-at="sfx"');
   return `<div class="ed-lane sfx">${L.map((x, i) => `<button class="ed-sfxbar ${i === E.sfxSel ? "on" : ""}" data-sb="${i}" data-ed="sfxsel" data-v="${i}"
     style="left:${pct(x.t)}%;width:${Math.max(0.5, pct(x.t + (sfxOf(x.id)?.dur || 0.6)) - pct(x.t))}%" title="${esc(sfxOf(x.id)?.name || "Sound")}">${SFX_IC}<span>${esc(sfxOf(x.id)?.name || "")}</span></button>`).join("")}</div>`;
 }
@@ -1582,10 +1638,92 @@ function emojiPicker() {
     <label class="ed-search">${ic("search")}<input id="edEmjQ" value="${esc(E.emjQ || "")}" placeholder="Search emoji" aria-label="Search emoji"></label>
     ${q ? "" : `<div class="ed-emjcats" role="tablist">${groups.map(g => `<button role="tab" data-ed="emjcat" data-v="${g[0]}" aria-selected="${g[0] === cat}" title="${g[1]}">${emojiImg(g[2][0][1], g[1])}</button>`).join("")}</div>`}
     <div class="ed-emjgrid">${items.length ? items.map(x => `<button data-ed="emjput" data-v="${x[0]}" title="${esc(x[2])}">${emojiImg(x[1], x[0])}</button>`).join("") : `<p class="ed-help">No emoji found</p>`}</div>
-    <p class="ed-emjnote">Fluent 3D emoji by Microsoft</p></div>`;
+</div>`;
 }
 const hookCase = (t, how) => how === "upper" ? t.toUpperCase() : how === "lower" ? t.toLowerCase()
   : how === "title" ? t.split(" ").map(w => /^\p{L}/u.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join(" ") : t;
+/* ---------- AI edit at work: while the AI plans the edit, three small cursors (music, zooms, sounds) come out of
+   the video and work around the editor (the timeline, captions, the Effects and Audio buttons), clicking as they
+   go. When the plan arrives each one drops its part into its own row on the timeline, then they leave. */
+const AI_HANDS = [{l: "Music", c: "#22C55E", home: ".ed-lane.music", item: ".ed-mbar", rail: "audio"},
+  {l: "Zooms", c: "#F59E0B", home: ".ed-lane.zooms", item: ".ed-zbar", rail: "fx"},
+  {l: "Sounds", c: "#38BDF8", home: ".ed-lane.sfx", item: ".ed-sfxbar", rail: "audio"},
+  {l: "Captions", c: "#F4F4F5", home: ".ed-lane.caps", item: ".ed-chip", rail: "style"},
+  {l: "Timing", c: "#FB7185", home: "#edTxBody", item: "", rail: "trim"}];
+// everywhere a hand may look while the AI works: the preview, every rail button, the panel, the transcript, every row
+const AI_PLACES = ["#edPhone", ".ed-rail button", "#edPanel .ed-card", "#edPanel .ed-h", "#edTxBody", ".ed-txfoot button",
+  ".ed-lane.hook", ".ed-lane.caps .ed-chip", ".ed-lane.music", ".ed-lane.sfx", ".ed-lane.zooms", ".ed-lane.film", ".ed-bar > button"];
+const aiWait = ms => new Promise(r => setTimeout(r, ms));
+function aiPoint(el, wide) {
+  // a point inside the element, kept to the part of it on screen (timeline rows run past the view)
+  let r = el.getBoundingClientRect();
+  const sc = el.closest("#edScroll");
+  if (sc) { const v = sc.getBoundingClientRect(); r = {left: Math.max(r.left, v.left + 8), right: Math.min(r.right, v.right - 8), top: r.top, bottom: r.bottom}; }
+  if (r.right - r.left < 6 || r.bottom - r.top < 6 || r.bottom < 0 || r.top > innerHeight) return null;
+  const f = wide ? Math.random() * .7 + .15 : .5;
+  return {x: r.left + (r.right - r.left) * f, y: r.top + (r.bottom - r.top) * (.35 + Math.random() * .3), el};
+}
+function aiSpot(h) {
+  const pool = [h.home, h.home, `.ed-rail [data-t="${h.rail}"]`, ...AI_PLACES];
+  for (let n = 0; n < 6; n++) {
+    const els = $$e(pool[Math.floor(Math.random() * pool.length)]);
+    const el = els[Math.floor(Math.random() * els.length)], p = el && aiPoint(el, true);
+    if (p) return p;
+  }
+  return null;
+}
+function aiHands() {
+  const dlg = $("#clipdlg"), ph = $e("#edPhone");
+  if (!dlg || !ph || matchMedia("(prefers-reduced-motion: reduce)").matches) return {deliver: async () => {}, stop() {}};
+  const o = ph.getBoundingClientRect(), ctl = {done: false};
+  const hands = AI_HANDS.map((h, i) => {
+    const el = document.createElement("div");
+    el.className = "ed-aih"; el.style.setProperty("--c", h.c);
+    el.innerHTML = `<svg viewBox="0 0 20 22" aria-hidden="true"><path d="M3 2.2l14.2 7.6c.6.3.5 1.2-.2 1.4l-6 1.6-2.9 5.8c-.3.6-1.2.6-1.4-.1z"/></svg><b>${h.l}</b>`;
+    const x = o.left + o.width / 2 - 10 + i * 10, y = o.top + o.height * .45 + i * 8;
+    el.style.transform = `translate(${x}px,${y}px)`;
+    dlg.append(el);
+    return {...h, el, x, y};
+  });
+  const move = async (h, x, y) => {
+    const ms = Math.max(420, Math.min(1100, Math.hypot(x - h.x, y - h.y) * 1.3));
+    h.el.style.transition = `transform ${ms}ms cubic-bezier(.45,0,.2,1), opacity .25s`;
+    h.el.style.transform = `translate(${x}px,${y}px)`; h.x = x; h.y = y;
+    await aiWait(ms);
+  };
+  const press = (h, el) => {
+    h.el.classList.add("press"); setTimeout(() => h.el.classList.remove("press"), 160);
+    const ring = document.createElement("i");
+    ring.className = "ed-aiping"; ring.style.cssText = `--c:${h.c};left:${h.x}px;top:${h.y}px`;
+    dlg.append(ring); setTimeout(() => ring.remove(), 650);
+    if (el && !el.matches("#edPhone, .ed-lane")) { el.style.setProperty("--aic", h.c); el.classList.add("ed-aihl"); setTimeout(() => el.classList.remove("ed-aihl"), 520); }
+  };
+  const run = async (h, i) => {
+    await aiWait(30 + i * 140); h.el.classList.add("in");
+    while (!ctl.done) {
+      const p = aiSpot(h);
+      if (!p) { await aiWait(300); continue; }
+      await move(h, p.x, p.y); if (ctl.done) break;
+      await aiWait(150 + Math.random() * 300); press(h, p.el);
+      await aiWait(250 + Math.random() * 450);
+    }
+  };
+  const loops = hands.map(run);
+  const leave = () => { hands.forEach(h => h.el.classList.remove("in")); setTimeout(() => hands.forEach(h => h.el.remove()), 400); };
+  return {
+    stop() { ctl.done = true; leave(); },
+    // the result is on the timeline: each hand drops its part on its own row and says what it added
+    async deliver(labels) {
+      ctl.done = true; await Promise.race([Promise.all(loops), aiWait(1200)]);
+      await Promise.all(hands.map(async (h, i) => {
+        await aiWait(i * 160);
+        const el = (h.item && $e(`${h.home} ${h.item}`)) || $e(h.home), p = el && aiPoint(el, false);
+        if (p) { await move(h, p.x, p.y); press(h, el); }
+        if (labels[i]) { h.el.querySelector("b").textContent = labels[i]; h.el.classList.add("done"); }
+      }));
+      await aiWait(1100); leave();
+    }};
+}
 /* ---------- zoom moments (Effects > Zoom moments; the timeline's Zooms row). The video only (not captions, hook,
    pictures or brand) punches in on a point for a moment, easing in and out, with its own look. The same as
    render.zoom_filter: the point moves toward the middle of the frame and the window stays inside the picture. */
@@ -1672,11 +1810,21 @@ function zoomCard() {
   if (!L.length) return `<div class="ed-card ed-zempty"><span class="ed-zeic">${ZOOM_IC}</span>
       <div><b>No zoom moments yet</b><p class="ed-help">Punch in on a reaction: the video zooms toward a face for a moment, with its own look.</p>
         <div class="ed-zeact"><button class="ed-btn primary sm" data-ed="zoomadd">${ic("plus")}Add at the playhead</button><span>or press <kbd>Z</kbd> while it plays</span></div></div></div>`;
-  return `<div class="ed-card"><div class="ed-h"><b>Zoom moments</b><button class="ed-btn ghost sm" data-ed="zoomadd">${ZOOM_IC}Add at playhead</button></div>
-    ${L.length ? `<div class="ed-piclist">${L.map((q, i) => `<div class="ed-picrow ${i === E.zSel ? "on" : ""}">
-        <button class="ed-picpick" data-ed="zoomsel" data-v="${i}" aria-pressed="${i === E.zSel}"><i class="ed-zi">${q.s.toFixed(1)}×</i><span>${(ZOOM_FX.find(f => f[0] === q.fx) || ZOOM_FX[0])[1] === "None" ? "Zoom" : (ZOOM_FX.find(f => f[0] === q.fx))[1] + " zoom"}</span><small>${ts(q.a - E.start)}–${ts(q.b - E.start)}</small></button>
-        <button class="ed-ib sm ed-tip" data-ed="zoomdel" data-v="${i}" aria-label="Remove this zoom" data-tip="Remove">${svg('<path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>')}</button></div>`).join("")}</div>`
-      : `<p class="ed-help">Punch in on a reaction: the video zooms toward a face for a moment, with its own look. Press Z while it plays to add one.</p>`}
+  const c = clipNow(), pic = c && c.cover ? `/media/${E.jid}/${esc(c.cover)}?v=${c.version || 0}` : "", span = Math.max(0.1, E.end - E.start);
+  const amt = v => ZOOM_AMT.reduce((b, q) => Math.abs(q[0] - v) < Math.abs(b[0] - v) ? q : b)[1];
+  const row = (q, i) => {
+    const f = ZOOM_FX.find(x => x[0] === q.fx) || ZOOM_FX[0], face = q.react && (E.media || []).find(m => m.id === q.react);
+    return `<div class="ed-zrow ${i === E.zSel ? "on" : ""}">
+      <button class="ed-zpick" data-ed="zoomsel" data-v="${i}" aria-pressed="${i === E.zSel}">
+        <span class="ed-zthumb">${pic ? `<img src="${pic}" alt="" loading="lazy" style="filter:${f[2] || "none"};transform:scale(${Math.min(2.2, q.s)});transform-origin:${q.x}% ${q.y}%">` : ""}
+          <em>${q.s.toFixed(1)}×</em>${face ? `<img class="ed-zrface" src="${mediaUrl(face.id)}" alt="">` : ""}</span>
+        <span class="ed-zmeta"><b>${amt(q.s)} zoom${f[0] !== "none" ? ` · ${f[1]}` : ""}</b>
+          <small>At ${mmss(q.a - E.start)} · ${(q.b - q.a).toFixed(1)} s${q.ease === false ? " · hard cut" : ""}</small>
+          <i class="ed-zpos"><u style="left:${((q.a - E.start) / span * 100).toFixed(1)}%;width:${Math.max(2, (q.b - q.a) / span * 100).toFixed(1)}%"></u></i></span></button>
+      <button class="ed-ib sm ed-tip ed-zdel" data-ed="zoomdel" data-v="${i}" aria-label="Remove this zoom" data-tip="Remove">${svg('<path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>')}</button></div>`;
+  };
+  return `<div class="ed-card ed-zcard"><div class="ed-h"><b>Zoom moments <small class="ed-atn">${L.length}</small></b><button class="ed-btn ghost sm" data-ed="zoomadd">${ic("plus")}Add at playhead</button></div>
+    <div class="ed-zlist">${L.map(row).join("")}</div>
     ${z ? zoomSet(z) : ""}
   </div>`;
 }
@@ -1721,7 +1869,7 @@ function zoomsLane() {
 $("#clipdlg").addEventListener("click", e => {
   const ml = e.target.closest(".ed-lane.music");
   if (ml && E.justMoved && Date.now() - E.justMoved < 300) return e.stopPropagation();
-  if (ml) { e.stopPropagation(); E.tab = "audio"; drawPanel(); if (phone()) { E.sheet = "panel"; syncSheet(); } return; }
+  if (ml) { e.stopPropagation(); E.tab = "audio"; E.atab = "music"; drawPanel(); if (phone()) { E.sheet = "panel"; syncSheet(); } return; }
   const lane = e.target.closest(".ed-lane.zooms"); if (!lane || e.target.closest(".ed-zbar")) return;
   if (E.justMoved && Date.now() - E.justMoved < 300) return;
   const r = $e("#edTrack").getBoundingClientRect(), t = E.min + (e.clientX - r.left) / r.width * (E.max - E.min);
@@ -1842,25 +1990,45 @@ function musSpan(m = musicOf()) {
 }
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 function musicCard() {
-  const m = musicOf(), list = E.music || [], cur = list.find(t => t.id === m.id);
+  const m = musicOf(), list = E.music || [], cur = list.find(t => t.id === m.id), picking = !cur || E.musLib;
   const sw = (k, label, help) => `<label class="ed-ck"><input type="checkbox" data-mus="${k}" ${m[k] ? "checked" : ""}><span>${label}<small>${help}</small></span></label>`;
-  return `<div class="ed-card"><div class="ed-h"><b>Background music</b></div>
-    ${dropCard("edMusIn", "audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac", E.musBusy ? "Adding the song…" : "Upload a song", "Drop it here or browse · MP3, M4A or WAV", E.musBusy)}
-    <div class="ed-mlist" role="radiogroup" aria-label="Music">
-      <button role="radio" class="ed-mrow" data-ed="muspick" data-v="" aria-checked="${!m.id}"><span>No music</span></button>
-      ${list.filter(t => !t.pack).map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
-        ${svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>')}<span>${esc(t.name)}</span><small>${mmss(t.dur)}</small>
-        <i class="ed-x" data-ed="musdel" data-v="${t.id}" title="Remove from your library">${ic("x")}</i></button>`).join("")}</div>
-    ${list.some(t => t.pack) ? `<p class="ed-grp">SocialShot library <small>Free to use, no copyright claims</small></p>
-      <div class="ed-mlist ed-mpack" role="radiogroup" aria-label="SocialShot library">${list.filter(t => t.pack).map(t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
-        <i class="ed-mplay" data-ed="mustry" data-v="${t.id}" title="Listen">${ic(E.musTry === t.id ? "pause" : "play")}</i><span>${esc(t.name)}<small>${esc(t.mood || "")}</small></span><small>${mmss(t.dur)}</small></button>`).join("")}</div>` : ""}
-    ${list.some(t => !t.pack) ? "" : `<p class="ed-help">Your own songs are kept in your library for every clip.</p>`}
-    ${sfxCard()}
-    ${cur ? `${scoreCard(m, cur)}
-      ${slider("Start the song at", "mus_at", 0, Math.max(1, Math.floor(cur.dur - 1)), 1, Math.min(m.at, cur.dur), mmss(Math.min(m.at, cur.dur)))}
-      ${sw("duck", "Lower it while someone talks", "Words stay clear")}${sw("loop", "Loop it", "Plays again if the clip is longer")}${sw("fade", "Fade in and out", "Starts softly and ends smoothly")}
-      ${riseCard(m, cur)}` : ""}
-  </div>`;
+  const row = t => `<button role="radio" class="ed-mrow" data-ed="muspick" data-v="${t.id}" aria-checked="${m.id === t.id}">
+      <i class="ed-mtry" data-ed="mustry" data-v="${t.id}" title="Listen">${ic(E.musTry === t.id ? "pause" : "play")}</i>
+      <span>${esc(t.name)}<small>${esc(t.mood || "Your song")}</small></span><small>${mmss(t.dur)}</small>
+      ${t.pack ? "" : `<i class="ed-x" data-ed="musdel" data-v="${t.id}" title="Remove from your library">${ic("x")}</i>`}</button>`;
+  const lib = `<div class="ed-card ed-mlib"><div class="ed-h"><b>${cur ? "Change the song" : "Pick a song"}</b>${cur ? `<button class="ed-link" data-ed="muslib">Done</button>` : ""}</div>
+      ${list.some(t => !t.pack) ? `<p class="ed-grp">Your songs</p><div class="ed-mlist" role="radiogroup" aria-label="Your songs">${list.filter(t => !t.pack).map(row).join("")}</div>` : ""}
+      <p class="ed-grp">SocialShot library <small>Free to use, no copyright claims</small></p>
+      <div class="ed-mlist ed-mpack" role="radiogroup" aria-label="SocialShot library">${list.filter(t => t.pack).map(row).join("")}</div>
+      ${dropCard("edMusIn", "audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac", E.musBusy ? "Adding the song…" : "Upload your own", "MP3, M4A or WAV · kept for every clip", E.musBusy)}
+      ${cur ? `<button class="ed-btn ghost sm ed-mnone" data-ed="muspick" data-v="">Remove the music</button>` : ""}</div>`;
+  if (picking) return aiCard() + lib;
+  const now = musFeel(m);
+  return `<div class="ed-card ed-msong"><button class="ed-mtry big" data-ed="mustry" data-v="${cur.id}" title="Listen">${ic(E.musTry === cur.id ? "pause" : "play")}</button>
+      <div><b>${esc(cur.name)}</b><small>${esc(cur.mood || "Your song")}</small></div><button class="ed-btn sm" data-ed="muslib">Change</button></div>
+    <div class="ed-card ed-feel"><b>How should the music sit?</b>
+      <div class="ed-feels" role="radiogroup" aria-label="How the music sits">${MUS_FEELS.map(([k, l, d, ic2]) => `<button role="radio" data-ed="musfeel" data-v="${k}" aria-checked="${now === k}">
+        ${svg(ic2)}<span><b>${l}</b><small>${d}</small></span></button>`).join("")}</div></div>
+    ${aiCard()}
+    <details class="ed-more" ${E.musMore ? "open" : ""} data-more="mus"><summary>Fine-tune the music<small>volume curve, start point, loop</small></summary>
+      ${scoreCard(m, cur)}
+      <div class="ed-mset">${slider("Start the song at", "mus_at", 0, Math.max(1, Math.floor(cur.dur - 1)), 1, Math.min(m.at, cur.dur), mmss(Math.min(m.at, cur.dur)))}
+        ${sw("duck", "Lower it while someone talks", "Words stay clear")}${sw("loop", "Loop it", "Plays again if the clip is longer")}${sw("fade", "Fade in and out", "Starts softly and ends smoothly")}
+        ${riseCard(m, cur)}</div></details>`;
+}
+// three plain ways the music can sit under the voice; the numbers behind each are set for the person
+const MUS_FEELS = [
+  ["soft", "Soft background", "Quiet the whole time, lower while someone talks", '<path d="M3 15h18"/><path d="M3 15c3-1.5 6-1.5 9 0s6 1.5 9 0" opacity=".5"/>'],
+  ["build", "Builds to the end", "Quiet under the voice, then rises for the finish", '<path d="M3 17h11l7-10"/>'],
+  ["upfront", "Upfront", "Loud and clear, like a montage", '<path d="M3 8h18"/><path d="M3 8c3 2 6 2 9 0s6-2 9 0" opacity=".5"/>']];
+const MUS_FEEL_SET = {soft: {vol: 10, duck: true, rise_on: false}, build: {vol: 14, duck: true, rise_on: true, peak: 60, rise: 3},
+  upfront: {vol: 40, duck: false, rise_on: false}};
+const musFeel = m => m.rise_on && m.vol <= 25 ? "build" : !m.rise_on && m.vol <= 18 ? "soft" : !m.rise_on && m.vol >= 30 ? "upfront" : "";
+// the AI editor, offered where people choose sound
+function aiCard() {
+  return `<button class="ed-aicard" data-ed="aiedit" ${E.aiBusy ? "disabled" : ""}>
+    <span class="ed-aiic">${svg('<path d="M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 9l1.6-4.2a1 1 0 0 1 1.2-.6L20 7.6M9.5 5.4l-1.8 3.6M14.8 6.8L13 9"/>')}</span>
+    <span><b>${E.aiBusy ? "The AI is editing…" : "Let the AI edit the whole clip"}</b><small>It picks the music, adds zooms and sound effects. You can change anything after.</small></span></button>`;
 }
 async function musicAdd(file) {
   if (!file) return;
@@ -1989,6 +2157,46 @@ function pipCard(sp) {
       <label class="ed-pipcp" style="--c:${col}" title="Any colour"><input type="color" value="${col.toLowerCase()}" data-pipcol aria-label="Any border colour"></label></div></div>` : ""}
     <button class="ed-btn ed-pipframe" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Choose what fills the screen and the box</button></div>`;
 }
+/* the Post card's settings, in groups: the style (big tiles, like picking a template), the account on it, the post's
+   words, what is behind the card, and its size and place */
+const SUN_IC = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+const MOON_IC = '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>';
+function cardPanel(cd) {
+  const OWN = {linkedin: svg('<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5v6M8 7.6v.01M11.5 16.5v-6M11.5 13c0-1.6 1-2.6 2.4-2.6s2.1.9 2.1 2.5v3.6"/>'),
+    threads: svg('<path d="M16.2 11.3c-.5-2.4-2.2-3.6-4.4-3.6-2.6 0-4.3 1.9-4.3 4.6 0 2.9 1.8 4.7 4.6 4.7 2.4 0 4-1.4 4-3.3 0-1.7-1.3-2.7-3.4-2.7-1.8 0-3 .8-3 2.1 0 1.1 1 1.9 2.4 1.9 2.4 0 3.6-1.9 3.6-4.7"/><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/>')};
+  const mark = k => OWN[k] || (typeof APP_MARK !== "undefined" && APP_MARK[k]) || "";
+  const dark = t => /^#(0|1)/i.test(t.bg);
+  const sw = (k, on, label, sub) => `<label class="ed-ck ed-cksw"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span>
+      <span class="ed-sw2"><input type="checkbox" data-ed="cardsw" data-k="${k}" ${on ? "checked" : ""}><span></span></span></label>`;
+  const nTpl = (typeof TPLS !== "undefined" ? TPLS.length : 0);
+  return `<div class="ed-card ed-cstyle"><div class="ed-h"><b>Card style</b><small class="ed-pipnote">The clip inside a real-looking post</small></div>
+      <div class="ed-cgrid" role="radiogroup" aria-label="Card style">${Object.entries(CARD_THEMES).map(([v, t]) => `<button role="radio" data-ed="cardset" data-k="theme" data-v="${v}" aria-checked="${cd.theme === v}">
+        <span class="ed-cgic">${mark(t.kind) || svg(dark(t) ? MOON_IC : SUN_IC)}</span><span>${esc(t.label)}</span><i class="ed-cgtone">${svg(dark(t) ? MOON_IC : SUN_IC)}</i></button>`).join("")}
+        <button class="ed-cgmore ${Object.keys(CARD_THEMES).length % 2 ? "half" : ""}" data-ed="tpl">${svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>')}<span>+${Math.max(0, nTpl - 5)} more templates</span></button></div></div>
+    <div class="ed-card ed-cgroup"><b>Account</b>
+      <div class="ed-cacc"><span class="ed-cav">${cd.avatar !== "initial" && E.logoV ? `<img src="/api/brand/logo?v=${E.logoV}" alt="">` : `<b>${esc(((cd.name || cardName() || "S")[0] || "S").toUpperCase())}</b>`}</span>
+        <div class="ed-cfields"><input class="ed-text" data-card="name" value="${esc(cd.name)}" maxlength="40" placeholder="${esc(cardName() || "Your name")}" aria-label="Name">
+          <input class="ed-text" data-card="handle" value="${esc(cd.handle)}" maxlength="30" placeholder="${(CARD_THEMES[cd.theme] || {}).kind === "linkedin" ? "Your headline" : "@" + esc((cardName() || "yourname").toLowerCase().replace(/[^a-z0-9_]/g, ""))}" aria-label="${(CARD_THEMES[cd.theme] || {}).kind === "linkedin" ? "Headline" : "Handle"}"></div></div>
+      <div class="ed-seg"><button data-ed="cardset" data-k="avatar" data-v="logo" aria-pressed="${cd.avatar !== "initial" && !!E.logoV}" ${E.logoV ? "" : 'disabled title="Upload a logo in Brand first"'}>My logo</button>
+        <button data-ed="cardset" data-k="avatar" data-v="initial" aria-pressed="${cd.avatar === "initial" || !E.logoV}">First letter</button></div>
+      ${sw("verified", cd.verified, "Blue check", "Shown next to the name")}</div>
+    <div class="ed-card ed-cgroup"><b>Post text</b>
+      <textarea class="ed-text" data-card="text" maxlength="220" rows="3" placeholder="${esc(E.hook || "What the post says")}" aria-label="Post text">${esc(cd.text)}</textarea>
+      <p class="ed-help">Left empty, the post says the clip's hook.</p></div>
+    <div class="ed-card ed-cgroup"><b>Behind the card</b>
+      <div class="ed-seg">${[["none", "Plain"], ["gradient", "Gradient"], ["blur", "Blurred video"]].map(([v, l]) =>
+        `<button data-ed="cardset" data-k="back" data-v="${v}" aria-pressed="${cd.back === v}">${l}</button>`).join("")}</div>
+      ${cd.back === "gradient" ? `<div class="ed-gradsw">${CARD_BACKS.map(([l, a, b]) => `<button data-ed="cardgrad" data-a="${a}" data-b="${b}" title="${l}" aria-pressed="${cd.g1 === a && cd.g2 === b}" style="background:linear-gradient(135deg,${a},${b})"></button>`).join("")}</div>
+        <div class="ed-row"><label class="ed-f ed-colf">From<span class="ed-swc" style="background:${cd.g1}"><input type="color" data-card="g1" value="${cd.g1}" aria-label="Gradient from"></span></label>
+          <label class="ed-f ed-colf">To<span class="ed-swc" style="background:${cd.g2}"><input type="color" data-card="g2" value="${cd.g2}" aria-label="Gradient to"></span></label></div>
+        <label class="ed-ck"><input type="checkbox" data-ed="cardgrain" ${cd.grain ? "checked" : ""}><span>Film grain<small>A fine texture so the colour doesn't look flat</small></span></label>` : ""}
+      ${cd.back === "none" ? `<p class="ed-help">The card fills the whole frame, like a screenshot of the post.</p>` : ""}</div>
+    <div class="ed-card ed-cgroup"><div class="ed-h"><b>Size and place</b>${cd.dx || cd.dy ? `<button class="ed-link" data-ed="cardcentre">Centre it</button>` : ""}</div>
+      <label class="ed-sl" style="--p:${pctOf(cd.scale, 50, 130)}"><input type="range" min="50" max="130" step="1" value="${cd.scale}" data-card="scale" aria-label="Card size"><span class="ed-sl-l">Card size</span><output>${cd.scale}</output></label>
+      ${cd.back !== "none" ? `<label class="ed-sl" style="--p:${pctOf(cd.pad, 16, 90)}"><input type="range" min="16" max="90" step="2" value="${cd.pad}" data-card="pad" aria-label="Room inside the card"><span class="ed-sl-l">Room inside</span><output>${cd.pad}</output></label>` : ""}
+      <label class="ed-sl" style="--p:${pctOf(cd.radius, 0, 60)}"><input type="range" min="0" max="60" step="2" value="${cd.radius}" data-card="radius" aria-label="Video corners"><span class="ed-sl-l">Video corners</span><output>${cd.radius}</output></label>
+      <p class="ed-help">Or drag the card on the video, and its corner to resize it.</p></div>`;
+}
 // the Frame view's layout grid: Duo is the split with a person in each half
 const FRAME_LAYS = [["crop", "Solo"], ["split", "Split"], ["pip", "PiP"], ["trio", "Trio"], ["split", "Duo", "duo"], ["blur", "Centered"], ["zoom", "Zoomed"], ["card", "Post card"]];
 LAY_IC.duo = PH + '<path d="M6 12h12"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="16.8" r="1.5"/>';
@@ -1999,6 +2207,39 @@ const LAY_TIP = {crop: "One part of the video fills the screen", split: "Two par
    trim and brand stay; caption and hook positions go back to automatic for the new layout. */
 const POST_CAPS = {font: "Inter", size: 64, outline: 0, per: 3, upper: false, active: CARD_BLUE, weight: 600};
 const TPLS = [
+  // news: a strong banner that reads like a broadcast
+  {k: "breaking", tag: "Breaking news", cat: "news", name: "Breaking news", sub: "A red BREAKING-style bar on top, boxed captions", layout: "zoom", style: "boxed",
+    hook: {hook_font: "Bebas Neue", hook_size: 104, hook_box: "#DC2626", hook_ink: "#FFFFFF", hook_op: 100, hook_round: 0, hook_y: 13, hook_dur: 0, hook_banner: "full", hook_case: "upper"},
+    extra: {y: 74, bg: {kind: "color", c1: "#0A0A0C"}, stroke: 6, stroke_color: "#DC2626"}},
+  {k: "headline", tag: "Top story", cat: "news", name: "Headline story", sub: "A white headline card over the video, calm captions", layout: "blur", style: "editorial",
+    hook: {hook_font: "DM Serif Display", hook_size: 84, hook_box: "#FFFFFF", hook_ink: "#111111", hook_op: 100, hook_round: 6, hook_y: 16, hook_dur: 0},
+    extra: {effect: "lut_mono_documentary"}},
+  {k: "explainer", tag: "Here's why", cat: "news", name: "Explainer", sub: "Numbers and facts, a clean caption box", layout: "zoom", style: "pill",
+    hook: {hook_font: "Inter Tight", hook_size: 80, hook_box: "#0F172A", hook_ink: "#F8FAFC", hook_op: 92, hook_round: 14, hook_y: 14, hook_dur: 5},
+    extra: {effect: "lut_cinematic_teal_orange", bg: {kind: "gradient", c1: "#0B1220", c2: "#1E293B"}}},
+  // real estate: warm, clean, premium
+  {k: "justlisted", tag: "Just listed", cat: "realestate", name: "Just listed", sub: "A gold JUST LISTED bar, warm film look", layout: "crop", style: "minimal",
+    hook: {hook_font: "Marcellus", hook_size: 90, hook_box: "#B8892B", hook_ink: "#FFFFFF", hook_op: 100, hook_round: 0, hook_y: 12, hook_dur: 0, hook_banner: "full", hook_case: "upper"},
+    extra: {effect: "lut_warm_film", stroke: 8, stroke_color: "#B8892B"}},
+  {k: "hometour", tag: "Home tour", cat: "realestate", name: "Home tour", sub: "Elegant serif title, soft captions, frame edge", layout: "crop", style: "soft",
+    hook: {hook_font: "Playfair Display", hook_size: 92, hook_box: "#FFFFFF", hook_ink: "#1C1917", hook_op: 94, hook_round: 18, hook_y: 14, hook_dur: 4},
+    extra: {effect: "bright", stroke: 10, stroke_color: "#FFFFFF"}},
+  {k: "market", tag: "Market update", cat: "realestate", name: "Market update", sub: "Agent talking, navy title, the video in a card", layout: "blur", style: "clean",
+    hook: {hook_font: "Montserrat", hook_size: 82, hook_box: "#1E3A8A", hook_ink: "#FFFFFF", hook_op: 100, hook_round: 12, hook_y: 15, hook_dur: 0},
+    extra: {bg: {kind: "gradient", c1: "#0F172A", c2: "#1E3A8A"}, pad: 40, vradius: 28}},
+  // creators
+  {k: "motivation", tag: "Keep going", cat: "creators", name: "Motivation", sub: "Black and white, big bold words", layout: "crop", style: "poster",
+    hook: {hook_font: "Anton", hook_size: 110, hook_box: "#000000", hook_ink: "#FFFFFF", hook_op: 0, hook_round: 0, hook_y: 16, hook_dur: 0, hook_case: "upper"},
+    extra: {effect: "lut_mono_documentary"}},
+  {k: "tutorial", tag: "Step 1", cat: "creators", name: "How-to", sub: "Clear steps: a tidy title, boxed captions", layout: "zoom", style: "boxed",
+    hook: {hook_font: "Lexend", hook_size: 80, hook_box: "#FACC15", hook_ink: "#111111", hook_op: 100, hook_round: 14, hook_y: 14, hook_dur: 5}},
+  {k: "story", tag: "So this happened", cat: "creators", name: "Storytime", sub: "Moody colour, captions low, face cam corner", layout: "pip", style: "headline",
+    hook: {hook_font: "Bricolage Grotesque", hook_size: 86, hook_box: "#FFFFFF", hook_ink: "#111111", hook_op: 100, hook_round: 20, hook_y: 13, hook_dur: 3},
+    extra: {effect: "lut_moody_dark"}},
+  // gaming
+  {k: "gameclutch", tag: "1v4 clutch", cat: "gaming", name: "Clutch highlight", sub: "Punchy colour, loud captions, face cam split", layout: "split", cam_at: "bottom", style: "hype",
+    hook: {hook_font: "Bungee", hook_size: 84, hook_box: "#111111", hook_ink: "#FACC15", hook_op: 90, hook_round: 10, hook_y: 46, hook_dur: 3},
+    extra: {effect: "lut_punchy_viral"}},
   {k: "stream", cat: "streams", name: "Stream + face cam", sub: "Gameplay on top, the face cam under it", layout: "split", cam_at: "bottom", style: "boldpop"},
   {k: "camtop", cat: "streams", name: "Face cam on top", sub: "The streamer first, the game below", layout: "split", cam_at: "top", style: "studio"},
   {k: "solo", cat: "streams", name: "Solo full screen", sub: "One part of the stream fills the phone", layout: "crop", style: "hype"},
@@ -2020,7 +2261,8 @@ const TPLS = [
     split: {game: [0, 0, 0.5, 1], cam: [0.5, 0, 0.5, 1], pip_at: "br"}},
   {k: "centered", cat: "simple", name: "Centered", sub: "The whole video on a blurred copy", layout: "blur", style: "clean"},
   {k: "wide", cat: "simple", name: "Wide 16:9", sub: "For YouTube and desktop", layout: "crop", aspect: "16:9", style: "studio"}];
-const TPL_CATS = [["all", "All"], ["streams", "Streams"], ["posts", "Social posts"], ["podcasts", "Podcasts"], ["simple", "Simple"]];
+const TPL_CATS = [["all", "All"], ["news", "News"], ["realestate", "Real estate"], ["creators", "Creators"], ["gaming", "Gaming"], ["streams", "Streams"],
+  ["posts", "Social posts"], ["podcasts", "Podcasts"], ["simple", "Simple"]];
 // a small post card for the layout and template tiles
 // a still of this clip for the small tiles: the clean frame once grabbed, else the saved clip's cover (a live
 // recording has no thumbnail of its own), else the video's thumbnail
@@ -2034,8 +2276,17 @@ function miniTpl(t) {
     : t.layout === "pip" ? `<i class="lp-bg" style="${crop(ts.game)};filter:none"></i><i class="lp-pip ${ts.pip_at || "br"}" style="${crop(ts.cam)}"></i>`
     : t.layout === "trio" ? ts.trio.map(r => `<i class="lp-part t" style="${crop(r)}"></i>`).join("")
     : t.layout === "card" ? miniCard(bg, t.theme) : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${t.layout}" style="${bg}"></i>`;
-  const [w, h] = ASPECTS[t.aspect || "9:16"];
-  return `<span class="lp-ph ${t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}">${inner}</span>`;
+  const [w, h] = ASPECTS[t.aspect || "9:16"], x = t.extra || {}, k = t.hook;
+  // the template's own look on the preview: its colour, its border and its hook banner with sample words
+  const fx = x.effect ? fxCss(x.effect) : "";
+  const hk = k ? (() => {
+    const box = k.hook_op > 0 ? `background:${k.hook_box};opacity:1;` : "text-shadow:0 1px 3px rgba(0,0,0,.8);";
+    const wide = k.hook_banner === "full", up = k.hook_case === "upper";
+    return `<b class="lp-hook${wide ? " full" : ""}" style="top:${k.hook_y}%;${box}color:${k.hook_ink};font-family:'${k.hook_font}',Inter,sans-serif;` +
+      `font-size:${(k.hook_size * 0.064).toFixed(1)}px;border-radius:${wide ? 0 : Math.min(6, k.hook_round / 4)}px">${esc(up ? (t.tag || "Your hook").toUpperCase() : t.tag || "Your hook")}</b>`;
+  })() : "";
+  const ring = x.stroke ? `<i class="lp-ring" style="box-shadow:inset 0 0 0 ${Math.max(1.5, x.stroke / 4)}px ${x.stroke_color || "#fff"}"></i>` : "";
+  return `<span class="lp-ph ${t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}${fx ? `;filter:${fx}` : ""}">${inner}${ring}${hk}</span>`;
 }
 function drawTpl() {
   if (!E.tplOpen) return $e("#edTpl")?.remove();
@@ -2044,7 +2295,9 @@ function drawTpl() {
       <button class="ed-ib" data-ed="tplclose" aria-label="Close">${ic("x")}</button></header>
     <div class="ed-tpl-cats" role="tablist">${TPL_CATS.map(([k, l]) => `<button role="tab" data-ed="tplcat" data-v="${k}" aria-selected="${cat === k}">${l}</button>`).join("")}</div>
     <div class="ed-tpl-grid">${list.map(t => `<button class="ed-tpl" data-ed="tplpick" data-v="${t.k}" aria-pressed="${E.tplOn === t.k}">
-      <span class="ed-tpl-pv">${miniTpl(t)}</span><b>${esc(t.name)}</b><small>${esc(t.sub)}</small></button>`).join("")}</div>`;
+      <span class="ed-tpl-pv">${miniTpl(t)}</span><span class="ed-tpl-t"><b>${esc(t.name)}</b><small>${esc(t.sub)}</small>
+        <em>${esc((TPL_CATS.find(c => c[0] === t.cat) || [])[1] || "")}${t.aspect && t.aspect !== "9:16" ? " · " + t.aspect : ""}</em></span>
+      ${E.tplOn === t.k ? `<i class="ed-tpl-on">${ic("check")}</i>` : ""}</button>`).join("")}</div>`;
   const box = $e("#edTpl .ed-tplbox");
   if (box) { box.innerHTML = inner; return; }
   const el = document.createElement("div");
@@ -2380,6 +2633,15 @@ async function uploadLogo(file) {
     toast("Logo added", "ok"); after("p"); paintOverlay();
   } catch (er) { toast(er.message, "bad"); }
 }
+// the word of a caption line that gets the key-word look (render.accent_index): a punch word the AI marked, else the longest
+function accentIndex(texts) {
+  const strong = new Set((clipNow()?.highlight_words || []).map(h => h.toLowerCase().replace(/[^a-z0-9']/g, "")).filter(Boolean));
+  const i = texts.findIndex(t => strong.has(t.toLowerCase().replace(/[^a-z0-9']/g, "")));
+  if (i >= 0) return i;
+  let best = -1, n = 3;
+  texts.forEach((t, j) => { if (t.length > n) { best = j; n = t.length; } });
+  return best;
+}
 function paintOverlay(t = nowT()) {
   if (E.view !== "live") return;
   const cap = $e("#edCap"), hook = $e("#edHookBox"), phone = $e("#edPhone");
@@ -2418,8 +2680,12 @@ function paintOverlay(t = nowT()) {
   cap.style.cssText = `top:${y}%;left:${L.x ?? 50}%;font-family:${fc.family};font-weight:${fc.weight};font-size:${L.size * emOf(L.font) * k}px;color:${L.base};` +
     `font-style:${L.italic ? "italic" : "normal"};text-decoration:${L.underline ? "underline" : "none"};text-underline-offset:.12em;` +
     `-webkit-text-stroke:${L.outline * 2 * k}px #000;column-gap:${gapPx}px;letter-spacing:${(L.sp || 0) * k}px;${capBox}text-shadow:${CAP_SHADOW * k}px ${CAP_SHADOW * k}px 0 rgba(0,0,0,.5);`;
-  cap.innerHTML = shown.map((w, n) => { w = w.replace(/[.,;:]+$/, "");
-    w = L.upper ? w.toUpperCase() : n === 0 ? w.replace(/^\p{Ll}/u, c => c.toUpperCase()) : w;     // normal case: each line starts with a capital
+  const texts = shown.map((w, n) => { w = w.replace(/[.,;:]+$/, "");
+    return L.upper ? w.toUpperCase() : n === 0 ? w.replace(/^\p{Ll}/u, c => c.toUpperCase()) : w; });     // normal case: each line starts with a capital
+  const kwi = L.kw_font || L.kw_color ? accentIndex(texts) : -1, kfc = L.kw_font ? fontCss(L.kw_font) : null;
+  cap.innerHTML = texts.map((w, n) => {
+    if (n === kwi) return `<span class="${n === act ? "on" : ""} kw" style="color:${L.kw_color || (n === act ? L.active : L.base)};${kfc ? `font-family:${kfc.family};font-weight:${kfc.weight};` : ""}` +
+      `font-size:${(L.size * (L.kw_scale || 100) / 100 * emOf(L.kw_font || L.font) * k).toFixed(1)}px;${L.kw_italic ? "font-style:italic;" : ""}">${esc(w)}</span>`;
     return `<span class="${n === act ? "on" : ""}" style="${n === act ? `color:${L.active}` : ""}">${esc(w)}</span>`; }).join("");
   cap.style.transform = "translate(-50%,-50%)";
   const maxW = phone.clientWidth * 960 / OUT_W;
@@ -2511,6 +2777,7 @@ const SOUND = on => on ? ri("ed_audio", '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path
   : ri("ed_mute", '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/>');
 function drawTimeline() {
   const tl = $e("#edTl"), c = clipNow(); if (!tl || !c) return;
+  const old = $e("#edScroll"), keep = old && old.scrollWidth > old.clientWidth && E.tlZoomWas === E.zoom ? old.scrollLeft : null;
   const span = E.max - E.min, want = span / (8 * E.zoom), step = [1, 2, 5, 10, 15, 30, 60, 120, 300].find(s => s >= want) || 600;
   const ticks = []; for (let s = 0; s <= span; s += step) ticks.push(`<span style="left:${s / span * 100}%">${clock(s)}</span>`);
   const chips = lines().map((g, gi) => { const a = E.words[g[0]], b = E.words[g[g.length - 1]], text = esc(g.map(i => E.words[i].w).join(" "));
@@ -2538,25 +2805,28 @@ function drawTimeline() {
         <div class="ed-thp">
           ${head("hook", TEXT_IC, "Hook", hasHook ? `<button class="ed-tb" data-ed="hookvis" aria-pressed="${!!E.look.hook}" title="${E.look.hook ? "Hide" : "Show"} the hook">${EYE(E.look.hook)}</button>` : "")}
           ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`)}
-          ${(E.look.overlays || []).length ? head("pics", PIC_IC, "Pictures") : ""}
-          ${head("music", MUSIC_IC, "Music", `<button class="ed-tb" data-ed="tab" data-t="audio" title="Add or change the music" aria-label="Music">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
-          ${(E.look.sfx || []).length ? head("sfx", SFX_IC, "Sounds", `<button class="ed-tb" data-ed="tab" data-t="audio" title="Add a sound effect" aria-label="Sounds">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`) : ""}
+          ${head("pics", PIC_IC, "Pictures", `<button class="ed-tb" data-ed="tab" data-t="media" title="Add a picture or a reaction face" aria-label="Pictures">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
+          ${head("music", MUSIC_IC, "Music", `<button class="ed-tb" data-ed="tab" data-t="audio" data-at="music" title="Add or change the music" aria-label="Music">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
+          ${head("sfx", SFX_IC, "Sounds", `<button class="ed-tb" data-ed="tab" data-t="audio" data-at="sfx" title="Add a sound effect" aria-label="Sounds">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${head("zooms", ZOOM_IC, "Zooms", `<button class="ed-tb" data-ed="zoomadd" title="Add a zoom at the playhead (Z)" aria-label="Add a zoom">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${E.chat?.counts?.length ? head("chat", ic("chat"), "Chat") : ""}
-          ${head("film", ic("film"), "Video", `<button class="ed-tb" data-ed="mute" aria-pressed="${!E.muted}" title="${E.muted ? "Turn the preview's sound on" : "Mute the preview"}">${SOUND(!E.muted)}</button>`)}
+          ${head("film", ic("film"), "Video", `<button class="ed-tb" data-ed="shotadd" title="Add another shot from the video at the playhead (double-click the strip works too)" aria-label="Add a shot">${svg('<path d="M12 5v14M5 12h14"/>')}</button><button class="ed-tb" data-ed="mute" aria-pressed="${!E.muted}" title="${E.muted ? "Turn the preview's sound on" : "Mute the preview"}">${SOUND(!E.muted)}</button>`)}
         </div>
       </div>
       <div class="ed-scroll" id="edScroll">
         <div class="ed-track" id="edTrack" style="width:${E.zoom * 100}%">
           <div class="ed-ruler">${ticks.join("")}</div>
           <div class="ed-lanes" style="--gs:${step / span * 100}%">
-            <div class="ed-lane hook">${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
+            <div class="ed-lane hook ${hasHook ? "" : "znone"}">${!hasHook ? `<button class="ed-ehint hook" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%">${TEXT_IC}<span>Add a hook: the line that stops the scroll</span></button>` : ""}${hasHook ? `<button class="ed-hchip ${E.look.hook ? "" : "off"}" data-ed="tab" data-t="text" style="left:${pct(E.start)}%;width:${pct(hookEnd()) - pct(E.start)}%"><i>${TEXT_IC}</i><span>Hook: ${esc(E.hook)}</span></button>` : ""}
               ${fx !== "None" ? `<button class="ed-fxchip" data-ed="tab" data-t="fx" style="left:${pct(hookEnd())}%;width:${Math.max(6, pct(E.end) - pct(hookEnd()))}%"><i>${FX_IC}</i><span>Filter: ${esc(fx)}</span></button>` : ""}</div>
             <div class="ed-lane caps"><i class="ed-cbar" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"></i>${chips}</div>${picsLane()}${musicLane()}${sfxLane()}${zoomsLane()}${chatLane()}
             <div class="ed-lane film" style="background-image:url('/media/${E.jid}/thumb.jpg'),url('/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}')">
               <div class="ed-shade l" style="width:${pct(E.start)}%"></div><div class="ed-shade r" style="left:${pct(E.end)}%"></div>
               ${(E.cuts || []).map(([a, b]) => `<i class="ed-cutmark" style="left:${pct(a)}%;width:${Math.max(0.2, pct(b) - pct(a))}%" title="Cut by Speech cleanup"></i>`).join("")}
-              <div class="ed-win" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"><i class="ed-hd" data-h="start"></i><i class="ed-hd" data-h="end"></i></div>
+              ${hasShots() ? `${shotGaps().map(([a, b]) => `<i class="ed-gap" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%"></i>`).join("")}
+                ${E.shots.map(([a, b], i) => `<div class="ed-win ed-shot ${i === E.shotSel ? "on" : ""}" data-shot="${i}" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%">
+                  <i class="ed-hd" data-sh="${i}:a"></i><span class="ed-shn">${i + 1}</span><button class="ed-shx" data-ed="shotdel" data-v="${i}" title="Remove this shot" aria-label="Remove shot ${i + 1}">${ic("x")}</button><i class="ed-hd" data-sh="${i}:b"></i></div>`).join("")}`
+              : `<div class="ed-win" style="left:${pct(E.start)}%;width:${pct(E.end) - pct(E.start)}%"><i class="ed-hd" data-h="start"></i><i class="ed-hd" data-h="end"></i></div>`}
               ${outroOf().on ? `<button class="ed-outchip" data-ed="outrojump" title="The outro plays here, after the clip" style="left:${pct(E.end)}%;width:${Math.max(3, pct(Math.min(E.max, E.end + outroOf().secs)) - pct(E.end))}%">
                 <span>Outro · ${outroOf().secs} s</span></button>` : ""}
             </div>
@@ -2570,8 +2840,13 @@ function drawTimeline() {
         <div class="ed-mlr"><span>L</span><span>R</span></div>
       </div>
     </div>`;
-  const sc = $e("#edScroll");
-  if (sc && E.zoom > 1) sc.scrollLeft = pct(nowT()) / 100 * sc.scrollWidth - sc.clientWidth / 3;
+  // the view: where it was (a redraw never jumps), on the playhead after a zoom, or on the clip the first time
+  const sc = $e("#edScroll"), first = !E.tlViewed;
+  E.tlZoomWas = E.zoom;
+  if (!sc || E.zoom <= 1) return;
+  if (keep != null) sc.scrollLeft = keep;
+  else if (first) centreTimeline();
+  else sc.scrollLeft = pct(nowT()) / 100 * sc.scrollWidth - sc.clientWidth / 3;
 }
 function setZoom(z) {
   E.zoom = Math.max(1, Math.min(E.zmax || 8, Math.round(z * 2) / 2));
@@ -2580,10 +2855,13 @@ function setZoom(z) {
 // one zoom step: half a step at low zoom, a fifth of the current zoom when far in, so it never feels slow
 const zoomStep = dir => setZoom(E.zoom + dir * Math.max(0.5, E.zoom * 0.2));
 // the clip in the middle of the timeline's view
-function centreTimeline() {
+// (when the clip fits in the view it starts a little in from the left edge; a longer one starts at the edge)
+function centreTimeline(tries = 0) {
   const sc = $e("#edScroll"); if (!sc) return;
-  const mid = (pct(E.start) + pct(E.end)) / 200;
-  sc.scrollLeft = Math.max(0, mid * sc.scrollWidth - sc.clientWidth / 2);
+  if (sc.scrollWidth <= sc.clientWidth) { if (tries < 30) requestAnimationFrame(() => centreTimeline(tries + 1)); return; }   // not laid out yet
+  const a = pct(E.start) / 100 * sc.scrollWidth, b = pct(E.end) / 100 * sc.scrollWidth, room = sc.clientWidth - (b - a);
+  sc.scrollLeft = Math.max(0, a - Math.max(16, Math.min(room / 2, sc.clientWidth * 0.06)));
+  E.tlViewed = true;
 }
 
 /* ---------- what's new: a short tour of the editor's new tools, a card pointing at each one in turn.
@@ -2742,7 +3020,7 @@ function after(what) {          // redraw what a change affects
    written a moment after the change settles, so dragging a slider is one step, not fifty. Up to 100 steps per clip;
    they last while the clip is open. Undoing also saves, like any other change. */
 const histState = () => JSON.stringify({s: E.start, e: E.end, h: E.hook, t: E.title, d: E.description, l: E.layout, k: E.look,
-  w: E.edited ? E.words : null, ed: !!E.edited, c: E.cuts || [], lt: !!E.lookTouched});
+  w: E.edited ? E.words : null, ed: !!E.edited, c: E.cuts || [], sh: clone(E.shots || []), lt: !!E.lookTouched});
 function histReset() { clearTimeout(E.histT); E.hist = {list: [histState()], at: 0}; drawUndo(); }
 function histMark() { if (!E.hist) return; clearTimeout(E.histT); E.histT = setTimeout(histPush, 350); }
 function histPush() {
@@ -2760,7 +3038,7 @@ function histGo(d) {
   const i = H.at + d; if (i < 0 || i >= H.list.length) return;
   H.at = i;
   const x = JSON.parse(H.list[i]);
-  Object.assign(E, {start: x.s, end: x.e, hook: x.h, title: x.t, description: x.d, layout: x.l, look: x.k, cuts: x.c, edited: x.ed, lookTouched: x.lt});
+  Object.assign(E, {start: x.s, end: x.e, hook: x.h, title: x.t, description: x.d, layout: x.l, look: x.k, cuts: x.c, shots: x.sh || [], edited: x.ed, lookTouched: x.lt});
   if (x.ed) E.words = x.w; else if (E.auto?.length) E.words = clone(E.auto);
   wordsChanged(); setFrame(); E.fgKey = ""; E.linesKey = "";
   drawPanel(); drawStage(); drawTimeline(); drawTx(); after(""); drawUndo();
@@ -2789,7 +3067,7 @@ function drawKeys() {
 }
 function changes() {
   const body = {start: E.start, end: E.end, hook: E.hook, title: E.title, description: E.description, layout: E.layout,
-    captions: E.edited ? E.words : null, cuts: E.cuts || []};
+    captions: E.edited ? E.words : null, cuts: allCuts(), shots: hasShots() ? E.shots : null};
   if (E.lookTouched) body.look = E.look;
   return body;
 }
@@ -2871,6 +3149,7 @@ dlg.addEventListener("click", async e => {
   }
   if (a === "centerx") { E.look[d.k === "hook" ? "hook_x" : "x"] = 50; E.lookTouched = true; after("p"); return d.k === "hook" ? showHook() : showCaptions(); }
   if (a === "tab" && E.view === "frame") { E.view = "live"; drawStage(); }   // a tool's panel needs the live preview beside it
+  if (a === "tab" && d.at) E.atab = d.at;           // a shortcut straight to Audio's Music or Sounds tab
   if (a === "tab") {
     const again = E.tab === d.t && E.sheet === "panel";
     E.tab = d.t;
@@ -2997,8 +3276,11 @@ dlg.addEventListener("click", async e => {
     const name = $e("#edBrandName").value.trim();
     if (!name) return $e("#edBrandName").focus();
     if (E.brand.length >= 12) return toast("Your brand kit holds 12 looks. Remove one first.", "bad");
-    try { E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(brandBody([...E.brand, {name, look: styleOnly(E.look)}]))})).styles;
-      E.saveOpen = false; toast(`“${name}” is in your brand kit`, "ok"); } catch (er) { toast(er.message, "bad"); }
+    try {
+      E.brandDef = name;          // the look just saved is the one new clips start with: videos and live streams alike
+      E.brand = (await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(brandBody([...E.brand.filter(x => x.name !== name), {name, look: styleOnly(E.look)}]))})).styles;
+      E.saveOpen = false; toast(`“${name}” saved. New clips start with it, live ones too.`, "ok");
+    } catch (er) { toast(er.message, "bad"); }
     return drawPanel();
   }
   if (a === "hookreset") { const {hook_font, hook_size, hook_y, hook_dur, hook_box, hook_ink, hook_op, hook_round, hook_sp} = HOOK_DEFAULT;
@@ -3033,9 +3315,10 @@ dlg.addEventListener("click", async e => {
     else delete E.look.frame;
     E.lookTouched = true; placeRegions(); return after("p");
   }
+  if (a === "muspick") { E.musLib = false; }
   if (a === "muspick") {
     if (e.target.closest("[data-ed=musdel]")) return;
-    E.look.music = {...musicOf(), id: d.v, at: d.v === musicOf().id ? musicOf().at : 0}; E.lookTouched = true; drawPanel(); return after("");
+    E.look.music = {...musicOf(), id: d.v, at: d.v === musicOf().id ? musicOf().at : 0}; E.lookTouched = true; drawPanel(); drawTimeline(); return after("");
   }
   if (a === "musdel") {
     e.stopPropagation();
@@ -3079,6 +3362,35 @@ dlg.addEventListener("click", async e => {
   if (a === "outroplay") return playOutro(false);
   if (a === "outrojump") { E.tab = "media"; drawPanel(); return playOutro(false); }
   if (a === "scoreplay") { showAt(E.start); const v = $e("#edVid"); if (v && v.paused) togglePlay(); return; }
+  if (a === "aiedit") {                 // the AI editor on this clip: its plan replaces the music, zooms and sounds
+    if (E.aiBusy) return;
+    E.aiBusy = true; drawStage();
+    const t0 = Date.now(), hands = aiHands();
+    try {
+      const r = await api(`/api/jobs/${E.jid}/clips/${E.cid}/autoedit`, {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({start: E.start, end: E.end, look: E.look})});
+      await aiWait(Math.max(0, 2600 - (Date.now() - t0)));       // long enough to see them at work, even when the plan is quick
+      histPush?.();
+      if (r.music) E.look.music = r.music;
+      E.look.zooms = r.zooms || []; E.look.sfx = r.sfx || []; E.zSel = -1; E.sfxSel = -1;
+      E.lookTouched = true; E.zKey = ""; E.picKey = "";
+      drawPanel(); drawTimeline(); paintOverlay(); after("");
+      const nz = E.look.zooms.length, ns = E.look.sfx.length, song = (E.music || []).find(t => t.id === E.look.music?.id);
+      hands.deliver([song ? `Added ${song.name}` : "", nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", ns ? `${ns} sound${ns > 1 ? "s" : ""}` : "", "Synced", "Checked"]);
+      toast(r.note ? `AI edit: ${r.note}. Change anything you like.` : "AI edit done", "ok");
+    } catch (er) { hands.stop(); toast(er.message, "bad"); }
+    E.aiBusy = false; drawStage(); return;
+  }
+  if (a === "atab") { E.atab = d.t; return drawPanel(); }
+  if (a === "shotadd") return shotAdd();
+  if (a === "shotdel") {
+    e.stopPropagation(); if (!hasShots()) return;
+    E.shots.splice(+d.v, 1); if (E.shots.length < 2) { const [x] = E.shots; E.shots = []; if (x) { E.start = x[0]; E.end = x[1]; } } else fitShots();
+    E.shotSel = -1; drawTimeline(); if (E.tab === "trim") drawPanel(); after("pt"); return;
+  }
+  if (a === "shotgo") { E.shotSel = +d.v; seek(E.shots[+d.v][0]); drawTimeline(); return drawPanel(); }
+  if (a === "musfeel") { E.look.music = {...musicOf(), ...MUS_FEEL_SET[d.v]}; E.lookTouched = true; drawPanel(); return after(""); }
+  if (a === "muslib") { E.musLib = !E.musLib; return drawPanel(); }
   if (a === "sfxgrp") { E.sfxGrp = d.v; return drawPanel(); }
   if (a === "sfxtry") { e.stopPropagation(); return sfxTry(d.v); }
   if (a === "sfxadd") {
@@ -3087,7 +3399,7 @@ dlg.addEventListener("click", async e => {
     L.push({id: d.v, t, vol: 100}); L.sort((p, q) => p.t - q.t); E.look.sfx = L; E.sfxSel = L.findIndex(x => x.t === t && x.id === d.v);
     E.lookTouched = true; sfxTry(d.v); drawPanel(); drawTimeline(); after(""); return toast(`${sfxOf(d.v)?.name || "Sound"} at ${ts(t - E.start)}`, "ok");
   }
-  if (a === "sfxsel") { E.sfxSel = +d.v; if (E.tab !== "audio") E.tab = "audio"; drawPanel(); drawTimeline(); const x = (E.look.sfx || [])[E.sfxSel]; if (x) showAt(x.t); return; }
+  if (a === "sfxsel") { E.sfxSel = +d.v; E.atab = "sfx"; if (E.tab !== "audio") E.tab = "audio"; drawPanel(); drawTimeline(); const x = (E.look.sfx || [])[E.sfxSel]; if (x) showAt(x.t); return; }
   if (a === "sfxdel") { const L = E.look.sfx || []; L.splice(+d.v, 1); E.look.sfx = L; E.sfxSel = -1; E.lookTouched = true; drawPanel(); drawTimeline(); return after(""); }
   if (a === "mustry") {                 // hear a library song without choosing it
     e.stopPropagation();
@@ -3124,6 +3436,7 @@ dlg.addEventListener("click", async e => {
   if (a === "tplcat") { E.tplCat = d.v; return drawTpl(); }
   if (a === "tplpick") return applyTpl(d.v);
   if (a === "cardset") { E.look.card = {...cardOf(), [d.k]: d.k === "verified" ? d.v === "1" : d.v}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
+  if (a === "cardsw") { E.look.card = {...cardOf(), [d.k]: e.target.checked}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "cardcentre") { E.look.card = {...cardOf(), dx: 0, dy: 0}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "cardgrad") { E.look.card = {...cardOf(), g1: d.a, g2: d.b}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "cardgrain") { E.look.card = {...cardOf(), grain: !cardOf().grain}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
@@ -3264,7 +3577,7 @@ dlg.addEventListener("input", e => {
     }
     if (k === "font" || k === "hook_font") E.look[k] = el.value;
     else if (COLOUR_KEYS.test(k)) { E.look[k] = el.value.toUpperCase(); el.parentElement.style.background = el.value; }
-    else if (k === "hook") { E.look.hook = el.checked; const h = $e("#edHook"); if (h) h.disabled = !el.checked; return after("t"); }
+    else if (k === "hook") { E.look.hook = el.checked; const h = $e("#edHook"); if (h) { h.disabled = !el.checked; h.parentElement.classList.toggle("off", !el.checked); } return after("t"); }
     else if (k === "volume") { setVolume(+el.value, el); return; }    // the sound: heard at once, rendered into the clip on save
     else if (k === "hook_dur") {
       E.look.hook_dur = +el.value; const o = $e("#edHookDur"); if (o) o.textContent = +el.value ? el.value + " s" : "Whole clip";
@@ -3297,12 +3610,18 @@ dlg.addEventListener("input", e => {
     drawPanel(); const q = $e("#edSq"); if (q) { q.focus(); q.setSelectionRange(at, at); }
     return;
   }
-  if (el.id === "edHook") { E.hook = el.value.replace(/\n/g, " "); const n = $e("#edHookN"); if (n) n.textContent = E.hook.length;
+  if (el.id === "edHook") { E.hook = el.value.replace(/\n/g, " "); const n = $e("#edHookN"); if (n) { n.textContent = E.hook.length; n.parentElement.classList.toggle("near", E.hook.length > 50); }
     const hc = $e(".ed-hchip span"); if (hc) hc.textContent = E.hook; return after(""); }
   if (el.id === "edTitle") { E.title = el.value; const n = $e("#edTitleN"); if (n) n.textContent = `${el.value.length}/100`; return drawClipDlg(); }
   if (el.id === "edDesc") { E.description = el.value; const n = $e("#edDescN"); if (n) n.textContent = `${el.value.length}/2000`; return drawClipDlg(); }
 });
 dlg.addEventListener("change", e => {
+  if (e.target.matches?.('[data-ed="sfxhook"]')) {         // a whoosh as the clip starts
+    const w = (E.sfxLib?.items || []).find(x => x.name === "Whoosh Fast")?.id; if (!w) return;
+    const L = (E.look.sfx || []).filter(x => !(x.id === w && Math.abs(x.t - E.start) < 0.3));
+    if (e.target.checked) L.push({id: w, t: Math.round(E.start * 100) / 100, vol: 90});
+    L.sort((p, q) => p.t - q.t); E.look.sfx = L; E.lookTouched = true; drawPanel(); drawTimeline(); return after("");
+  }
   if (e.target.matches?.('[data-ed="sfxzoom"]')) {        // a pop on every zoom: added (or taken away) in one go
     const pop = (E.sfxLib?.items || []).find(x => x.name === "Zoom Pop")?.id; if (!pop) return;
     const L = (E.look.sfx || []).filter(x => !(x.id === pop && (E.look.zooms || []).some(z => Math.abs(x.t - z.a) < 0.05)));
@@ -3342,6 +3661,27 @@ dlg.addEventListener("focusout", e => {
 dlg.addEventListener("pointerdown", e => {      // drag the trim handles, or click the track to jump
   const track = e.target.closest("#edTrack"); if (!track) return;
   const r = track.getBoundingClientRect(), at = x => E.min + (x - r.left) / r.width * (E.max - E.min);
+  const sh = e.target.closest(".ed-hd")?.dataset.sh, body = !sh && e.target.closest(".ed-shot");
+  if ((sh || body) && !e.target.closest("[data-ed]")) {                  // a shot: its end, or the whole shot
+    e.preventDefault(); track.setPointerCapture(e.pointerId);
+    const i = sh ? +sh.split(":")[0] : +body.dataset.shot, side = sh ? sh.split(":")[1] : "move", x0 = e.clientX, s0 = [...E.shots[i]];
+    const lo = i ? E.shots[i - 1][1] + 0.2 : E.min, hi = i < E.shots.length - 1 ? E.shots[i + 1][0] - 0.2 : E.max;
+    E.shotSel = i; let moved = false;
+    const move = ev => {
+      const dt = at(ev.clientX) - at(x0); if (Math.abs(ev.clientX - x0) > 3) moved = true; if (!moved) return;
+      const r2 = v => Math.round(v * 20) / 20, sh2 = E.shots[i];
+      if (side === "a") sh2[0] = r2(Math.max(lo, Math.min(sh2[1] - 0.5, s0[0] + dt)));
+      else if (side === "b") sh2[1] = r2(Math.min(hi, Math.max(sh2[0] + 0.5, s0[1] + dt)));
+      else { const len = s0[1] - s0[0]; sh2[0] = r2(Math.max(lo, Math.min(hi - len, s0[0] + dt))); sh2[1] = r2(sh2[0] + len); }
+      const w = track.querySelector(`.ed-shot[data-shot="${i}"]`); if (w) { w.style.left = pct(sh2[0]) + "%"; w.style.width = pct(sh2[1]) - pct(sh2[0]) + "%"; }
+      seek(side === "b" ? sh2[1] - 0.05 : sh2[0]);
+    };
+    const up = () => { track.removeEventListener("pointermove", move); track.removeEventListener("pointerup", up);
+      if (!moved) { seek(E.shots[i][0]); drawTimeline(); return; }
+      fitShots(); drawTimeline(); if (E.tab === "trim") drawPanel(); after("pt"); };
+    track.addEventListener("pointermove", move); track.addEventListener("pointerup", up);
+    return;
+  }
   const h = e.target.closest(".ed-hd")?.dataset.h;
   if (!h) { if (!e.target.closest("[data-ed]")) { if (E.view === "rendered") { E.view = "live"; drawStage(); } seek(at(e.clientX)); } return; }
   e.preventDefault(); track.setPointerCapture(e.pointerId);
@@ -3351,10 +3691,38 @@ dlg.addEventListener("pointerdown", e => {      // drag the trim handles, or cli
   const up = () => { track.removeEventListener("pointermove", move); track.removeEventListener("pointerup", up); after("pt"); };
   track.addEventListener("pointermove", move); track.addEventListener("pointerup", up);
 });
+dlg.addEventListener("dblclick", e => {         // double-click the film strip outside the shots: a new shot there
+  const lane = e.target.closest(".ed-lane.film"); if (!lane || e.target.closest(".ed-shot, .ed-win, [data-ed]")) return;
+  const r = $e("#edTrack").getBoundingClientRect();
+  shotAdd(E.min + (e.clientX - r.left) / r.width * (E.max - E.min));
+});
+// a new shot of about five seconds where asked (or at the playhead), fitted into the free room there
+function shotAdd(t) {
+  if (!hasShots()) E.shots = [[E.start, E.end]];
+  if (E.shots.length >= 20) return toast("Up to 20 shots in one clip.", "bad");
+  t = Math.max(E.min, Math.min(E.max - 0.5, t ?? nowT()));
+  if (E.shots.some(([a, b]) => t >= a && t <= b)) {     // inside a shot already: the next free room after it
+    const s0 = E.shots.find(([a, b]) => t >= a && t <= b); t = s0[1] + 0.5;
+  }
+  const prev = [...E.shots].reverse().find(([, b]) => b <= t), next = E.shots.find(([a]) => a >= t);
+  const lo = prev ? prev[1] + 0.2 : E.min, hi = next ? next[0] - 0.2 : E.max;
+  if (hi - lo < 1) return toast("No room there. Move a shot first.", "bad");
+  const a = Math.max(lo, Math.min(t, hi - 1)), b = Math.min(hi, a + 5);
+  const kept = keptLen() + (b - a);
+  if (kept > 180) return toast("Together the shots would be over 3 minutes. Shorten one first.", "bad");
+  E.shots.push([Math.round(a * 20) / 20, Math.round(b * 20) / 20]); fitShots();
+  E.shotSel = E.shots.findIndex(s => s[0] === Math.round(a * 20) / 20);
+  drawTimeline(); if (E.tab === "trim") drawPanel(); seek(a); after("pt");
+  toast(`Shot ${E.shotSel + 1} added. Drag its ends to choose the moment.`, "ok");
+}
 dlg.addEventListener("wheel", e => {           // ctrl or pinch on the timeline zooms it
   if (!e.ctrlKey || !e.target.closest("#edScroll")) return;
   e.preventDefault(); zoomStep(e.deltaY < 0 ? 1 : -1);
 }, {passive: false});
+dlg.addEventListener("toggle", e => {
+  const m = e.target.closest?.("[data-more]"); if (!m) return;
+  if (m.dataset.more === "mus") E.musMore = m.open; else E.sfxMore = m.open;
+}, true);
 dlg.addEventListener("toggle", e => {          // remember which style sections are open across redraws
   const f = e.target.closest?.("[data-fold]"); if (!f) return;
   E.shut = E.shut || new Set();      // every section starts open; this keeps the ones closed by hand

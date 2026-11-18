@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SocialShot</title>
-<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=5">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=6">
+<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png?v=6">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png?v=6">
+<link rel="manifest" href="/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Archivo+Black&family=Anton&family=Poppins:wght@800&display=swap" rel="stylesheet">
@@ -4548,7 +4551,7 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-scline path{fill:none;stroke:#F4F4F5;stroke-width:1.8;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}
 .ed-sctag{position:absolute;padding:3px 7px;border-radius:999px;font-size:10.5px;font-weight:600;white-space:nowrap;pointer-events:none}
 .ed-sctag.v{left:10px;background:#26262B;color:#D4D4D8}
-.ed-sctag.p{right:10px;background:var(--accent);color:#fff}
+.ed-sctag.p{right:22px;background:var(--accent);color:#fff}
 .ed-scph{position:absolute;top:0;bottom:0;left:calc(8px + (100% - 16px) * var(--ph,0%) / 100%);width:2px;margin-left:-1px;background:#FACC15;border-radius:1px}
 .ed-score .ed-sl{margin:0}
 .ed-scsw{margin:0}
@@ -4608,12 +4611,381 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-zface svg{width:16px;height:16px}
 .ed-zface[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 9%,#1C1C20)}
 .ed-pic.zr{pointer-events:none}
+/* the timeline, roomier: every track one height, a soft band behind each row and its name so the eye follows across,
+   and an empty track saying how to fill it */
+.ed .ed-tl{--rl:30px;--rh:36px;--rc:36px;--rx:36px;--rt:24px;--rf:58px;--rg:6px;--rp:8px}
+.ed .ed-th.pics,.ed .ed-lane.pics,.ed .ed-th.music,.ed .ed-lane.music,.ed .ed-th.sfx,.ed .ed-lane.sfx,.ed .ed-th.zooms,.ed .ed-lane.zooms{height:var(--rx)}
+.ed .ed-thp{gap:var(--rg);padding:var(--rp) 6px}
+.ed .ed-th{padding:0 8px 0 6px;border-radius:8px;background:rgba(255,255,255,.025)}
+.ed .ed-th.film{background:none}
+.ed .ed-lane:not(.film){border-radius:8px;background:rgba(255,255,255,.025)}
+.ed .ed-lane.znone{background:rgba(255,255,255,.012)}
+.ed .ed-th b{font-size:12.5px;font-weight:500;color:#D4D4D8}
+.ed .ed-th .ed-ti svg{width:15px;height:15px}
+.ed .ed-th:hover{background:rgba(255,255,255,.045)}
+.ed .ed-chip{top:4px;height:calc(var(--rc) - 8px)}
+.ed .ed-hchip,.ed .ed-fxchip{top:4px;bottom:4px;height:auto}
+.ed .ed-mbar,.ed .ed-zbar,.ed .ed-picbar,.ed .ed-sfxbar{top:5px;bottom:5px}
+.ed .ed-zhint,.ed .ed-mhint{top:5px;bottom:5px}
+.ed-ehint{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;gap:7px;padding:0 10px;border:1px dashed rgba(255,255,255,.12);border-radius:7px;
+  background:none;color:#71717A;font:inherit;font-size:11px;white-space:nowrap;overflow:hidden;cursor:pointer;transition:border-color .15s ease,color .15s ease,background-color .15s ease}
+.ed-ehint svg{flex:none;width:12px;height:12px}
+.ed-ehint:hover{border-color:color-mix(in srgb,var(--accent) 60%,transparent);color:#E4E4E7;background:rgba(255,255,255,.03)}
+.ed-ehint.sfx{border-color:rgba(34,211,238,.25);color:rgba(165,243,252,.7)}
+.ed-ehint.pics{border-color:rgba(167,139,250,.25);color:rgba(221,214,254,.7)}
+/* the score graph can be dragged: the volume line, the bend where the rise starts, the peak */
+.ed-scg{cursor:ns-resize;touch-action:none;user-select:none}
+.ed-sch1{position:absolute;z-index:2;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(0,0,0,.45);
+  opacity:0;transition:opacity .15s ease,transform .15s ease;pointer-events:none}
+.ed-sch1.knee{cursor:ew-resize}
+.ed-scg:hover .ed-sch1,.ed-scg.drag .ed-sch1{opacity:1}
+.ed-scg.drag.vol .ed-sch1.vol,.ed-scg.drag.knee .ed-sch1.knee,.ed-scg.drag.peak .ed-sch1.peak{transform:scale(1.3);background:var(--accent)}
+.ed-scg.drag.knee{cursor:ew-resize}
+/* Post card settings: the style as big tiles, then small groups */
+.ed-cstyle{display:grid;gap:12px}
+.ed-cstyle .ed-h{display:grid;gap:2px}
+.ed-cgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.07);box-shadow:0 0 0 1px rgba(255,255,255,.07)}
+.ed-cgrid>button{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border:0;background:#141417;color:#A1A1AA;
+  font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.ed-cgrid>button:hover{background:#1C1C20;color:#F4F4F5}
+.ed-cgrid>button[aria-checked=true]{background:var(--accent);color:#fff}
+.ed-cgic{display:grid;place-items:center;width:18px;height:18px}
+.ed-cgic svg{width:16px;height:16px;display:block}
+.ed-cgtone{position:absolute;right:8px;top:8px;opacity:.5}
+.ed-cgtone svg{width:11px;height:11px}
+.ed-cgrid>button[aria-checked=true] .ed-cgic svg *{fill:currentColor}
+.ed-cgmore{grid-column:1 / -1}.ed-cgmore.half{grid-column:auto}
+.ed-cgic .ti{stroke-width:1.7}
+.ed-cgmore svg{width:15px;height:15px}
+.ed-cgroup{display:grid;gap:10px}
+.ed-cgroup .ed-h{display:flex;align-items:center;justify-content:space-between}
+.ed-cacc{display:flex;align-items:center;gap:10px}
+.ed-cav{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;overflow:hidden;background:#26262B;color:#fff;font-size:17px}
+.ed-cav img{width:100%;height:100%;object-fit:cover}
+.ed-cfields{flex:1;min-width:0;display:grid;gap:6px}
+.ed .ed-cfields .ed-text{height:34px}
+.ed-cksw{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:36px}
+.ed-cksw>span:first-child{display:grid;gap:2px;font-size:12.5px;color:#E4E4E7}
+.ed-cksw small{font-size:11px;color:#8E8E96}
+/* Templates: three to a row, each a short wide tile: the small phone on the left, the words on the right */
+.ed .ed-tplbox{width:min(980px,100%);gap:16px;padding:22px 22px 24px;border-radius:18px;background:#18181B;border-color:rgba(255,255,255,.08)}
+.ed .ed-tplbox h3{font-size:18px}
+.ed .ed-tpl-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ed .ed-tpl{position:relative;flex-direction:row;align-items:center;gap:14px;padding:10px 14px 10px 10px;border:0;border-radius:14px;background:#1F1F23;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.ed .ed-tpl:hover{background:#26262B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.ed .ed-tpl[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 7%,#1F1F23)}
+.ed .ed-tpl-pv{flex:none;width:78px;height:128px;border-radius:10px;background:#111114;overflow:hidden}
+.ed .ed-tpl-pv .lp-ph{height:100%;width:auto;max-width:100%;border-radius:8px}
+.ed-tpl-t{flex:1;min-width:0;display:grid;gap:4px;align-content:center}
+.ed .ed-tpl-t b{margin:0;font-size:13.5px;font-weight:600;color:#F4F4F5}
+.ed .ed-tpl-t small{font-size:11.5px;line-height:1.4;color:#8E8E96;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ed-tpl-t em{margin-top:4px;font-style:normal;font-size:10.5px;font-weight:500;color:#71717A;text-transform:none}
+.ed-tpl-on{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff}
+.ed-tpl-on svg{width:12px;height:12px}
+@media (max-width:900px){.ed .ed-tpl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.ed .ed-tpl-grid{grid-template-columns:1fr}}
+.ed .ed-center .ed-bar .ed-aibtn{gap:6px;padding:0 10px 0 8px;color:#F4F4F5;font-size:12.5px;font-weight:500}
+.ed .ed-center .ed-bar .ed-aibtn svg{color:var(--accent)}
+.ed .ed-center .ed-bar .ed-aibtn.busy{opacity:.7;cursor:progress}
+.ed .ed-center .ed-bar .ed-aibtn.busy svg{animation:jspin 1.1s linear infinite}
+@media (prefers-reduced-motion:reduce){.ed .ed-center .ed-bar .ed-aibtn.busy svg{animation:none}}
+/* the timeline, compact like a pro editor: slim rows, a hairline between them, small calm labels */
+.ed .ed-tl{--rl:26px;--rh:28px;--rc:28px;--rx:28px;--rt:20px;--rf:46px;--rg:2px;--rp:4px}
+.ed .ed-heads{gap:6px}
+.ed .ed-ruler{margin-bottom:6px}
+.ed .ed-thp,.ed .ed-lanes{border-radius:10px}
+.ed .ed-thp{padding:var(--rp) 4px}
+.ed .ed-th{padding:0 6px 0 4px;border-radius:6px;background:none;gap:7px}
+.ed .ed-th:hover{background:rgba(255,255,255,.04)}
+.ed .ed-th b{font-size:11.5px;font-weight:500;color:#A1A1AA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed .ed-th .ed-ti{width:20px;height:20px}
+.ed .ed-th .ed-ti svg{width:13px;height:13px}
+.ed .ed-th .ed-tb{width:22px;height:22px}
+.ed .ed-th .ed-tb svg{width:12px;height:12px}
+.ed .ed-th .ed-thn{font-size:10px;padding:1px 5px}
+.ed .ed-lane:not(.film){border-radius:0;background:none;box-shadow:0 1px 0 rgba(255,255,255,.04)}
+.ed .ed-lane.znone{background:none}
+.ed .ed-chip{top:3px;height:calc(var(--rc) - 6px);border-radius:5px}
+.ed .ed-hchip,.ed .ed-fxchip{top:3px;bottom:3px;border-radius:6px}
+.ed .ed-mbar,.ed .ed-zbar,.ed .ed-picbar,.ed .ed-sfxbar{top:3px;bottom:3px;border-radius:5px}
+.ed .ed-zhint,.ed .ed-mhint,.ed .ed-ehint{top:3px;bottom:3px;border-radius:5px;font-size:10.5px}
+.ed .ed-lane.film{border-radius:8px}
+/* Save as brand: one slim line pinned at the foot of the panel */
+.ed .ed-savebar{padding:6px 10px 8px;margin-top:10px}
+.ed .ed-savego{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:9px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.ed .ed-savego>svg:first-child{width:14px;height:14px;color:var(--accent);flex:none}
+.ed .ed-savego b{flex:1;font-size:12.5px;font-weight:500;color:#F4F4F5;text-align:left}
+.ed .ed-savego small{font-size:11px;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed .ed-savego>svg:last-child{width:13px;height:13px;color:#A1A1AA;flex:none}
+.ed .ed-savego:hover>svg:last-child{color:#fff}
+.ed .ed-savebar.open{padding:8px 10px}
+.ed .ed-savebar.open .ed-savenote{display:none}
+/* Audio: three tabs; the Music tab shows the song first and the library only while choosing */
+.ed-atabs{margin-bottom:2px}
+.ed-atn{margin-left:6px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.1);font-size:10px;font-weight:600;color:inherit}
+.ed-mlib{display:grid;gap:10px}
+.ed-mlib .ed-h,.ed-mset .ed-h,.ed-avoice .ed-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ed-avoice .ed-h{display:grid;gap:2px}
+.ed-mlib .ed-grp{margin:2px 0 -4px}
+.ed-mlib .ed-mlist{display:grid;gap:2px}
+.ed-mlib .ed-mrow{display:flex;align-items:center;gap:10px;min-height:44px;padding:5px 8px;border-radius:9px}
+.ed-mlib .ed-mrow>span{flex:1;min-width:0;display:grid;gap:1px;text-align:left}
+.ed-mlib .ed-mrow>span small{font-size:11px;color:#8E8E96}
+.ed-mlib .ed-mrow>small{font-size:11px;color:#71717A;font-variant-numeric:tabular-nums}
+.ed-mlib .ed-mrow[aria-checked=true]{background:color-mix(in srgb,var(--accent) 10%,#1C1C20);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 50%,transparent)}
+.ed-mtry{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#26262B;color:#E4E4E7;font-style:normal}
+.ed-mtry:hover{background:var(--accent);color:#fff}
+.ed-mtry svg{width:12px;height:12px;margin-left:1px}
+.ed-mnone{justify-self:start}
+.ed-mset{display:grid;gap:10px}
+.ed-mset .ed-ck{margin:0}
+.ed-mset .ed-sl{margin:0}
+/* Audio for beginners: plain choices up front, the detail folded away */
+.ed-msong{display:flex;align-items:center;gap:12px}
+.ed-msong>div{flex:1;min-width:0;display:grid;gap:2px}
+.ed-msong b{font-size:13.5px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-msong small{font-size:11.5px;color:#8E8E96}
+.ed-mtry.big{width:40px;height:40px;background:var(--accent);color:#fff}
+.ed-mtry.big svg{width:15px;height:15px}
+.ed-feel{display:grid;gap:10px}
+.ed-feels{display:grid;gap:6px}
+.ed-feels button{display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;border-radius:11px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  color:#A1A1AA;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.ed-feels button:hover{background:#222227}
+.ed-feels button svg{flex:none;width:26px;height:26px;stroke-width:1.8}
+.ed-feels button span{display:grid;gap:2px}
+.ed-feels button b{font-size:12.5px;font-weight:600;color:#F4F4F5}
+.ed-feels button small{font-size:11.5px;color:#8E8E96;line-height:1.35}
+.ed-feels button[aria-checked=true]{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 8%,#1C1C20);color:var(--accent)}
+.ed-aicard{display:flex;align-items:center;gap:12px;width:100%;margin:2px 0 10px;padding:12px;border:0;border-radius:12px;
+  background:color-mix(in srgb,var(--accent) 10%,#18181B);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent);color:inherit;font:inherit;text-align:left;cursor:pointer;
+  transition:background-color .15s ease}
+.ed-aicard:hover{background:color-mix(in srgb,var(--accent) 16%,#18181B)}
+.ed-aicard:disabled{opacity:.7;cursor:progress}
+.ed-aiic{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:var(--accent);color:#fff}
+.ed-aiic svg{width:17px;height:17px}
+.ed-aicard>span:last-child{display:grid;gap:2px}
+.ed-aicard b{font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-aicard small{font-size:11.5px;color:#A1A1AA;line-height:1.4}
+.ed-more{margin:2px 0 10px;border-radius:12px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ed-more>summary{display:flex;align-items:baseline;gap:8px;padding:12px 14px;list-style:none;cursor:pointer;font-size:12.5px;font-weight:600;color:#D4D4D8}
+.ed-more>summary::-webkit-details-marker{display:none}
+.ed-more>summary::after{content:"";margin-left:auto;width:7px;height:7px;border-right:1.5px solid #71717A;border-bottom:1.5px solid #71717A;transform:rotate(45deg) translateY(-2px);transition:transform .2s ease}
+.ed-more[open]>summary::after{transform:rotate(-135deg)}
+.ed-more>summary small{font-weight:400;font-size:11px;color:#71717A}
+.ed-more>*:not(summary){margin:0 12px 12px}
+.ed-more .ed-score{margin:0 12px 12px}
+.ed-more .ed-mset{display:grid;gap:10px}
+.ed-sfxeasy{display:grid;gap:4px}
+.ed .ed-cksw .ed-sw2{flex:none;width:36px;height:20px}
+.ed .ed-cksw{gap:14px}
+.ed .ed-cksw>span:first-child{flex:1;min-width:0}
+.ed-more>summary{flex-wrap:wrap;row-gap:2px}
+/* shots: several moments joined into one clip, each a window on the film strip, the gaps dimmed */
+.ed-shot{border-color:#FACC15}
+.ed-shot.on{box-shadow:0 0 0 2px rgba(250,204,21,.35)}
+.ed-shn{position:absolute;left:6px;top:4px;display:grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:5px;background:#FACC15;color:#111;font-size:10px;font-weight:700;pointer-events:none}
+.ed-shx{position:absolute;right:6px;top:4px;display:none;place-items:center;width:18px;height:18px;border:0;border-radius:5px;background:rgba(0,0,0,.65);color:#fff;cursor:pointer}
+.ed-shx svg{width:11px;height:11px}
+.ed-shot:hover .ed-shx{display:grid}
+.ed-shot{cursor:grab}
+.ed-gap{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(0,0,0,.62) 0 6px,rgba(0,0,0,.5) 6px 12px);pointer-events:none}
+.ed-shots{display:grid;gap:4px}
+.ed-shotrow{display:flex;align-items:center;gap:4px;border-radius:9px}
+.ed-shotrow.on{background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(250,204,21,.45)}
+.ed-shotgo{flex:1;display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border:0;background:none;color:#E4E4E7;font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;cursor:pointer;text-align:left}
+.ed-shotgo span:nth-child(2){flex:1}
+.ed-shotgo small{color:#8E8E96}
+.ed-shotn{display:grid;place-items:center;min-width:20px;height:20px;border-radius:6px;background:#FACC15;color:#111;font-size:11px;font-weight:700}
+.ed-trange i+i{background:#FACC15}
+.ed-shotoffer{margin-top:4px}
+/* Zoom moments: each one a card with the zoomed frame, its name, when, and where it sits in the clip */
+.ed-zcard .ed-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ed-zcard .ed-h b{display:flex;align-items:center}
+.ed-zlist{display:grid;gap:6px;margin-top:2px}
+.ed-zrow{position:relative;display:flex;align-items:center;border-radius:12px;background:#1A1A1E;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);transition:background .15s,box-shadow .15s}
+.ed-zrow:hover{background:#1F1F24}
+.ed-zrow.on{background:color-mix(in srgb,var(--accent) 8%,#1C1C20);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent)}
+.ed-zpick{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:8px;border:0;background:none;color:inherit;text-align:left;cursor:pointer}
+.ed-zthumb{position:relative;flex:none;width:44px;height:56px;border-radius:8px;overflow:hidden;background:#26262B}
+.ed-zthumb>img:first-child{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ed-zthumb em{position:absolute;left:4px;bottom:4px;padding:2px 4px;border-radius:4px;background:rgba(0,0,0,.72);font:600 9.5px/1 Inter,sans-serif;font-style:normal;color:#fff;font-variant-numeric:tabular-nums}
+.ed-zrface{position:absolute;right:3px;top:3px;width:16px;height:16px;object-fit:contain}
+.ed-zmeta{flex:1;min-width:0;display:grid;gap:4px}
+.ed-zmeta b{font-size:13px;font-weight:500;color:#EDEDF0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-zmeta small{font-size:11.5px;color:#8E8E96;font-variant-numeric:tabular-nums}
+.ed-zpos{position:relative;display:block;height:4px;margin-top:2px;border-radius:2px;background:#2A2A30}
+.ed-zpos u{position:absolute;top:0;bottom:0;border-radius:2px;background:#F59E0B}
+.ed-zrow.on .ed-zpos u{background:var(--accent)}
+.ed-zdel{margin-right:6px;color:#8E8E96;opacity:0;transition:opacity .15s}
+.ed-zrow:hover .ed-zdel,.ed-zrow.on .ed-zdel,.ed-zdel:focus-visible{opacity:1}
+@media (hover:none){.ed-zdel{opacity:1}}
+/* Brand motion: five tiles, each showing its movement on a tiny frame */
+.ed-bmot{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.ed-bmot button{display:grid;gap:6px;justify-items:center;padding:6px 4px 8px;border-radius:10px;border:0;background:#1A1A1E;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#A1A1AA;cursor:pointer;transition:background .15s,box-shadow .15s,color .15s}
+.ed-bmot button:hover{background:#1F1F24;color:#E4E4E7}
+.ed-bmot button[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 8%,#1C1C20);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent);color:#fff}
+.ed-bmot b{font-size:11px;font-weight:500;white-space:nowrap}
+.ed-bmpv{position:relative;width:100%;aspect-ratio:3/4;border-radius:6px;background:#26262B;overflow:hidden}
+.ed-bmlogo{position:absolute;right:16%;top:14%;width:34%;height:12%;border-radius:3px;background:#D4D4D8}
+.ed-bmot button[aria-pressed=true] .ed-bmlogo{background:#fff}
+.ed-bmlogo.m-float{animation:bm-float 1.8s ease-in-out infinite}
+.ed-bmlogo.m-slide{animation:bm-slide 2.4s cubic-bezier(.2,.8,.2,1) infinite}
+.ed-bmlogo.m-drift{animation:bm-drift 3.2s ease-in-out infinite}
+.ed-bmlogo.m-fade{animation:bm-fade 2.4s ease-out infinite}
+@keyframes bm-float{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@keyframes bm-slide{0%{transform:translateX(160%)}30%,85%{transform:translateX(0)}100%{transform:translateX(0);opacity:0}}
+@keyframes bm-drift{0%,100%{right:16%}50%{right:50%}}
+@keyframes bm-fade{0%{opacity:0}35%,85%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ed-bmlogo{animation:none!important}}
+/* template previews: the hook banner and border of each template, drawn small */
+.lp-ph .lp-hook{position:absolute;left:50%;transform:translate(-50%,-50%);z-index:3;max-width:86%;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.15;letter-spacing:.01em}
+.lp-ph .lp-hook.full{left:0;right:0;max-width:none;transform:translateY(-50%);text-align:center;padding:3px 4px}
+.lp-ph .lp-ring{position:absolute;inset:0;z-index:4;border-radius:inherit;pointer-events:none}
+/* AI edit at work: small labelled cursors, one per part of the edit, each in its timeline row's colour */
+.ed-aih{position:fixed;left:0;top:0;z-index:60;pointer-events:none;display:flex;align-items:flex-start;gap:2px;opacity:0;will-change:transform;transition:opacity .25s}
+.ed-aih.in{opacity:1}
+.ed-aih svg{width:19px;height:21px;flex:none;fill:var(--c);stroke:#fff;stroke-width:1.4;stroke-linejoin:round;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)) drop-shadow(0 0 1px rgba(0,0,0,.5));transition:transform .14s cubic-bezier(.2,.8,.2,1);transform-origin:3px 2px}
+.ed-aih.press svg{transform:scale(.84)}
+.ed-aih b{margin-top:15px;margin-left:-2px;padding:4px 8px 4px;border-radius:7px;background:var(--c);color:#0B0B0D;font-family:inherit;font-size:11.5px;font-weight:600;letter-spacing:.005em;line-height:1.15;white-space:nowrap;
+  box-shadow:0 4px 12px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.22)}
+.ed-aiping{position:fixed;z-index:59;width:22px;height:22px;margin:-9px 0 0 -9px;border-radius:50%;pointer-events:none;border:1.5px solid var(--c);animation:ed-aiping .6s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes ed-aiping{from{transform:scale(.3);opacity:.9}to{transform:scale(1.4);opacity:0}}
+.ed-aihl{box-shadow:inset 0 0 0 1.5px var(--aic)!important;transition:box-shadow .15s}
+@media (prefers-reduced-motion:reduce){.ed-aih,.ed-aiping{display:none}}
+/* the hook field: one box, the words on top and a slim bar under them (emoji, letter count) */
+#edPanel .ed-hookin{position:relative;display:flex;flex-direction:column;border-radius:10px;background:var(--e2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:box-shadow .15s}
+#edPanel .ed-hookin:focus-within{box-shadow:inset 0 0 0 1.5px var(--acc)}
+#edPanel .ed-hookin.off{opacity:.5}
+#edPanel .ed-hookin #edHook{display:block;min-height:0;height:auto;padding:12px 12px 2px;border:0;border-radius:10px 10px 0 0;background:transparent;resize:none;font-size:14px;font-weight:500;line-height:1.45;color:#EDEDF0;box-shadow:none}
+#edPanel .ed-hookin #edHook:disabled{opacity:1}
+#edPanel .ed-hookbar{position:static;display:flex;align-items:center;justify-content:space-between;padding:2px 8px 6px 6px}
+#edPanel .ed-hookin .ed-emjbtn{position:static;display:grid;place-items:center;width:28px;height:26px;padding:0;border-radius:7px;border:0;background:transparent;color:#8E8E96;transition:background .15s,color .15s}
+#edPanel .ed-hookin .ed-emjbtn svg{width:17px;height:17px}
+#edPanel .ed-hookin .ed-emjbtn:hover,#edPanel .ed-hookin .ed-emjbtn.on{background:#2A2A2F;color:#EDEDF0}
+#edPanel .ed-hookbar .ed-count{margin:0;font-size:11px;color:#6B6B73;font-variant-numeric:tabular-nums;transition:color .15s}
+#edPanel .ed-hookbar .ed-count.near{color:#F59E0B}
+.ed .ed-emj{margin-top:6px;padding:8px;border-radius:12px}
+.ed .ed-emj .ed-search{margin:0}
+.ed .ed-emjcats{gap:2px;margin:6px 0 4px;padding-bottom:4px}
+.ed .ed-emjcats button{width:30px;height:28px}
+.ed .ed-emjcats .emj{width:18px;height:18px}
+.ed .ed-emjgrid{grid-template-columns:repeat(8,minmax(0,1fr));gap:0;max-height:168px}
+.ed .ed-emjgrid .emj{width:72%;height:72%}
+/* ================= Premium cards: Settings sections and Home's numbers share one card language.
+   A raised card on the page, a soft top highlight, the settings in a darker panel inside, buttons in a footer strip. */
+#sform .set-layout{grid-template-columns:232px minmax(0,1fr);gap:24px;align-items:start;min-height:0;border:0;border-radius:0;background:transparent;overflow:visible}
+#sform .set-layout::before{display:none}
+#sform .set-nav{position:sticky;top:12px;padding:10px;border-radius:18px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.04)}
+#sform .set-link{height:38px;border-radius:11px;padding:0 10px;gap:10px}
+#sform .set-link svg{width:17px;height:17px}
+#sform .set-link.on{background:#26262B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 1px 2px rgba(0,0,0,.3)}
+#sform .set-body{padding:0;max-width:780px}
+#sform .set-body.set-cards{display:grid;gap:16px}
+#sform .scard,#sform .ap-card,#sform .ai-state,#sform .ai-step{border-radius:20px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.04),0 8px 24px -12px rgba(0,0,0,.5)}
+#sform .scard{overflow:hidden}
+#sform .scard .set-head{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;margin:0;padding:20px 22px 16px;border:0}
+#sform .scard .set-head h2{grid-column:1;font-size:16.5px}
+#sform .scard .set-head p{grid-column:1;font-size:12.5px;margin-top:3px}
+#sform .scard-ic{grid-column:2;grid-row:1/span 2;align-self:start;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#232327;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);color:#C4C4CC}
+#sform .scard-ic svg{width:17px;height:17px}
+#sform .scard .srows,#sform .scard .apps{margin:0 12px 12px;padding:2px 16px;border-radius:14px;background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+#sform .scard .srow{padding:15px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+#sform .scard .srow:last-child,#sform .scard .appcard:last-child{border-bottom:0}
+#sform .scard .appcard{padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+#sform .scard .applogo{width:40px;height:40px;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+#sform .scard .srow-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0;padding:12px 16px;border-top:1px solid rgba(255,255,255,.06);background:#141417}
+#sform .srow-c input:not([type=checkbox]):not([type=radio]),#sform .srow-c select,#sform .ai-key input,#sform .ai-model input,#sform #ai_base{height:38px;border:0;border-radius:10px;background:#0E0E11;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:box-shadow .15s}
+#sform .srow-c input:focus,#sform .srow-c select:focus,#sform .ai-key input:focus,#sform .ai-model input:focus{box-shadow:inset 0 0 0 1.5px var(--accent)}
+#sform .srow-c .btn,#sform .scard .srow-foot .btn,#sform .appact .btn{height:34px;border-radius:10px;padding:0 14px;font-weight:500}
+#sform .plan-card{border:0;border-radius:12px;background:#1C1C20;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+#sform .plan-card .ic{border:0;border-radius:9px;background:#26262B}
+/* a status as a quiet pill with a dot */
+#sform .srow-l em.st{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px;border-radius:999px;background:#232327;font-style:normal;font-size:11px;font-weight:500;color:#A1A1AA}
+#sform .srow-l em.st::before{content:"";width:6px;height:6px;border-radius:50%;background:#71717A}
+#sform .srow-l em.st.on{background:color-mix(in srgb,#22C55E 14%,#1C1C20);color:#86EFAC}
+#sform .srow-l em.st.on::before{background:#22C55E}
+/* AI and Appearance: their own cards, in the same card language */
+#sform .ai-state{margin:0;padding:16px 18px}
+#sform .ai-step{padding:18px 20px;border:0}
+#sform .ai-foot{padding:4px 4px 0}
+#sform .set-cards>.set-head{margin:0 0 2px;padding:0 4px 4px;border:0}
+#sform .ap-card .ap-h{padding:18px 20px 14px}
+@media (max-width:860px){
+  #sform .set-layout{grid-template-columns:1fr;gap:12px}
+  #sform .set-nav{position:static;flex-direction:row;overflow-x:auto;border-radius:14px;padding:6px}
+  #sform .scard .set-head{padding:16px 16px 12px}
+  #sform .scard .srows,#sform .scard .apps{margin:0 8px 8px;padding:2px 12px}
+}
+/* Home's numbers: the same card, a small icon tile beside the label */
+.hs-card{border-radius:20px!important;background:#17171A!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.04),0 8px 24px -12px rgba(0,0,0,.5)!important;border:0!important}
+.hs-lab{display:inline-flex;align-items:center;gap:8px}
+.hs-ic{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#232327;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#C4C4CC;font-style:normal}
+.hs-ic svg{width:14px;height:14px}
+/* ================= Schedule: a week as a time grid, each post a card tinted in its platform's colour */
+.sc-cal2{display:flex;flex-direction:column;padding:0;border:0;border-radius:20px;background:#17171A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden}
+.sc-bar1,.sc-bar2{display:flex;align-items:center;gap:10px;padding:14px 16px 0;flex-wrap:wrap}
+.sc-bar2{padding:12px 16px 14px}
+.sc-seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:#0F0F12;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.sc-seg button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#A1A1AA;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,color .15s}
+.sc-seg button small{font-size:11px;color:#71717A;font-variant-numeric:tabular-nums}
+.sc-seg button:hover{color:#E4E4E7}
+.sc-seg button[aria-selected=true]{background:#26262B;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 1px 2px rgba(0,0,0,.3)}
+.sc-seg button[aria-selected=true] small{color:#A1A1AA}
+.sc-upd{font-size:12px;color:#71717A}.sc-upd b{font-weight:600;color:#D4D4D8}
+.sc-nb{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:0;border-radius:10px;background:#1F1F23;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);color:#E4E4E7;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.sc-nb:hover{background:#27272C}
+.sc-nb svg{width:15px;height:15px;color:#A1A1AA}
+.sc-range{margin:0 4px;font-size:14px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.sc-gridw{margin:0 12px 12px;border-radius:14px;background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);overflow:auto;max-height:calc(100vh - 290px);min-height:420px}
+.sc-tg{display:grid;grid-template-columns:68px repeat(var(--days),minmax(96px,1fr));min-width:740px}
+.sc-tgh{position:sticky;top:0;z-index:2;display:flex;align-items:baseline;gap:6px;height:44px;padding:0 12px;align-items:center;background:#16161A;border-bottom:1px solid rgba(255,255,255,.07);border-left:1px solid rgba(255,255,255,.05);font-size:12.5px;color:#A1A1AA}
+.sc-tgh b{font-size:13px;font-weight:600;color:#E4E4E7;font-variant-numeric:tabular-nums}
+.sc-tgh.today span{color:var(--accent)}
+.sc-tgh.today b{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff}
+.sc-tgc{left:0;z-index:3;border-left:0;font-weight:500}
+.sc-tgt{position:sticky;left:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;background:#121215;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;color:#71717A;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc-cell{display:flex;flex-direction:column;gap:6px;min-height:72px;padding:6px;border-left:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);transition:background .15s}
+.sc-cell.today{background:color-mix(in srgb,var(--accent) 4%,transparent)}
+.sc-cell.past{background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(255,255,255,.012) 8px 16px)}
+.sc-cell.sc-over{background:color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+/* the post card: a soft tint of its platform's colour */
+.sc-ev{--pc:#A1A1AA;display:grid;gap:3px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--pc) 13%,#18181B);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pc) 30%,transparent);cursor:pointer;transition:transform .15s cubic-bezier(.2,.8,.2,1),background .15s}
+.sc-ev:hover{background:color-mix(in srgb,var(--pc) 19%,#18181B)}
+.sc-ev:active{transform:scale(.98)}
+.sc-ev[draggable=true]{cursor:grab}
+.sc-evt{font-size:12.5px;font-weight:600;line-height:1.3;color:color-mix(in srgb,var(--pc) 35%,#fff);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sc-evs{font-size:11px;color:#9A9AA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-evf{display:flex;align-items:center;gap:5px;margin-top:2px;font-size:11px;color:color-mix(in srgb,var(--pc) 55%,#D4D4D8);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc-evf .mk{display:inline-grid;width:14px;height:14px}.sc-evf .mk svg{width:14px;height:14px}
+.sc-evf em{margin-left:auto;padding:1px 6px;border-radius:999px;font-style:normal;font-size:10px;font-weight:600;background:#26262B;color:#D4D4D8}
+.sc-evf em.bad{background:rgba(239,68,68,.16);color:#FCA5A5}.sc-evf em.ok{background:rgba(34,197,94,.16);color:#86EFAC}.sc-evf em.warn{background:rgba(245,158,11,.16);color:#FCD34D}
+.pf-youtube{--pc:#FF4D4D}.pf-instagram{--pc:#F0509A}.pf-tiktok{--pc:#2DD4BF}.pf-x{--pc:#A1A1AA}
+.sc-ev.failed{opacity:.85}
+.sc-ev.posted .sc-evt{color:#D4D4D8}
+/* the month */
+.sc-mg{display:grid;grid-template-columns:repeat(7,minmax(96px,1fr));min-width:680px}
+.sc-mgh{position:sticky;top:0;z-index:1;height:38px;display:flex;align-items:center;padding:0 12px;background:#16161A;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;color:#A1A1AA}
+.sc-mc{display:flex;flex-direction:column;gap:4px;min-height:112px;padding:8px;border-left:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05)}
+.sc-mc:nth-child(7n+1){border-left:0}
+.sc-mc>b{font-size:12.5px;font-weight:600;color:#D4D4D8;font-variant-numeric:tabular-nums}
+.sc-mc.out>b{color:#52525B}
+.sc-mc.today>b{display:inline-grid;place-items:center;align-self:flex-start;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff}
+.sc-mc.sc-over{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.sc-mchip{--pc:#A1A1AA;display:flex;align-items:center;gap:5px;height:22px;padding:0 6px;border-radius:6px;background:color-mix(in srgb,var(--pc) 14%,#18181B);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pc) 26%,transparent);font-size:11px;color:color-mix(in srgb,var(--pc) 40%,#fff);cursor:pointer;overflow:hidden}
+.sc-mchip .mk{display:inline-grid;width:12px;height:12px;flex:none}.sc-mchip .mk svg{width:12px;height:12px}
+.sc-mchip>span:nth-child(2){font-variant-numeric:tabular-nums;color:#A1A1AA;flex:none}
+.sc-mchip em{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-more{font-size:11px;color:#71717A;padding-left:2px}
+/* the tray beside it: the same card */
+.sc-tray{border-radius:20px!important;background:#17171A!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.04)!important;border:0!important}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <aside class="side" aria-label="Sidebar">
-    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=6" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=5" alt="SocialShot">
+    <div class="side-head"><img class="logo" src="/brand/logo-light.svg?v=6" alt="SocialShot"><img class="mark" src="/brand/favicon.svg?v=6" alt="SocialShot">
       <span class="sh-acts"><button class="icon-btn sb-open" data-act="sbopen" aria-label="Search your videos" title="Search (Ctrl K)"></button>
       <button class="icon-btn collapse" data-act="collapse" id="collapseBtn" aria-label="Collapse sidebar"></button></span></div>
     <div id="sbsearch"></div>
@@ -5357,6 +5729,14 @@ function schPostCard(p, tz) {
     <div class="sc-pt"><span class="mk">${schPlatMark(p.platform)}</span><span class="sc-time">${hmIn(p.due_at * 1000, tz)}</span>${p.status !== "scheduled" ? `<span class="sc-st ${st[1]}">${st[0]}</span>` : ""}</div>
     <b class="sc-pttl">${esc(p.title)}</b></div>`;
 }
+const SCH_KIND = {youtube: "Shorts", instagram: "Reels", tiktok: "TikTok", x: "X post"};
+function schEvent(p, tz) {
+  const st = {posting: ["Posting", "warn"], posted: ["Posted", "ok"], failed: ["Failed", "bad"]}[p.status];
+  const drag = p.status === "scheduled" ? `draggable="true" data-drag="post:${esc(p.id)}"` : "";
+  return `<div class="sc-ev pf-${esc(p.platform)} ${esc(p.status)}" ${drag} data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)}">
+    <b class="sc-evt">${esc(p.title)}</b><small class="sc-evs">${esc(p.creator_name || p.account_name || "No creator")}</small>
+    <span class="sc-evf"><span class="mk">${schPlatMark(p.platform)}</span>${SCH_KIND[p.platform] || ""} · ${hmIn(p.due_at * 1000, tz)}${st ? `<em class="${st[1]}">${st[0]}</em>` : ""}</span></div>`;
+}
 function schClipCard(r) {
   const ps = (S.sched?.posts || []).filter(p => p.job === r.job && p.clip === r.clip && ["scheduled", "posting", "posted"].includes(p.status));
   return `<div class="sc-clip" draggable="true" data-drag="clip:${esc(r.job)}|${esc(r.clip)}" title="Drag onto a day, or press the calendar">
@@ -5381,18 +5761,52 @@ function drawSchedule() {
     <p class="sc-tip">Drag a clip onto a day${tab === "board" ? " or a column" : ""}, or press Schedule.</p></aside>`;
   let main = "";
   if (tab === "calendar") {
-    const start = S.schWeek || weekStart(today), days = Array.from({length: 7}, (_, i) => addDays(start, i));
-    const byDay = {}; d.posts.forEach(p => { if (p.status === "cancelled") return; const k = tzParts(p.due_at * 1000, tz).day; (byDay[k] = byDay[k] || []).push(p); });
-    const range = `${dayLabel(days[0], {day: "numeric", month: "short"})} – ${dayLabel(days[6], {day: "numeric", month: "short", year: "numeric"})}`;
-    main = `<section class="sc-cal"><div class="sc-bar">
-        <div class="sc-nav"><button class="icon-btn" data-act="schweek" data-d="-7" aria-label="Previous week">${ic("chevl")}</button><b>${range}</b>
-          <button class="icon-btn" data-act="schweek" data-d="7" aria-label="Next week">${ic("chevr")}</button>${start !== weekStart(today) ? `<button class="btn sm" data-act="schweek" data-d="0">This week</button>` : ""}</div>
-        ${tzSel}</div>
-      <div class="sc-week">${days.map(day => {
-        const list = (byDay[day] || []).sort((a, b) => a.due_at - b.due_at), past = day < today;
-        return `<div class="sc-day ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}">
-          <div class="sc-dh"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b></div>
-          <div class="sc-dl">${list.map(p => schPostCard(p, tz)).join("")}</div></div>`; }).join("")}</div></section>`;
+    // a week as a time grid (hours down the side, each post a card tinted in its platform's colour), or a month
+    const view = S.schView || "week", filt = S.schFilt || "all";
+    const keep = p => p.status !== "cancelled" && (filt === "all" || (filt === "scheduled" ? ["scheduled", "posting"].includes(p.status) : p.status === filt));
+    const posts = d.posts.filter(keep);
+    const byDay = {}; posts.forEach(p => { const k = tzParts(p.due_at * 1000, tz).day; (byDay[k] = byDay[k] || []).push(p); });
+    Object.values(byDay).forEach(l => l.sort((a, b) => a.due_at - b.due_at));
+    const n = k => k === "all" ? d.posts.filter(p => p.status !== "cancelled").length : d.posts.filter(p => k === "scheduled" ? ["scheduled", "posting"].includes(p.status) : p.status === k).length;
+    const ago = Math.round((Date.now() - (S.schedAt || Date.now())) / 60000);
+    let range = "", grid = "";
+    if (view === "week") {
+      const start = S.schWeek || weekStart(today), days = Array.from({length: 7}, (_, i) => addDays(start, i));
+      range = `${dayLabel(days[0], {day: "numeric", month: "short"})} – ${dayLabel(days[6], {day: "numeric", month: "short", year: "numeric"})}`;
+      const hrs = days.flatMap(day => (byDay[day] || []).map(p => tzParts(p.due_at * 1000, tz).h));
+      const h0 = Math.min(9, ...hrs), h1 = Math.max(21, ...hrs);
+      const hourLabel = h => new Date(2000, 0, 1, h).toLocaleTimeString([], {hour: "numeric"});
+      grid = `<div class="sc-tg" style="--days:7">
+        <div class="sc-tgh sc-tgc"><span>Time</span></div>
+        ${days.map(day => `<div class="sc-tgh ${day === today ? "today" : ""}"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b></div>`).join("")}
+        ${Array.from({length: h1 - h0 + 1}, (_, i) => h0 + i).map(h => `<div class="sc-tgt">${hourLabel(h)}</div>` + days.map(day => {
+          const list = (byDay[day] || []).filter(p => tzParts(p.due_at * 1000, tz).h === h), past = day < today;
+          return `<div class="sc-cell ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}@${h}">${list.map(p => schEvent(p, tz)).join("")}</div>`;
+        }).join("")).join("")}</div>`;
+    } else {
+      const t0 = new Date((S.schMonth || today.slice(0, 7)) + "-01T12:00:00Z"), first = t0.toISOString().slice(0, 10);
+      const start = weekStart(first), mon = first.slice(0, 7);
+      range = dayLabel(first, {month: "long", year: "numeric"});
+      const days = Array.from({length: 42}, (_, i) => addDays(start, i));
+      grid = `<div class="sc-mg">${days.slice(0, 7).map(day => `<div class="sc-mgh">${dayLabel(day, {weekday: "short"})}</div>`).join("")}
+        ${days.map(day => { const list = byDay[day] || [], out = day.slice(0, 7) !== mon, past = day < today;
+          return `<div class="sc-mc ${out ? "out" : ""} ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}"><b>${dayLabel(day, {day: "numeric"})}</b>
+            ${list.slice(0, 3).map(p => `<div class="sc-mchip pf-${esc(p.platform)} ${esc(p.status)}" data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)}"><span class="mk">${schPlatMark(p.platform)}</span><span>${hmIn(p.due_at * 1000, tz)}</span><em>${esc(p.title)}</em></div>`).join("")}
+            ${list.length > 3 ? `<small class="sc-more">+${list.length - 3} more</small>` : ""}</div>`; }).join("")}</div>`;
+    }
+    const step = view === "week" ? 7 : 1;
+    main = `<section class="sc-cal sc-cal2">
+      <div class="sc-bar1">
+        <div class="sc-seg" role="tablist" aria-label="View">${[["week", "Week"], ["month", "Month"]].map(([k, l]) => `<button role="tab" data-act="schview" data-v="${k}" aria-selected="${view === k}">${l}</button>`).join("")}</div>
+        <div class="sc-seg" role="tablist" aria-label="Show">${[["all", "All"], ["scheduled", "Scheduled"], ["posted", "Posted"], ["failed", "Failed"]].map(([k, l]) => `<button role="tab" data-act="schfilt" data-v="${k}" aria-selected="${filt === k}">${l}<small>${n(k)}</small></button>`).join("")}</div>
+        <span class="grow"></span><span class="sc-upd">Updated <b>${ago < 1 ? "just now" : `${ago} min ago`}</b></span></div>
+      <div class="sc-bar2">
+        <button class="sc-nb" data-act="schstep" data-d="-${step}">${ic("chevl")}Prev</button>
+        <button class="sc-nb" data-act="schstep" data-d="0">${ic("calendar")}Today</button>
+        <b class="sc-range">${range}</b>
+        <button class="sc-nb" data-act="schstep" data-d="${step}">Next${ic("chevr")}</button>
+        <span class="grow"></span>${tzSel}</div>
+      <div class="sc-gridw">${grid}</div></section>`;
   } else {
     const planned = new Set(d.posts.filter(p => ["scheduled", "posting", "posted"].includes(p.status)).map(p => p.job + "|" + p.clip));
     const cols = [["scheduled", "Scheduled", d.posts.filter(p => p.status === "scheduled" || p.status === "posting")],
@@ -5410,7 +5824,7 @@ function drawSchedule() {
 }
 
 /* the Schedule dialog: one clip, where it goes, and when (date, time and time zone) */
-function schDialog({job, clip, day, post}) {
+function schDialog({job, clip, day, post, hour}) {
   const d = S.sched, tz = schTz();
   const p = post && d.posts.find(x => x.id === post);
   const r = d.ready.find(x => x.job === (p ? p.job : job) && x.clip === (p ? p.clip : clip)) || (p ? {title: p.title, cover: p.cover, job: p.job, version: p.version, creator_name: p.creator_name} : null);
@@ -5418,7 +5832,7 @@ function schDialog({job, clip, day, post}) {
   const when = p ? p.due_at * 1000 : null, ptz = p?.tz || tz;
   const parts = when ? tzParts(when, ptz) : null;
   const def = day || tzParts(Date.now() + 3600e3, tz).day;
-  const hm = parts ? `${String(parts.h).padStart(2, "0")}:${String(parts.mi).padStart(2, "0")}` : "18:00";
+  const hm = parts ? `${String(parts.h).padStart(2, "0")}:${String(parts.mi).padStart(2, "0")}` : hour != null ? `${String(hour).padStart(2, "0")}:00` : "18:00";
   const already = d.posts.filter(x => x.job === r.job && x.clip === (p ? p.clip : clip) && ["scheduled", "posting", "posted"].includes(x.status));
   const targets = p ? "" : `<div class="sd-f"><span class="sd-l">Post to</span><div class="sd-targets">
       ${d.accounts.map(a => `<label class="sd-t"><input type="checkbox" name="sdacc" value="${esc(a.id)}" ${already.some(x => x.account === a.id) ? "disabled" : ""}><span class="mk">${schPlatMark(a.platform)}</span><span><b>${esc(a.name)}</b><small>${esc(a.label)}${already.some(x => x.account === a.id) ? " · already planned" : ""}</small></span></label>`).join("")}
@@ -5498,8 +5912,8 @@ document.addEventListener("drop", e => {
   const t = e.target.closest?.("#sched [data-drop]"); if (!t || !t.dataset.drop || t.dataset.drop === "ready") return;
   e.preventDefault(); t.classList.remove("sc-over");
   const what = e.dataTransfer.getData("text/plain"), where = t.dataset.drop;
-  const day = where.startsWith("day:") ? where.slice(4) : null;
-  if (what.startsWith("clip:")) { const [job, clip] = what.slice(5).split("|"); schDialog({job, clip, day}); }
+  const [day, hr] = where.startsWith("day:") ? where.slice(4).split("@") : [null];
+  if (what.startsWith("clip:")) { const [job, clip] = what.slice(5).split("|"); schDialog({job, clip, day, hour: hr != null ? +hr : null}); }
   else if (what.startsWith("post:") && day) schMoveTo(what.slice(5), day);
 });
 document.addEventListener("input", e => { if (e.target.id === "schQ") { S.schQ = e.target.value; drawSchedule(); } });
@@ -5584,7 +5998,7 @@ function drawAdd(variant, keep = "") {
     <div class="att" id="att"><div><div class="att-in" id="attIn"></div></div></div>
     <div class="composer-bar">
       ${live ? "" : `<button type="button" class="chip" data-act="pickfile">${ic("up")}Upload video</button>`}
-      ${who}
+      ${who}<span id="brandPickW"></span>
       <span class="grow"></span><span class="hint">${live ? "Clips are made while they stream" : "or drop a video file here"}</span>
     </div>
     <div class="composer-opts" inert><div class="og ox">
@@ -5603,13 +6017,34 @@ function drawAdd(variant, keep = "") {
       <div class="ox-row"><b>Part</b><div class="ox-c ox-range">
         <label>From<input id="o_from" type="number" min="0" placeholder="start" aria-label="From minute"><i>min</i></label>${ic("arrowr")}
         <label>To<input id="o_to" type="number" min="0" placeholder="end" aria-label="Up to minute"><i>min</i></label></div></div>
+      <div class="ox-row"><b>AI editor</b><div class="ox-c"><input type="hidden" id="o_aiedit" value="1">
+        <button type="button" class="ox-chip" data-seg="o_aiedit" data-v="1" aria-pressed="true">On<small>Music, zooms and sounds added</small></button>
+        <button type="button" class="ox-chip" data-seg="o_aiedit" data-v="0" aria-pressed="false">Off<small>Plain clips</small></button></div></div>
       <div class="ox-row"><b>Chat spikes</b><div class="ox-c"><input type="hidden" id="o_chat" value="1">
         <button type="button" class="ox-chip" data-seg="o_chat" data-v="1" aria-pressed="true">On<small>Chat's big moments first</small></button>
         <button type="button" class="ox-chip" data-seg="o_chat" data-v="0" aria-pressed="false">Off</button>
         <span class="ox-info" tabindex="0" data-tip="YouTube replays: read on their own. Twitch: drop a chat.json from TwitchDownloader in with the video.">${ic("help")}</span></div></div>
     </div></div></div></form>`;
   drawAtt();
+  drawBrandPick();
 }
+/* the brand look new clips start with (videos, more clips and live streams alike): saved in the editor with
+   "Save as brand", picked here; the AI editor then adds music, zooms and sounds on top of it */
+async function drawBrandPick() {
+  const w = $("#brandPickW"); if (!w) return;
+  try { S.brandKit = await api("/api/brand"); } catch { return; }
+  const st = S.brandKit.styles || []; if (!st.length || !$("#brandPickW")) return;
+  const cur = S.brandKit.default === "" ? "none" : (st.find(x => x.name === S.brandKit.default) || st[0]).name;
+  $("#brandPickW").innerHTML = picker("o_brand", "Brand look for new clips", [...st.map(x => ({v: x.name, label: "Brand: " + x.name, icon: "palette"})),
+    {v: "none", label: "No brand look", icon: "palette"}], cur);
+}
+document.addEventListener("change", async e => {
+  if (e.target.id !== "o_brand" || !S.brandKit) return;
+  const v = e.target.value, body = {styles: S.brandKit.styles || [], default: v === "none" ? "" : v};
+  try { S.brandKit = {...S.brandKit, ...(await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}))};
+    toast(v === "none" ? "New clips use the caption style you pick" : `New clips start with “${v}”, live ones too`, "ok"); }
+  catch (er) { toast(er.message, "bad"); }
+});
 const LAYOUT_SHORT = {blur:"Blurred fill", zoom:"Zoomed in", crop:"Fill screen"};
 // small 9:16 frames for the layout chips: where the video sits in the short
 const LAY_IC = {
@@ -5671,7 +6106,7 @@ const targetCreator = () => creatorId() || $("#o_creator")?.value || "";
 function jobOptions() {
   const n = id => { const v = $(id).value; return v === "" ? null : Number(v); };
   const o = {max_clips:n("#o_max"), min_len:n("#o_min"), max_len:n("#o_maxlen"), style:$("#o_style").value, layout:$("#o_layout").value, quality:n("#o_quality"),
-             use_chat: ($("#o_chat")?.value ?? "1") === "1"};
+             use_chat: ($("#o_chat")?.value ?? "1") === "1", ai_edit: ($("#o_aiedit")?.value ?? "1") === "1"};
   if (n("#o_from") !== null) o.range_start = n("#o_from") * 60;
   if (n("#o_to") !== null) o.range_end = n("#o_to") * 60;
   return o;
@@ -6207,7 +6642,7 @@ function emptyState({label, title, text, actions = [], key = ""}) {
   return `<div class="es" data-es="${esc(key)}">
     <div class="es-fold" aria-hidden="true"><i class="es-back"></i>
       <span class="es-paper"><b>${esc(label)}</b><i></i><i></i></span>
-      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=5" alt="">SocialShot</span></span></div>
+      <span class="es-front"><span class="es-brand"><img src="/brand/favicon.svg?v=6" alt="">SocialShot</span></span></div>
     <h3>${esc(title)}</h3><p>${text}</p>
     ${actions.length ? `<div class="es-acts">${actions.map(a => `<button class="btn ${a.primary ? "primary" : ""}" data-act="${a.act}"${a.data ? " " + a.data : ""}>${a.icon ? ic(a.icon) : ""}${esc(a.label)}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -6232,7 +6667,8 @@ function homeStats(o, sum, d14, failed) {
   const secs = done.reduce((a, c) => a + (c.end - c.start), 0);
   const busy = S.jobs.filter(j => vMatch(j, "busy")).length, queued = sum("queued");
   // each card is a number: a label, the figure, and what it's out of (the 14-day picture is the Activity chart below)
-  const card = (label, num, extra, foot) => `<div class="hs-card"><div class="hs-top"><span>${label}</span>${extra || ""}</div><b class="hs-num">${num}</b><div class="hs-foot">${foot}</div></div>`;
+  const IC = {"Clips ready": "scissors", "Processing": "bolt", "Posted today": "send", "Waiting to post": "clock"};
+  const card = (label, num, extra, foot) => `<div class="hs-card"><div class="hs-top"><span class="hs-lab"><i class="hs-ic">${ic(IC[label] || "film")}</i>${label}</span>${extra || ""}</div><b class="hs-num">${num}</b><div class="hs-foot">${foot}</div></div>`;
   const vids = S.jobs.length;
   return `<div class="hs">
     ${card("Clips ready", done.length, "", `<small>${fmt(secs)} of clips from ${vids} video${vids === 1 ? "" : "s"}</small>`)}
@@ -6629,6 +7065,19 @@ function aiHints() {
   $("#ai_basewrap").hidden = pv.id !== "custom" && !(same && k.base_url);
   $("#ai_keywrap")?.classList.toggle("nokey", !pv.needs_key && pv.id !== "custom");
 }
+// a Settings section as one card: its heading (with the section's icon), the settings, then the buttons in a footer.
+// AI and Appearance are already laid out as cards of their own; they only take the card look.
+function setCards(body, tab) {
+  body.classList.add("set-cards");
+  if (tab === "ai" || tab === "look") return;
+  const kids = [...body.children]; if (!kids.length || !kids[0].matches(".set-head")) return;
+  const t = setTabs().find(x => x[0] === tab);
+  if (t) kids[0].insertAdjacentHTML("beforeend", `<span class="scard-ic" aria-hidden="true">${ic(t[2])}</span>`);
+  const card = document.createElement("section");
+  card.className = "scard";
+  kids.forEach(k => card.append(k));
+  body.append(card);
+}
 async function drawSettings() {
   const box = $("#sform"); if (!box) return;
   const tab = S.stab || setTabs()[0][0], me = S.status.user;
@@ -6811,6 +7260,7 @@ async function drawSettings() {
           ${card("x", "X", xl, "#000", "Post clips as videos on your X timeline.")}
         </div>`;
     }
+    setCards(body, tab);
   } catch (e) { body.innerHTML = `<div class="set-load">${esc(e.message)}</div>`; }
 }
 /* accent colour: one CSS variable; every shade is mixed from it in the stylesheet. Saved in this browser only. */
@@ -7014,6 +7464,15 @@ document.addEventListener("click", async e => {
     }
     // the Schedule page: switch view, change week, plan a clip, open a planned post
     if (a === "schtab") { S.schTab = d.t; drawShell(); return drawSchedule(); }
+    if (a === "schview") { S.schView = d.v; return drawSchedule(); }
+    if (a === "schfilt") { S.schFilt = d.v; return drawSchedule(); }
+    if (a === "schstep") {
+      const tz = schTz(), today = tzParts(Date.now(), tz).day;
+      if ((S.schView || "week") === "week") { const now = weekStart(today); S.schWeek = +d.d ? addDays(S.schWeek || now, +d.d) : now; }
+      else { const [y, m] = (S.schMonth || today.slice(0, 7)).split("-").map(Number), t = new Date(Date.UTC(y, m - 1 + (+d.d), 1));
+        S.schMonth = +d.d ? t.toISOString().slice(0, 7) : today.slice(0, 7); }
+      return drawSchedule();
+    }
     if (a === "schweek") { const tz = schTz(), now = weekStart(tzParts(Date.now(), tz).day); S.schWeek = +d.d ? addDays(S.schWeek || now, +d.d) : now; return drawSchedule(); }
     if (a === "schnew") { e.stopPropagation(); return schDialog({job: d.j, clip: d.c}); }
     if (a === "schpost") {
@@ -7247,9 +7706,13 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   if (location.pathname.startsWith("/app/")) { const [v, tab] = fromPath(location.pathname); S.view = v; S.ctab = tab; }  // the address decides, before anything loads
   await tick();
   { const [v, tab] = location.pathname.startsWith("/app/") ? fromPath(location.pathname) : ["overview", "clips"]; go(v, tab, true); remember(S.view, S.view === "settings" ? S.stab : S.view === "library" ? S.proj : S.ctab, "replace"); }
-  try {  // a link pasted on the home page before signing up
-    const link = sessionStorage.getItem("peakcut_link");
-    if (link) { sessionStorage.removeItem("peakcut_link"); go("overview"); $("#url").value = link; onLink($("#url")); $("#url").focus(); toast("Your link is ready. Press Make clips.", "ok"); }
+  try {  // a link pasted on the home page: in this address when already signed in, or kept in the browser (for a day) while signing up
+    let link = (q.get("link") || "").trim();
+    if (link) history.replaceState(null, "", location.pathname);
+    const kept = JSON.parse(localStorage.getItem("peakcut_link") || "null");
+    localStorage.removeItem("peakcut_link");
+    if (!link && kept && kept.u && Date.now() - kept.t < 864e5) link = String(kept.u).trim();
+    if (link && link.length < 600) { go("overview"); $("#url").value = link; onLink($("#url")); $("#url").focus(); toast("Your link is ready. Press Make clips.", "ok"); }
   } catch {}
   loop();
   if (S.status.tour && !$("#formdlg").open) setTimeout(startTour, 500);   // once, the first time someone signs in
@@ -7257,6 +7720,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=118"></script>
+<script src="/assets/editor.js?v=140"></script>
 </body>
 </html>

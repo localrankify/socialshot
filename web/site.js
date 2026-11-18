@@ -33,3 +33,18 @@
   // keyboard: a click with no pointer behind it
   addEventListener("click", e => { if (e.detail === 0 && e.target.closest(TARGET)) tap(); });
 })();
+
+
+// the big name in the footer: a light follows the pointer behind it, and the letters it falls on brighten
+(() => {
+  document.querySelectorAll(".fword span[data-text]").forEach(w => {
+    const band = w.parentElement;
+    w.addEventListener("pointermove", e => {
+      const r = w.getBoundingClientRect(), b = band.getBoundingClientRect();
+      w.style.setProperty("--mx", (e.clientX - r.left) + "px"); w.style.setProperty("--my", (e.clientY - r.top) + "px");
+      band.style.setProperty("--gx", (e.clientX - b.left) + "px"); band.style.setProperty("--gy", (e.clientY - b.top) + "px");
+      band.classList.add("lit");
+    });
+    w.addEventListener("pointerleave", () => band.classList.remove("lit"));
+  });
+})();

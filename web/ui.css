@@ -4,6 +4,7 @@
    the accent, only on the main action and on what is chosen. Depth comes from a lighter surface, never a shadow.
    s0 the window behind everything, s1 the page, s2 fields and buttons, s3 hover, s4 selected and pressed. */
 
+@font-face{font-family:"Geomini";src:url("/brand/Geomini.woff2") format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 @font-face{font-family:"Apfel Grotezk";src:url("/brand/ApfelGrotezk-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Regular.otf") format("opentype");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Medium.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
@@ -173,3 +174,9 @@ html:not(.js) .shot-wrap .shot-meter,.shot-wrap.done .shot-meter{opacity:.0}
 .shot-wrap .shot-status .work{transform:translateY(-120%);opacity:0}
 .js .shot-wrap:not(.done) .shot-status .work{transform:none;opacity:1}
 .js .shot-wrap:not(.posted) .shot-sat{opacity:0;transform:translateY(10px) scale(.97)}
+
+/* the logo: the mascot beside the name, set in the heading font so it stays crisp at any size */
+.lockup{display:inline-flex;align-items:center;gap:10px;font-family:"Geomini",var(--font-head);font-size:19px;line-height:1;font-weight:600;letter-spacing:-.01em;color:#fff;white-space:nowrap}
+.lockup b{font-weight:600}
+.lockup img{flex:none;width:32px;height:32px;display:block}
+.fbrand .lockup{font-size:20px}

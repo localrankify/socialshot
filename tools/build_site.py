@@ -68,7 +68,7 @@ SITE = "{{SITE}}"   # the server swaps in the real address (PEAKCUT_PUBLIC_URL) 
 ORG_ID, SITE_ID, APP_ID, LOGO_ID = SITE + "/#organization", SITE + "/#website", SITE + "/#software", SITE + "/#logo"
 ORG = {"@type": "Organization", "@id": ORG_ID, "name": "SocialShot", "url": SITE + "/",
        "logo": {"@type": "ImageObject", "@id": LOGO_ID, "url": SITE + "/brand/logo-mark.png", "contentUrl": SITE + "/brand/logo-mark.png",
-                "width": 220, "height": 220, "caption": "SocialShot"},
+                "width": 512, "height": 512, "caption": "SocialShot"},
        "image": {"@id": LOGO_ID}}
 WEBSITE = {"@type": "WebSite", "@id": SITE_ID, "url": SITE + "/", "name": "SocialShot", "alternateName": "SocialShot AI clip maker",
            "description": "AI clip maker that turns live streams, podcasts and long videos into captioned vertical clips.",
@@ -141,7 +141,9 @@ def og_card(name, photo, headline, pos=0.3):
     d = ImageDraw.Draw(card)
     mark = Image.open(WEB / "brand" / "logo-mark.png").convert("RGBA").resize((48, 48), Image.LANCZOS)
     card.paste(mark, (64, 64), mark)
-    d.text((124, 88), "SocialShot", font=ImageFont.truetype(str(FONT), 30), fill=(237, 237, 240), anchor="lm")
+    logo = ImageFont.truetype(str(WEB / "brand" / "Geomini.woff2"), 30)
+    logo.set_variation_by_axes([600])   # Geomini is one file with every weight; the logo uses semibold
+    d.text((124, 88), "SocialShot", font=logo, fill=(237, 237, 240), anchor="lm")
     size = 60
     while True:  # the largest size at which the headline fits in four lines
         font, lines = ImageFont.truetype(str(FONT), size), [""]
@@ -192,11 +194,14 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <meta name="twitter:title" content="{E(title)}">
 <meta name="twitter:description" content="{E(desc)}">
 <meta name="twitter:image" content="{img}">
-<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=5">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg?v=6">
+<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png?v=6">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png?v=6">
+<link rel="manifest" href="/brand/site.webmanifest">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/ui.css?v=3">
-<link rel="stylesheet" href="/assets/site.css?v=13">
-<script src="/assets/site.js?v=1" defer></script>
+<link rel="stylesheet" href="/assets/ui.css?v=5">
+<link rel="stylesheet" href="/assets/site.css?v=21">
+<script src="/assets/site.js?v=3" defer></script>
 {extra}
 </head>
 <body>
@@ -469,7 +474,7 @@ def build():
                + '<article class="post"><div class="wrap"><div class="pwrap"><div class="pmain">'
                f'<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/blog">Blog</a><span>/</span><b>{E(b["tag"])}</b></nav>'
                f'<h1>{E(b["h1"])}</h1><p class="lede">{E(b["excerpt"])}</p>'
-               f'<div class="meta"><span class="by"><img src="/brand/favicon.svg?v=5" alt="">SocialShot team</span><i></i>'
+               f'<div class="meta"><span class="by"><img src="/brand/favicon.svg?v=6" alt="">SocialShot team</span><i></i>'
                f'<span>{short(b["date"])}</span><i></i><span>{b["read"]} min read</span></div>'
                f'<figure class="cover"><img src="/brand/{b["image"]}.jpg" alt="{E(b.get("alt", ""))}" width="1200" height="675" fetchpriority="high" style="object-position:{b.get("pos", "50% 35%")}"></figure>'
                f'<div class="prose">{body}</div>'
