@@ -4990,7 +4990,7 @@ body{background:#0B0B0D}
 .side::after{opacity:.07!important}
 .hs-card::after{display:none!important}
 /* one glass card */
-.hs-card,.card,.composer .cmp-card,#sform .scard,#sform .ap-card,#sform .ai-state,#sform .ai-step,#sform .set-nav,.sc-cal2,.sc-tray{
+.hs-card,.card,#sform .scard,#sform .ap-card,#sform .ai-state,#sform .ai-step,#sform .set-nav,.sc-cal2,.sc-tray{
   border-radius:12px!important;border:0!important;
   background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02))!important;
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
@@ -5010,8 +5010,6 @@ body{background:#0B0B0D}
 .sc-ev,.sc-mchip{border-radius:8px}
 /* the sidebar's chosen page: a glass pill */
 .side .nav a.on,.side .nav button.on,.side [aria-current=page]{background:rgba(255,255,255,.07)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),inset 0 1px 0 rgba(255,255,255,.06)}
-.composer .cmp-tab[aria-selected=true]{background:rgba(255,255,255,.06)!important;border-radius:10px 10px 0 0!important}
-.composer .composer-input{border-radius:9px!important;background:rgba(8,8,10,.5)!important}
 /* ---------- the face grid: a cell per person, a handle on the line between the rows, a Scenes lane on the timeline */
 .ed-band.ed-gcell{position:absolute;width:auto;flex:none}
 .ed-gseam{position:absolute;right:10px;z-index:6;display:grid;place-items:center;width:44px;height:20px;margin:-10px 0 0;padding:0;border:0;border-radius:999px;
@@ -5073,6 +5071,36 @@ body{background:#0B0B0D}
 .ed .ed-schint{border-color:rgba(255,255,255,.16);color:#A1A1AA}
 .ed-lane.scenes.znone:hover .ed-schint{border-color:rgba(255,255,255,.32);color:#E4E4E7}
 @media (prefers-reduced-motion:reduce){.ed-gseam,.ed-scbar,.ed-sclist li{transition:none}}
+/* ================= Home composer: the chosen tab rises out of the card as one shape (a folder tab with soft
+   inward corners where it meets the card), in the same dark tone as the other cards; the field a darker well inside */
+.composer.big{--cmp:#1B1B1F;max-width:760px;margin-left:auto;margin-right:auto;padding:0;background:transparent!important;box-shadow:none!important;border:0!important}
+.composer.big .cmp-tabs{display:flex;align-items:flex-end;gap:2px;margin:0;padding:0;background:transparent;border:0}
+.composer.big .cmp-tab{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border:0;border-radius:12px 12px 0 0!important;
+  font-size:13.5px;font-weight:500;color:#A1A1AA;background:transparent!important;box-shadow:none}
+.composer.big .cmp-tab svg{width:16px;height:16px}
+.composer.big .cmp-tab:not([aria-selected=true]):hover{color:#F4F4F5}
+.composer.big .cmp-tab[aria-selected=true]{background:var(--cmp)!important;color:#F4F4F5;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+/* the soft inward corners on both sides of the chosen tab */
+.composer.big .cmp-tab[aria-selected=true]::before,.composer.big .cmp-tab[aria-selected=true]::after{content:"";display:block!important;position:absolute;bottom:0;width:12px;height:12px;pointer-events:none;opacity:1!important;mix-blend-mode:normal!important;inset:auto;z-index:0}
+.composer.big .cmp-tab[aria-selected=true]::before{left:-12px;background:radial-gradient(circle at 0 0,transparent 11.5px,var(--cmp) 12px)}
+.composer.big .cmp-tab[aria-selected=true]::after{right:-12px;background:radial-gradient(circle at 100% 0,transparent 11.5px,var(--cmp) 12px)}
+.composer.big .cmp-tab[aria-selected=true]:first-child::before{display:none!important}
+.composer.big .cmp-opt{align-self:center;height:34px;margin-bottom:5px;padding:0 12px;border-radius:9px;color:#C4C4CC}
+.composer.big .cmp-opt:hover{background:rgba(255,255,255,.06)}
+.composer.big .cmp-card{padding:10px 10px 6px;border:0!important;border-radius:0 12px 12px 12px!important;background:var(--cmp)!important;
+  box-shadow:0 18px 40px -24px rgba(0,0,0,.8)!important}
+.composer.big .cmp-card::after{display:none!important}
+.composer.big:has(.cmp-tab[aria-selected=true]:not(:first-child)) .cmp-card{border-radius:12px!important}
+.composer.big .composer-input{display:flex;align-items:center;gap:10px;height:58px;padding:0 7px 0 16px;border:0!important;border-radius:10px!important;background:#121215!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);transition:box-shadow .15s}
+.composer.big .composer-input:focus-within{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.composer.big .composer-input>svg{width:17px;height:17px;color:#71717A;flex:none}
+.composer.big .composer-input input{font-size:14.5px}
+.composer.big #goBtn.cmp-go{height:44px;padding:0 18px;border-radius:8px;font-weight:600}
+.composer.big .composer-bar{display:flex;align-items:center;gap:4px;padding:8px 2px 2px;flex-wrap:wrap}
+.composer.big .composer-bar .chip,.composer.big .composer-bar .pick-btn{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#C4C4CC;font-size:13px;font-weight:500}
+.composer.big .composer-bar .chip:hover,.composer.big .composer-bar .pick-btn:hover{background:rgba(255,255,255,.06);color:#F4F4F5}
+.composer.big .hint{font-size:12.5px;color:#71717A}
+.hero p{color:#A1A1AA}
 </style>
 </head>
 <body>

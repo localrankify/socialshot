@@ -199,7 +199,7 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png?v=6">
 <link rel="manifest" href="/brand/site.webmanifest">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/ui.css?v=5">
+<link rel="stylesheet" href="/assets/ui.css?v=6">
 <link rel="stylesheet" href="/assets/site.css?v=22">
 <script src="/assets/site.js?v=3" defer></script>
 {extra}

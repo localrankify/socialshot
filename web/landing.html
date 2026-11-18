@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&family=Anton&family=Montserrat:wght@800&family=Bebas+Neue&family=Bangers&family=Fredoka:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/ui.css?v=5">
+<link rel="stylesheet" href="/assets/ui.css?v=6">
 <link rel="stylesheet" href="/assets/site.css?v=22">
 <script src="/assets/site.js?v=3" defer></script>
 <style>
@@ -684,7 +684,6 @@ h2.t{font-size:clamp(30px,3.8vw,46px);line-height:1.06;letter-spacing:-.04em;fon
 .cs-live i{width:6px;height:6px;border-radius:50%;background:#FF4D5E;animation:live 1.6s ease-in-out infinite}
 /* the hero's backdrop: a fine film grain over the whole of it, and on wide screens a few of the places clips come from
    and go to, resting at its edges and drifting very slightly */
-.hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:var(--page-grain) 0 0/200px 200px;opacity:.55;mix-blend-mode:overlay}
 .hbg{position:absolute;inset:0 0 auto;height:680px;z-index:1;pointer-events:none;max-width:1480px;margin:0 auto}
 .hb{position:absolute;left:var(--x);top:var(--y);opacity:0;animation:hb-in .9s var(--ease) forwards,hb-drift 9s ease-in-out infinite alternate;
   animation-delay:calc(.5s + var(--i) * 110ms),calc(var(--i) * -1.4s)}
@@ -787,12 +786,8 @@ h2.t{font-size:clamp(30px,3.8vw,46px);line-height:1.06;letter-spacing:-.04em;fon
 @media (max-width:560px){.bento{grid-template-columns:1fr}.bento .b2,.bento .b3,.bento .b6{grid-column:auto}
   .wr{grid-template-columns:32px minmax(0,1fr) auto}.wr .wn{display:none}.wb-body{grid-template-columns:1fr}.w-hook{grid-template-columns:80px minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){.bx.rv.in .wb i{animation:none}}
-/* behind the whole page, a soft light that drifts and shifts from violet to a cool blue as the page is read */
 html{background:var(--s0)}
 body{background:transparent}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:radial-gradient(62% 56% at calc(8% + 70% * var(--sp,0)) calc(22% + 40% * var(--sp,0)),rgba(124,58,237,calc(.26 - .08 * var(--sp,0))),transparent 72%),
-    radial-gradient(56% 50% at calc(96% - 66% * var(--sp,0)) calc(82% - 30% * var(--sp,0)),rgba(56,152,248,calc(.05 + .15 * var(--sp,0))),transparent 72%)}
 /* the hero chips: our pointer rests on each, and every few seconds gives it a quiet click */
 .hb.chip{--tap:calc(var(--i) * -1.3s)}
 .hb-cur{position:absolute;right:-12px;bottom:-15px;width:18px;height:18px;animation:hb-tap 4.6s ease-in-out infinite;animation-delay:var(--tap)}
@@ -804,8 +799,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @keyframes hb-ring{0%,77%{opacity:0}80%{opacity:.9}100%{opacity:0}}
 @keyframes hb-ok{0%,77%{scale:1}82%{scale:1.22}90%,100%{scale:1}}
 @media (prefers-reduced-motion:reduce){.hb-cur,.hb.chip::after,.hb.chip .ok{animation:none}}
-/* the page's grain: fixed over the backdrop light, under everything else, so cards and panels seem to float above it */
-body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--page-grain) 0 0/180px 180px;opacity:.6;mix-blend-mode:overlay}
 /* small icon tiles pinned around each section's heading, each section in its own places; wide screens only */
 main>section{position:relative}
 main>section>.wrap{position:relative;z-index:1}
@@ -814,6 +807,41 @@ main>section>.wrap{position:relative;z-index:1}
 .hb.ln-t svg.ln{width:22px;height:22px;fill:none;stroke:var(--accent-ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .hb.ln-t:nth-child(even) svg.ln{stroke:var(--dim)}
 @media (max-width:1200px){.sdeco{display:none}}
+/* the editor row: a real clip with its caption, and its timeline under the controls: frames, sound, the trimmed part */
+.panel:has(.ed2){height:420px}
+.panel .art.ed2{inset:0;display:grid;grid-template-columns:150px minmax(0,1fr);gap:20px;align-items:center;padding:24px}
+.ed-prev{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;border:1px solid var(--line-3);background:#000;box-shadow:0 20px 40px -20px rgba(0,0,0,.9)}
+.ed-prev img{width:100%;height:100%;object-fit:cover;object-position:66% 40%;filter:brightness(.85)}
+.ed-dur{position:absolute;top:8px;left:8px;padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-variant-numeric:tabular-nums}
+.ed-cap{position:absolute;left:8px;right:8px;top:64%;display:flex;flex-wrap:wrap;justify-content:center;gap:0 5px;font:800 13px/1.1 "Poppins",sans-serif;
+  text-transform:uppercase;color:#fff;paint-order:stroke fill;-webkit-text-stroke:3px #000}
+.ed-cap span{animation:ed-word 2.5s steps(1) infinite;animation-delay:calc(var(--k) * .5s)}
+@keyframes ed-word{0%{color:#FFE500}20%,100%{color:#fff}}
+.ed-side{display:grid;gap:12px;min-width:0}
+.ed-f small{display:block;margin-bottom:6px;font-size:11.5px;color:var(--faint)}
+.ed-in{height:36px;display:flex;align-items:center;padding:0 10px;border-radius:9px;background:#0f0f12;border:1px solid var(--line-2);font-size:13px;color:#fff;white-space:nowrap;overflow:hidden}
+.ed-chips{display:flex;gap:6px}
+.ed-chips span{height:28px;display:inline-flex;align-items:center;padding:0 10px;border-radius:8px;border:1px solid var(--line-2);font-size:12px;color:var(--mute)}
+.ed-chips span.on{border-color:var(--accent-ink);color:#fff;background:var(--s3)}
+.ed-tl{position:relative;padding:4px 0 2px;--a:22%;--b:78%}
+.ed-ruler{display:flex;justify-content:space-between;margin-bottom:6px;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.ed-strip{display:grid;grid-template-columns:repeat(8,1fr);height:40px;border-radius:6px;overflow:hidden;gap:1px;background:#000}
+.ed-strip img{width:100%;height:100%;object-fit:cover;filter:brightness(.75)}
+.ed-wave{display:flex;align-items:center;gap:2px;height:26px;margin-top:6px;padding:0 2px}
+.ed-wave i{flex:1;height:calc(var(--h) * 100%);border-radius:1px;background:#3a3a46}
+.ed-sel{position:absolute;top:20px;bottom:0;left:var(--a);right:calc(100% - var(--b));border:2px solid var(--accent-ink);border-radius:7px;
+  background:rgba(124,58,237,.12);box-shadow:0 0 0 999px rgba(10,10,12,.45);transition:left .9s var(--ease),right .9s var(--ease)}
+.ed-sel i{position:absolute;top:50%;width:8px;height:22px;translate:0 -50%;border-radius:3px;background:var(--accent-ink)}
+.ed-sel .l{left:-5px}.ed-sel .r{right:-5px}
+.ed-tl{overflow:hidden;border-radius:6px}
+.ed-head{position:absolute;top:16px;bottom:0;left:var(--a);width:2px;background:#fff;animation:ed-play 4s linear infinite}
+@keyframes ed-play{from{left:var(--a)}to{left:var(--b)}}
+.ed-foot{display:flex;align-items:center;justify-content:space-between}
+.ed-foot small{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.ed-foot b{color:#fff;font-weight:500}
+.ed-save{height:30px;display:inline-flex;align-items:center;padding:0 14px;border-radius:9px;background:#fff;color:#0b0b0d;font-size:12.5px;font-weight:600}
+@media (max-width:560px){.panel:has(.ed2){height:auto}.panel .art.ed2{position:static;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:16px}.ed-chips span:nth-child(3){display:none}}
+@media (prefers-reduced-motion:reduce){.ed-cap span,.ed-head{animation:none}}
 </style>
 </head>
 <body>
@@ -916,13 +944,20 @@ main>section>.wrap{position:relative;z-index:1}
     </div>
     <div class="frow"><span class="fdot rv" aria-hidden="true">05</span>
       <div class="fcopy rv"><span class="eyebrow">Editor</span><h3>Fix anything in a few clicks.</h3><p>Trim the start, fix a word, change the layout or the look with a live preview. Save, and the clip is made again.</p><ul><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Trim with handles on a timeline</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Change font, colours and size</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Download one clip or all of them</li></ul></div>
-      <div class="card panel rv" style="--d:.08s"><div class="art"><div class="tl">
-          <div class="tl-ruler"><span>0:00</span><span>0:10</span><span>0:20</span><span>0:30</span><span>0:40</span></div>
-          <div class="tl-track vid"><i style="width:60px"></i><i style="width:190px"></i><i style="width:120px"></i></div>
-          <div class="tl-track cap"><i style="width:40px"></i><i style="width:56px"></i><i style="width:32px"></i><i style="width:70px"></i><i style="width:46px"></i><i style="width:60px"></i></div>
-          <div class="tl-track"><i style="width:250px;height:14px;align-self:center"></i></div>
-          <span class="tl-sel"></span><span class="tl-head"></span>
-        </div></div></div>
+      <div class="card panel rv" style="--d:.08s"><div class="art ed2">
+          <div class="ed-prev"><img src="/brand/podcast-frames/f_900.jpg" alt="" loading="lazy"><span class="ed-dur">0:31</span><span class="ed-cap"><span style="--k:0">here's</span><span style="--k:1">what</span><span style="--k:2">nobody</span><span style="--k:3">tells</span><span style="--k:4">you</span></span></div>
+          <div class="ed-side">
+            <div class="ed-f"><small>Caption</small><div class="ed-in">here's what nobody tells you</div></div>
+            <div class="ed-chips"><span class="on">Bounce</span><span>Hype</span><span>Clean</span></div>
+            <div class="ed-tl" id="edtl">
+              <div class="ed-ruler"><span>0:00</span><span>0:15</span><span>0:30</span><span>0:45</span></div>
+              <div class="ed-strip"><img src="/brand/podcast-frames/f_600.jpg" alt="" loading="lazy" style="object-position:50% 40%"><img src="/brand/podcast-frames/f_900.jpg" alt="" loading="lazy" style="object-position:66% 40%"><img src="/brand/podcast-frames/f_1500.jpg" alt="" loading="lazy" style="object-position:48% 40%"><img src="/brand/podcast-frames/f_3300.jpg" alt="" loading="lazy" style="object-position:50% 40%"><img src="/brand/podcast-frames/f_2400.jpg" alt="" loading="lazy" style="object-position:50% 40%"><img src="/brand/podcast-frames/f_900.jpg" alt="" loading="lazy" style="object-position:60% 40%"><img src="/brand/podcast-frames/f_4200.jpg" alt="" loading="lazy" style="object-position:50% 40%"><img src="/brand/podcast-frames/f_600.jpg" alt="" loading="lazy" style="object-position:56% 40%"></div>
+              <div class="ed-wave"><i style="--h:0.45"></i><i style="--h:0.50"></i><i style="--h:0.37"></i><i style="--h:0.59"></i><i style="--h:0.52"></i><i style="--h:0.14"></i><i style="--h:0.14"></i><i style="--h:0.23"></i><i style="--h:0.14"></i><i style="--h:0.18"></i><i style="--h:0.63"></i><i style="--h:0.56"></i><i style="--h:0.34"></i><i style="--h:0.48"></i><i style="--h:0.67"></i><i style="--h:0.26"></i><i style="--h:0.40"></i><i style="--h:0.67"></i><i style="--h:0.55"></i><i style="--h:0.72"></i><i style="--h:0.72"></i><i style="--h:0.50"></i><i style="--h:0.21"></i><i style="--h:0.32"></i><i style="--h:0.17"></i><i style="--h:0.14"></i><i style="--h:0.17"></i><i style="--h:0.47"></i><i style="--h:0.34"></i><i style="--h:0.47"></i><i style="--h:1.00"></i><i style="--h:0.68"></i><i style="--h:0.40"></i><i style="--h:0.56"></i><i style="--h:0.14"></i><i style="--h:0.14"></i><i style="--h:0.37"></i><i style="--h:0.62"></i><i style="--h:0.40"></i><i style="--h:0.45"></i><i style="--h:0.55"></i><i style="--h:0.14"></i><i style="--h:0.14"></i><i style="--h:0.21"></i></div>
+              <span class="ed-sel"><i class="l"></i><i class="r"></i></span><span class="ed-head"></span>
+            </div>
+            <div class="ed-foot"><small><b>0:12 – 0:43</b> · 31 s</small><span class="ed-save">Save</span></div>
+          </div>
+        </div></div>
     </div>
     <div class="frow flip"><span class="fdot rv" aria-hidden="true">06</span>
       <div class="fcopy rv"><span class="eyebrow">Posting</span><h3>From stream to Shorts without downloading a file.</h3><p>Connect your accounts, send a clip now or line it up, and it goes out on time.</p><ul><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>YouTube Shorts and Instagram Reels</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>A schedule you set once</li><li><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>Every post in one list</li></ul></div>
@@ -1069,7 +1104,7 @@ main>section>.wrap{position:relative;z-index:1}
 </section>
 
 <section style="padding-top:0">
-  <div class="wrap"><div class="card closer surface rv">
+  <div class="wrap"><div class="card closer rv">
     <h2 class="t">Ready to clip your next stream?</h2>
     <p>Paste a link and see what gets picked. Your first 3 clips on every video are free.</p>
     <div class="ctas"><a class="btn lg primary" href="/signup" data-auth="up3">Start for free<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><a class="btn lg outline" href="/login" data-auth="in">Sign in</a></div>
@@ -1165,11 +1200,11 @@ check();
   r.addEventListener("input", set); set();
 })();
 
-// the page's backdrop light follows how far down the page someone is
+// the editor row: a teammate's trim, shown on the timeline itself
 (() => {
-  const r = document.documentElement; let q = 0;
-  const f = () => { q = 0; const m = r.scrollHeight - innerHeight; r.style.setProperty("--sp", m > 0 ? Math.min(1, scrollY / m).toFixed(3) : 0); };
-  addEventListener("scroll", () => { if (!q) q = requestAnimationFrame(f); }, {passive: true}); addEventListener("resize", f); f();
+  const tl = document.getElementById("edtl"); if (!tl || still) return;
+  let n = 0;
+  setInterval(() => { if (document.hidden) return; n++; tl.style.setProperty("--b", n % 2 ? "64%" : "78%"); tl.style.setProperty("--a", n % 2 ? "26%" : "22%"); }, 3200);
 })();
 
 // the headline: the word and both pictures change together, every few seconds
@@ -1288,6 +1323,8 @@ check();
     {in: ".frow:has(.live-box)", who: "june", steps: [[".live-box .saved", "hover", 2200, "Saved this one"], [".live-box .saved:last-of-type", "hover", 2000], [".fcopy li:first-child", "hover", 1800]]},
     {in: ".frow:has(#capx)", who: "maya", steps: [["#capx [data-s='1']", "click", 2200, "Hype for this bit"], ["#capx [data-s='3']", "click", 2000],
       ["#capx .cp-phone", "hover", 1800, "", [.5, .66]], ["#capx [data-s='2']", "click", 2000, "Clean reads better"], ["#capx [data-s='0']", "click", 2200]]},
+    {in: ".frow:has(.ed2)", who: "leo", steps: [[".ed-sel .r", "hover", 3000, "Trimming the end"], [".ed-chips span:nth-child(2)", "hover", 1600],
+      [".ed-save", "hover", 2000, "Saved"]]},
     {in: ".frow:has(.mom)", who: "ari", steps: [[".mrow:first-child .n", "hover", 2200, "94, keep it"], [".mrow.q", "hover", 2000], [".fcopy h3", "hover", 1600]]},
     {in: "#how", who: "ari", steps: [["#hw .hw-tab[data-s='1']", "click", 3600, "Checking the cuts"], ["#hw .hv-clip:first-child", "hover", 2000], ["#hw .hw-tab[data-s='2']", "click", 3600], ["#hw .hv-log:first-child .hv-btn", "hover", 2000]]},
     {in: "#styles", who: "leo", steps: [[".cs-tile[data-i='1']", "click", 2200, "Hype for the clutch"], [".cs-seg[data-k='size'] button[data-v='l']", "click", 1800],
