@@ -1134,8 +1134,11 @@ def clips_zip(ids: str = ""):
         f = account.zip_clips(pairs)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    import zipfile
+    with zipfile.ZipFile(f) as z:                   # one creator: the zip is named after them
+        tops = {n.split("/", 1)[0] for n in z.namelist()}
     from starlette.background import BackgroundTask
-    return FileResponse(f, filename=f"socialshot-clips-{len(pairs)}.zip", media_type="application/zip",
+    return FileResponse(f, filename=f"{next(iter(tops))} clips.zip" if len(tops) == 1 else f"socialshot-clips-{len(pairs)}.zip", media_type="application/zip",
                         headers={"Cache-Control": "private, no-store"}, background=BackgroundTask(lambda: f.unlink(missing_ok=True)))
 
 
@@ -1217,6 +1220,41 @@ def clip_source(jid: str, cid: str):
 _popcut_locks: dict = {}
 
 
+def _pop_source(job, clip) -> Path:
+    """The footage a clip is cut from, for the pop-out's cut-out and face finding."""
+    home = Path(job["dir"]).resolve()
+    if clip.get("src"):
+        f = home / "clips" / Path(str(clip["src"]).replace("\\", "/")).name
+        f = f.with_suffix(".mp4") if f.suffix.lower() == ".ts" and f.with_suffix(".mp4").is_file() else f
+    else:
+        f = Path(job.get("source_path") or "").resolve()
+    if not f.is_file() or home not in f.resolve().parents:
+        raise HTTPException(404, "The original video for this clip is no longer here.")
+    return f
+
+
+def _cam_box(cam: str) -> list:
+    try:
+        box = [float(v) for v in cam.split(",")]
+        if len(box) != 4:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(400, "That face cam box isn't valid.")
+    return render._region(box, render.SPLIT_DEFAULT["cam"])
+
+
+@app.get("/api/jobs/{jid}/clips/{cid}/popface")
+def clip_popface(jid: str, cid: str, cam: str):
+    """Where the streamer's face is inside the face cam box, for the pop-out card's top edge (the finished clip
+    finds it the same way, over the same part of the video)."""
+    job, clip = _clip_or_404(jid, cid)
+    box, f = _cam_box(cam), _pop_source(job, clip)
+    _throttle("popface:" + ctx.uid(), 60, 600)
+    from . import cutout
+    off = clip.get("src_offset", 0.0)
+    return {"face": cutout.face_box(f, clip["start"] - off, clip["end"] - clip["start"], box)}
+
+
 @app.get("/api/jobs/{jid}/clips/{cid}/popcut")
 def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: int, ch: int = 0, cr: int = 0, cb: int = 0,
                 plain: int = 0):
@@ -1238,16 +1276,9 @@ def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: 
     a, b = max(lo, min(hi, float(a))), max(lo, min(hi, float(b)))
     if not b - a >= 0.5 or b - a > 200:
         raise HTTPException(400, "That part of the clip isn't valid.")
-    home = Path(job["dir"]).resolve()
-    if clip.get("src"):
-        f = home / "clips" / Path(str(clip["src"]).replace("\\", "/")).name
-        f = f.with_suffix(".mp4") if f.suffix.lower() == ".ts" and f.with_suffix(".mp4").is_file() else f
-    else:
-        f = Path(job.get("source_path") or "").resolve()
-    if not f.is_file() or home not in f.resolve().parents:
-        raise HTTPException(404, "The original video for this clip is no longer here.")
-    key = hashlib.sha1(json.dumps([str(f), box, t, keep, ch, cr, cb, round(a, 2), round(b, 2), bool(plain), 4]).encode()).hexdigest()[:16]
-    d = home / "popcut"
+    f = _pop_source(job, clip)
+    key = hashlib.sha1(json.dumps([str(f), box, t, keep, ch, cr, cb, round(a, 2), round(b, 2), bool(plain), 5]).encode()).hexdigest()[:16]
+    d = Path(job["dir"]).resolve() / "popcut"
     out = d / f"{cid}-{key}.webm"
     with _popcut_locks.setdefault(key, threading.Lock()):
         if not out.is_file():
@@ -2044,6 +2075,14 @@ def creator_latest(cid: str, kind: str = "streams", p: str = ""):
     return {"platform": key, "platforms": list(chans), "kind": kind if key == "youtube" else "", "items": items}
 
 
+def _goal(body) -> int:
+    """How many clips a recording should make in all (Clips to make, on the live tab); 0 lets the judges decide."""
+    try:
+        return max(0, min(20, int((body or {}).get("clips") or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
 @app.post("/api/creators/{cid}/live")
 def go_live(cid: str, body: dict = Body(default={})):
     _need_verified()
@@ -2058,7 +2097,7 @@ def go_live(cid: str, body: dict = Body(default={})):
     asked = str((body or {}).get("channel") or "")
     url = asked if asked in c["channels"].values() else c["channel"] if c["channel"] in on_air or not on_air else on_air[0]
     try:
-        return jobs.public(live.start_session(c, url))
+        return jobs.public(live.start_session(c, url, _goal(body)))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -2068,7 +2107,8 @@ def go_live_link(body: dict = Body(default={})):
     """Record a live stream straight from its link, without adding a creator first."""
     _need_verified()
     try:
-        return jobs.public(live.start_quick(str((body or {}).get("url") or ""), (body or {}).get("style"), (body or {}).get("layout")))
+        return jobs.public(live.start_quick(str((body or {}).get("url") or ""), (body or {}).get("style"), (body or {}).get("layout"),
+                                            _goal(body)))
     except ValueError as e:
         raise HTTPException(400, str(e))
 

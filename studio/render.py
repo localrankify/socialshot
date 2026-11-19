@@ -257,6 +257,7 @@ def clean_look(look) -> dict | None:
             "size": num("size", 60, 220), "outline": num("outline", 0, 12), "per": num("per", 1, 5),
             "base": colour("base").upper(), "active": colour("active").upper(), "upper": bool(look.get("upper", True)),
             "y": None if y is None else max(8.0, min(92.0, float(y))), "hook": bool(look.get("hook", True)),
+            "caps": bool(look.get("caps", True)),     # the captions on the video (the eye on the Captions track)
             # the heading at the top: its own font, size and height
             "hook_font": look["hook_font"] if look.get("hook_font") in FONTS else "Mazzard H", "hook_size": hook_size,
             "hook_y": None if hy is None else max(5.0, min(95.0, float(hy))),
@@ -298,6 +299,11 @@ def clean_look(look) -> dict | None:
             "brand_tag": _line(look.get("brand_tag"), 40), "brand_tag_on": bool(look.get("brand_tag_on", False)),
             "brand_font": look["brand_font"] if look.get("brand_font") in FONTS else "Inter",
             "brand_color": _hex(look.get("brand_color"), "#FFFFFF"),
+            # the social watermark's look: plain (a soft shadow), outline (a dark edge on the letters), pill (a dark
+            # box behind it) or glass (a light see-through box); the header's size against the handle; the alignment
+            "brand_style": look["brand_style"] if look.get("brand_style") in WM_STYLES else "plain",
+            "brand_head_pct": _num(look.get("brand_head_pct"), 50, 160, 100),
+            "brand_align": look["brand_align"] if look.get("brand_align") in ("left", "center", "right") else "left",
             "aspect": look["aspect"] if look.get("aspect") in ASPECTS else "9:16",     # the clip's shape
             "split": clean_split(look.get("split")),           # the split layout's stream and face cam parts
             # the part of the picture shown (Frame view), for every layout but split; None is the whole picture
@@ -483,6 +489,11 @@ def media_path(uid: str, mid: str) -> Path:
 # Either a card (a canvas colour, a picture, a title and a line under it) drawn here, or a picture or video from the
 # media library. The music rises into it (music "rise"). The editor draws the same card from outro_geometry.
 OUTRO_BG = {"black": "#0E0E10", "white": "#FFFFFF", "gray": "#2A2A2E"}
+SOCIALSHOT_MARK = Path(__file__).resolve().parent.parent / "web" / "brand" / "logo-mark.png"   # outro picture "socialshot"
+# the end card every new clip gets: the SocialShot mark, "Made with SocialShot" and the site, for two seconds
+MADE_WITH = {"on": True, "kind": "card", "secs": 2, "bg": OUTRO_BG["black"], "pic": "socialshot", "pic_size": 220, "pic_round": 0,
+             "title": "Made with SocialShot", "sub": "socialshot.io", "file": "", "bg_kind": "blur", "fx": True, "icons": True}
+OUTRO_ICONS = ("youtube", "tiktok", "instagram")      # the platform row on an outro card
 
 
 def clean_outro(v) -> dict:
@@ -493,9 +504,12 @@ def clean_outro(v) -> dict:
     except (TypeError, ValueError):
         secs = 3.0
     return {"on": bool(v.get("on")), "kind": "file" if v.get("kind") == "file" else "card", "secs": round(secs, 1),
-            "bg": _hex(v.get("bg"), OUTRO_BG["black"]), "pic": pic if pic == "logo" or _MUSIC_ID.match(pic) else "",
+            "bg": _hex(v.get("bg"), OUTRO_BG["black"]), "pic": pic if pic in ("logo", "socialshot") or _MUSIC_ID.match(pic) else "",
             "pic_size": _num(v.get("pic_size"), 60, 600, 270), "pic_round": _num(v.get("pic_round"), 0, 50, 0),
-            "title": _line(v.get("title"), 60), "sub": _line(v.get("sub"), 60), "file": f if _MUSIC_ID.match(f) else ""}
+            "title": _line(v.get("title"), 60), "sub": _line(v.get("sub"), 60), "file": f if _MUSIC_ID.match(f) else "",
+            # the card's background: its colour, or the clip's last moment blurred; a purple glow with fine grain and
+            # thin lines; and a row of platform icons under the words
+            "bg_kind": "blur" if v.get("bg_kind") == "blur" else "solid", "fx": bool(v.get("fx")), "icons": bool(v.get("icons"))}
 
 
 def outro_geometry(Wd, Hd, o: dict, has_pic: bool) -> dict:
@@ -508,13 +522,19 @@ def outro_geometry(Wd, Hd, o: dict, has_pic: bool) -> dict:
     if o["sub"]:
         parts.append(round(44 * u))
     gaps = {"pic": round(36 * u), "text": round(10 * u)}
+    if o.get("fx") and o["sub"]:                       # the line under the title sits in a pill: a little more room
+        gaps["text"] = round(26 * u)
     total = sum(parts) + (gaps["pic"] if has_pic and (o["title"] or o["sub"]) else 0) + (gaps["text"] if o["title"] and o["sub"] else 0)
+    if o.get("icons"):
+        total += round(64 * u) + round(92 * u)
     y = (Hd - total) / 2
     g = {"u": u, "ps": ps, "pic_y": round(y)}
     y += ps + (gaps["pic"] if has_pic and (o["title"] or o["sub"]) else 0)
     g["title_y"] = round(y + 32 * u)                 # the middle of each text line
     y += (round(64 * u) + (gaps["text"] if o["sub"] else 0)) if o["title"] else 0
     g["sub_y"] = round(y + 22 * u)
+    y += round(44 * u) if o["sub"] else 0
+    g["icons_y"] = round(y + 64 * u)                 # the top of the icon row
     return g
 
 
@@ -525,8 +545,51 @@ def _ink_for(bg: str) -> tuple:
     return ("#111114", "#55555C") if light else ("#FFFFFF", "#A1A1AA")
 
 
-def outro_card(o: dict, pic_path: str, out: Path):
-    from PIL import Image, ImageDraw, ImageFont
+def _outro_backdrop(o: dict, Wd: int, Hd: int, bg_path):
+    """The card's background: its colour, or the clip's last moment blurred and darkened; then (fx) a purple glow,
+    a soft vignette, fine purple grain, a faint grid that fades out from the middle and a thin inset frame."""
+    import numpy as np
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter
+    img = Image.new("RGB", (Wd, Hd), o["bg"])
+    if o.get("bg_kind") == "blur" and bg_path and Path(bg_path).is_file():
+        try:
+            fr = Image.open(bg_path).convert("RGB")
+            sc = max(Wd / fr.width, Hd / fr.height)
+            fr = fr.resize((max(1, round(fr.width * sc)), max(1, round(fr.height * sc))), Image.LANCZOS)
+            fr = fr.crop(((fr.width - Wd) // 2, (fr.height - Hd) // 2, (fr.width - Wd) // 2 + Wd, (fr.height - Hd) // 2 + Hd))
+            soft = fr.resize((max(1, Wd // 10), max(1, Hd // 10)), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
+            img = Image.blend(soft.resize((Wd, Hd), Image.BICUBIC), Image.new("RGB", (Wd, Hd), (11, 10, 16)), 0.62)
+        except Exception:  # noqa: BLE001 - an unreadable frame: the plain colour
+            pass
+    if not o.get("fx"):
+        return img
+    u = min(Wd, Hd * 9 / 16) / 1080
+    a = np.asarray(img).astype(np.float32)
+    yy, xx = np.mgrid[0:Hd, 0:Wd].astype(np.float32)
+    glow = np.clip(1 - np.sqrt((xx - Wd / 2) ** 2 + (yy - Hd * 0.42) ** 2) / (0.8 * Wd), 0, 1) ** 2
+    a = a * (1 - 0.45 * glow[..., None]) + np.array([124, 58, 237], np.float32) * 0.45 * glow[..., None]
+    edge = np.sqrt(((xx - Wd / 2) / Wd) ** 2 + ((yy - Hd / 2) / Hd) ** 2)
+    a *= (1 - 0.5 * np.clip((edge - 0.32) / 0.4, 0, 1))[..., None]
+    grain = np.random.default_rng(7).normal(0, 8.5, (Hd, Wd)).astype(np.float32)
+    a += grain[..., None] * np.array([1.0, 0.82, 1.18], np.float32)        # grain with a purple cast
+    img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).convert("RGBA")
+    lines = Image.new("RGBA", (Wd, Hd), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(lines)
+    step, cx = max(24, round(108 * u)), Wd // 2
+    for x in list(range(cx, Wd, step)) + list(range(cx - step, -1, -step)):
+        ld.line([(x, 0), (x, Hd)], fill=(255, 255, 255, 22), width=1)
+    for y in range(round(Hd * 0.42) % step, Hd, step):
+        ld.line([(0, y), (Wd, y)], fill=(255, 255, 255, 22), width=1)
+    fade = Image.fromarray((np.clip(1 - np.sqrt((xx - Wd / 2) ** 2 + (yy - Hd * 0.42) ** 2) / (0.62 * Wd), 0, 1) * 255).astype(np.uint8))
+    lines.putalpha(ImageChops.multiply(lines.getchannel("A"), fade))
+    m = round(56 * u)
+    ImageDraw.Draw(lines).rounded_rectangle((m, m, Wd - m, Hd - m), radius=round(48 * u), outline=(255, 255, 255, 34), width=max(2, round(2 * u)))
+    img.alpha_composite(lines)
+    return img.convert("RGB")
+
+
+def outro_card(o: dict, pic_path: str, out: Path, bg_path=None):
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
     Wd, Hd = _wh()
     pic = None
     if pic_path and Path(pic_path).is_file():
@@ -535,8 +598,9 @@ def outro_card(o: dict, pic_path: str, out: Path):
         except Exception:  # noqa: BLE001
             pic = None
     g = outro_geometry(Wd, Hd, o, pic is not None)
-    img = Image.new("RGB", (Wd, Hd), o["bg"])
-    ink, sub = _ink_for(o["bg"])
+    img = _outro_backdrop(o, Wd, Hd, bg_path)
+    dark = o.get("bg_kind") == "blur" or o.get("fx")
+    ink, sub = ("#FFFFFF", "#E4E4E7") if dark else _ink_for(o["bg"])
     if pic is not None:
         ps = g["ps"]
         pic.thumbnail((ps, ps), Image.LANCZOS)
@@ -545,14 +609,41 @@ def outro_card(o: dict, pic_path: str, out: Path):
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, pic.width * 4 - 1, pic.height * 4 - 1), radius=rad, fill=255)
         mask = mask.resize(pic.size, Image.LANCZOS)
         alpha = Image.composite(pic.getchannel("A"), Image.new("L", pic.size, 0), mask)
-        img.paste(pic.convert("RGB"), (round((Wd - pic.width) / 2), g["pic_y"] + round((ps - pic.height) / 2)), alpha)
+        at = (round((Wd - pic.width) / 2), g["pic_y"] + round((ps - pic.height) / 2))
+        if o.get("fx"):                                # a soft shadow under the picture, so it sits on the card
+            sh = Image.new("L", (Wd, Hd), 0)
+            sh.paste(alpha.point(lambda v: round(v * 0.6)), (at[0], at[1] + round(18 * g["u"])))
+            img.paste(Image.new("RGB", (Wd, Hd), (6, 4, 12)), (0, 0), sh.filter(ImageFilter.GaussianBlur(round(22 * g["u"]))))
+        img.paste(pic.convert("RGB"), at, alpha)
+    img = img.convert("RGBA")
     d = ImageDraw.Draw(img)
     u = g["u"]
     if o["title"]:
         d.text((Wd / 2, g["title_y"]), o["title"], font=ImageFont.truetype(_font_file("Inter", 700), round(52 * u)), fill=ink, anchor="mm")
     if o["sub"]:
-        d.text((Wd / 2, g["sub_y"]), o["sub"], font=ImageFont.truetype(_font_file("Inter", 500), round(34 * u)), fill=sub, anchor="mm")
-    img.save(out, "PNG")
+        fs = ImageFont.truetype(_font_file("Inter", 500), round(34 * u))
+        if o.get("fx"):                                # the line in a glass pill
+            tw = d.textlength(o["sub"], font=fs)
+            pill = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            ImageDraw.Draw(pill).rounded_rectangle((Wd / 2 - tw / 2 - 28 * u, g["sub_y"] - 32 * u, Wd / 2 + tw / 2 + 28 * u, g["sub_y"] + 32 * u),
+                                                   radius=round(32 * u), fill=(255, 255, 255, 26), outline=(255, 255, 255, 52), width=max(1, round(2 * u)))
+            img.alpha_composite(pill)
+            d = ImageDraw.Draw(img)
+        d.text((Wd / 2, g["sub_y"]), o["sub"], font=fs, fill=sub, anchor="mm")
+    if o.get("icons"):                                 # the platforms, each on a small glass disc
+        dsz, gap = round(92 * u), round(24 * u)
+        x0 = round((Wd - len(OUTRO_ICONS) * dsz - (len(OUTRO_ICONS) - 1) * gap) / 2)
+        for i, k in enumerate(OUTRO_ICONS):
+            x, y = x0 + i * (dsz + gap), g["icons_y"]
+            disc = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            ImageDraw.Draw(disc).ellipse((x, y, x + dsz, y + dsz), fill=(255, 255, 255, 22), outline=(255, 255, 255, 48), width=max(1, round(2 * u)))
+            img.alpha_composite(disc)
+            try:
+                mk = draw_mark(k, round(40 * u))
+                img.alpha_composite(mk, (x + (dsz - mk.width) // 2, y + (dsz - mk.height) // 2))
+            except Exception:  # noqa: BLE001 - a mark that can't be drawn: the empty disc
+                pass
+    img.convert("RGB").save(out, "PNG")
 
 
 # ---------------------------------------------------------------- zoom moments
@@ -1012,17 +1103,26 @@ def _line(v, n: int) -> str:
     return re.sub(r"[\x00-\x1f\x7f]", "", str(v or "")).strip()[:n]
 
 
-def social_geometry(s: int) -> dict:
-    """Sizes in the social watermark, from its size setting. The same numbers in editor.js (wmGeo)."""
-    return {"pad": 8, "hs": round(s * 0.36), "ts": round(s * 0.5), "ic": round(s * 0.6), "gs": round(s * 0.44), "g": round(s * 0.12)}
+WM_STYLES = ("plain", "outline", "pill", "glass")
+
+
+def social_geometry(s: int, style: str = "plain") -> dict:
+    """Sizes in the social watermark, from its size setting. The same numbers in editor.js (wmGeo). A boxed style
+    (pill, glass) gets room around the words and round corners."""
+    boxed = style in ("pill", "glass")
+    return {"pad": round(s * 0.22) if boxed else 8, "r": round(s * 0.24), "hs": round(s * 0.36), "ts": round(s * 0.5),
+            "ic": round(s * 0.6), "gs": round(s * 0.44), "g": round(s * 0.12)}
 
 
 def social_badge(look: dict, logo_path: str):
     """The social watermark as one picture: header, icon and handle, then a dashed rule and the hashtag."""
     from PIL import Image, ImageDraw, ImageFilter, ImageFont
-    q = social_geometry(look["brand_size"])
+    st, al = look.get("brand_style", "plain"), look.get("brand_align", "left")
+    q = social_geometry(look["brand_size"], st)
     col = look["brand_color"]
-    f_head = ImageFont.truetype(_font_file(look["brand_font"], 500), q["hs"])
+    hs = max(8, round(q["hs"] * look.get("brand_head_pct", 100) / 100))
+    sw = max(2, round(q["ts"] / 12)) if st == "outline" else 0     # the dark edge on the letters (outline)
+    f_head = ImageFont.truetype(_font_file(look["brand_font"], 500), hs)
     f_bold = ImageFont.truetype(_font_file(look["brand_font"], 700), q["ts"])
     f_tag = ImageFont.truetype(_font_file(look["brand_font"], 700), q["gs"])
     head, handle = look["brand_head"], look["brand_handle"]
@@ -1041,35 +1141,46 @@ def social_badge(look: dict, logo_path: str):
         return None
     meas = ImageDraw.Draw(Image.new("L", (1, 1)))
     tw = lambda t, f: meas.textlength(t, font=f) if t else 0   # noqa: E731
-    row_w = (icon.width if icon else 0) + (q["g"] if icon and handle else 0) + tw(handle, f_bold)
-    w = round(max(tw(head, f_head), row_w, tw(tag, f_tag))) + q["pad"] * 2
-    lh_head, lh_row, lh_tag = round(q["hs"] * 1.25), max(q["ic"], round(q["ts"] * 1.25)), round(q["gs"] * 1.25)
+    row_w = (icon.width if icon else 0) + (q["g"] if icon and handle else 0) + tw(handle, f_bold) + (2 * sw if handle else 0)
+    head_w, tag_w = tw(head, f_head) + (2 * sw if head else 0), tw(tag, f_tag) + (2 * sw if tag else 0)
+    inner = max(head_w, row_w, tag_w)
+    w = round(inner) + q["pad"] * 2
+    lh_head, lh_row, lh_tag = round(hs * 1.25), max(q["ic"], round(q["ts"] * 1.25)), round(q["gs"] * 1.25)
+    lx = lambda lw: q["pad"] + {"left": 0, "center": (inner - lw) / 2, "right": inner - lw}[al]   # noqa: E731 - a line's left edge
     h = q["pad"] * 2 + (lh_head if head else 0) + ((q["g"] // 2) if head and (handle or icon) else 0) + (lh_row if handle or icon else 0) \
         + ((2 + q["g"] * 2 + lh_tag) if tag else 0)
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     ink = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(ink)
     x, y = q["pad"], q["pad"]
+    edge = {"stroke_width": sw, "stroke_fill": "#000000"} if sw else {}
     if head:
-        d.text((x, y + lh_head / 2), head, font=f_head, fill=col, anchor="lm")
+        d.text((lx(head_w) + sw, y + lh_head / 2), head, font=f_head, fill=col, anchor="lm", **edge)
         y += lh_head + ((q["g"] // 2) if handle or icon else 0)
     if handle or icon:
-        cx = x
+        cx = round(lx(row_w))
         if icon:
             ink.alpha_composite(icon, (cx, round(y + (lh_row - icon.height) / 2)))
             cx += icon.width + (q["g"] if handle else 0)
         if handle:
-            d.text((cx, y + lh_row / 2), handle, font=f_bold, fill=col, anchor="lm")
+            d.text((cx + sw, y + lh_row / 2), handle, font=f_bold, fill=col, anchor="lm", **edge)
         y += lh_row
     if tag:
         y += q["g"]
         for dx in range(x, w - q["pad"], 8):                  # a dashed rule, like the reference
             d.line([(dx, y), (min(dx + 4, w - q["pad"]), y)], fill=col + "99", width=2)
         y += 2 + q["g"]
-        d.text((x, y + lh_tag / 2), tag, font=f_tag, fill=col, anchor="lm")
-    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))            # a soft shadow under the words, so they read on any picture
-    shadow.putalpha(ink.getchannel("A").point(lambda v: round(v * 0.55)))
-    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(3)), (0, 0))
+        d.text((lx(tag_w) + sw, y + lh_tag / 2), tag, font=f_tag, fill=col, anchor="lm", **edge)
+    if st in ("pill", "glass"):                                  # the box behind the words
+        box = ImageDraw.Draw(img)
+        if st == "pill":
+            box.rounded_rectangle((0, 0, w - 1, h - 1), radius=q["r"], fill=(10, 10, 12, 165))
+        else:
+            box.rounded_rectangle((0, 0, w - 1, h - 1), radius=q["r"], fill=(255, 255, 255, 46), outline=(255, 255, 255, 70), width=2)
+    if st in ("plain", "glass"):                                 # a soft shadow under the words, so they read on any picture
+        shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        shadow.putalpha(ink.getchannel("A").point(lambda v: round(v * 0.55)))
+        img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(3)), (0, 0))
     img.alpha_composite(ink)
     return img
 
@@ -1361,7 +1472,10 @@ SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], 
                  # person inside the card: the face cam's own background ("cam") or a "plain" fill in pop_fill
                  "pop_shape": "rounded", "pop_size": 70, "pop_x": None, "pop_y": None, "pop_radius": 8, "pop_border": 8,
                  "pop_edge": "solid", "pop_c1": "#FFFFFF", "pop_c2": "#FF8A1F", "pop_out": 22,
-                 "pop_bg": "cam", "pop_fill": "#FFFFFF"}
+                 "pop_bg": "cam", "pop_fill": "#FFFFFF",
+                 # how the face sits in the card: "face" (found and centred, a set size, the head line across it) or
+                 # "box" (the face cam box as placed)
+                 "pop_fit": "face"}
 GRID_MAX = 4
 POP_AT = (50.0, 57.0)          # where the pop-out card's middle sits until it is dragged (% of the frame)
 
@@ -1422,7 +1536,8 @@ def clean_split(v) -> dict:
             "pop_out": num("pop_out", 0, 45),
             "pop_shape": v.get("pop_shape") if v.get("pop_shape") in ("rounded", "circle", "square") else "rounded",
             "pop_edge": "gradient" if v.get("pop_edge") == "gradient" else "solid",
-            "pop_bg": "plain" if v.get("pop_bg") == "plain" else "cam", "pop_fill": hexc("pop_fill", SPLIT_DEFAULT["pop_fill"])}
+            "pop_bg": "plain" if v.get("pop_bg") == "plain" else "cam", "pop_fill": hexc("pop_fill", SPLIT_DEFAULT["pop_fill"]),
+            "pop_fit": "box" if v.get("pop_fit") == "box" else "face"}
 
 
 def _even_faces(n):
@@ -1533,6 +1648,66 @@ def pip_geometry(W, H, split, src_w, src_h) -> dict:
     return {"x": x, "y": y, "w": pw, "h": ph, "b": b, "r": r, "color": sp.get("pip_color", "#FFFFFF")}
 
 
+def pop_line(sp, src_w, src_h) -> float:
+    """How much of the face cam picture rises above the pop-out card (0 to 1). With the face found in the face cam
+    box (sp["pop_face"], fractions of the box), the card's top edge crosses the head: "Head pops out" is how much of
+    the head rises (22 %: about the forehead and up), so the effect shows whatever room is above the head in the box.
+    Without it, "Head pops out" is that share of the picture."""
+    out = sp.get("pop_out", 22) / 100
+    face = sp.get("pop_face")
+    if not face or not out:
+        return out
+    fx, fy, fw, fh = face
+    top = fy - 0.45 * fh                       # the face box runs eyebrows to chin: hair reaches about this high
+    line = top + (out / 0.9) * 1.45 * fh        # that share of the head, top down, rises over the card (22 %: mid-forehead)
+    cam = sp["cam"]
+    a = (cam[3] * (src_h or 9)) / max(1e-6, cam[2] * (src_w or 16))     # the box's height over width
+    square = sp.get("pop_shape") in ("circle", "square")
+    p = max(0.03, line)
+    for _ in range(8):                         # the picture's shape depends on the line, and the line on the picture
+        r = 1 / max(0.5, 1 - p) if square else max(0.8, min(1.6, a))       # the picture's height over width
+        if r >= a:
+            p2 = line                          # the picture shows the box's full height: rows line up
+        else:                                  # it shows the box's full width and the middle of its height
+            vis = r / a
+            p2 = (line - (1 - vis) / 2) / vis
+        p = max(0.03, min(0.5 if square else 0.6, p2))
+    return p
+
+
+POP_FACE = 0.42           # the face's width as a share of the card's width when the face is framed
+POP_ROUND_H = 0.95        # a framed rectangle card's height over its width
+
+
+def pop_frame(sp, src_w, src_h, w, h):
+    """The face framed in the card: the part of the face cam box to show (centred on the face, the face POP_FACE of
+    the card's width, its hair just below the top) and how much of it rises above the card, so the card's top edge
+    crosses the head at the head line. Returns (t, pop, crop): crop is [left, top, width, height] of the source.
+    None when no face is known or the box is to be shown as placed."""
+    face = sp.get("pop_face")
+    if not face or sp.get("pop_fit", "face") != "face":
+        return None
+    fx, fy, fw, fh = face
+    cam = sp["cam"]
+    bw, bh = cam[2] * (src_w or 16), cam[3] * (src_h or 9)
+    out = sp.get("pop_out", 22) / 100
+    top = fy - 0.45 * fh                       # the face box runs eyebrows to chin: hair reaches about this high
+    line = top + (out / 0.9) * 1.45 * fh        # the head line (22 %: mid-forehead)
+    cw0 = min(1.0, max(0.5, fw / POP_FACE))     # never more than twice as close as the box: the face cam is small
+    p, cw, ch, y0 = (0.2 if out else 0.0), cw0, 1.0, 0.0
+    for _ in range(10):                        # the picture's shape depends on the line, and the line on the picture
+        tw = (h / w) / max(0.4, 1 - p)
+        cw, ch = cw0, cw0 * tw * bw / bh
+        if ch > 1:
+            cw, ch = cw / ch, 1.0
+        y0 = min(max(0.0, top - 0.06 * ch), 1 - ch)
+        p = min(0.6, max(0.0, (line - y0) / ch)) if out else 0.0
+    x0 = min(max(0.0, fx + fw / 2 - cw / 2), 1 - cw)
+    t = int(round(h / max(0.4, 1 - p) / 2)) * 2
+    crop = [round(cam[0] + x0 * cam[2], 4), round(cam[1] + y0 * cam[3], 4), round(cw * cam[2], 4), round(ch * cam[3], 4)]
+    return t, t - h, crop
+
+
 def pop_geometry(W, H, split, src_w, src_h) -> dict:
     """The pop-out card in pixels of the frame. The face cam part fills a picture w x t; the card shows its lower
     h rows at (x, y), and the cut-out person is laid over the whole picture from y - pop, so whatever of them is in
@@ -1541,8 +1716,13 @@ def pop_geometry(W, H, split, src_w, src_h) -> dict:
     (None: the face cam's own)."""
     sp = split or SPLIT_DEFAULT
     pw = int(round(W * sp.get("pop_size", 70) / 100 / 2)) * 2
-    cam, shape, out = sp["cam"], sp.get("pop_shape", "rounded"), sp.get("pop_out", 22)
-    if shape in ("circle", "square"):
+    cam, shape, out = sp["cam"], sp.get("pop_shape", "rounded"), pop_line(sp, src_w, src_h) * 100
+    framed = pop_frame(sp, src_w, src_h, pw, pw if shape in ("circle", "square") else int(round(pw * POP_ROUND_H / 2)) * 2)
+    crop = cam
+    if framed:
+        t, pop, crop = framed
+        h = t - pop
+    elif shape in ("circle", "square"):
         h = pw
         t = int(round(h / max(0.5, 1 - out / 100) / 2)) * 2
         pop = t - h
@@ -1560,7 +1740,7 @@ def pop_geometry(W, H, split, src_w, src_h) -> dict:
     c1 = sp.get("pop_c1") or "#FFFFFF"
     c2 = (sp.get("pop_c2") or c1) if sp.get("pop_edge") == "gradient" else c1
     fill = (sp.get("pop_fill") or "#FFFFFF") if sp.get("pop_bg") == "plain" else None
-    return {"x": x, "y": y, "w": pw, "h": h, "t": t, "pop": pop, "b": b, "r": r, "color": c1, "c2": c2, "fill": fill}
+    return {"x": x, "y": y, "w": pw, "h": h, "t": t, "pop": pop, "b": b, "r": r, "color": c1, "c2": c2, "fill": fill, "crop": crop}
 
 
 def pop_ring(g: dict, out: Path):
@@ -2038,10 +2218,11 @@ def _filter_in(layout, fg_h, sel="", split=None):
             w, t, h, pop = g["w"], g["t"], g["h"], g["pop"]
             cut = "matte" in inp
             plain = cut and g.get("fill")      # plain: the card is one colour and the whole person stands on it
+            fc = g["crop"]                     # the part of the face cam shown: the face framed, or the box as placed
             if plain:
-                card = (fill(sp["cam"], w, t, "b", "pt") + f"color=c=0x{g['fill'][1:]}:s={w}x{h}:r={fps},format=yuva420p[pq];")
+                card = (fill(fc, w, t, "b", "pt") + f"color=c=0x{g['fill'][1:]}:s={w}x{h}:r={fps},format=yuva420p[pq];")
             else:
-                card = ((fill(sp["cam"], w, t, "b", "pt][pk", ",setsar=1,split=2") if cut else fill(sp["cam"], w, t, "b", "pk"))
+                card = ((fill(fc, w, t, "b", "pt][pk", ",setsar=1,split=2") if cut else fill(fc, w, t, "b", "pk"))
                         + f"[pk]crop={w}:{h}:0:{pop},format=yuva420p[pq];")
             f = (f"[0:v]fps={fps},{sel}split=2[a][b];" + fill(sp["game"], W, H, "a", "pg") + card
                  + f"[{inp['round']}:v]format=gray,scale={w}:{h}[pm];"
@@ -2128,6 +2309,12 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
     split = look["split"] if look and placed else clean_split(clip["auto_split"]) if clip.get("auto_split") else look["split"] if look else SPLIT_DEFAULT
     if clip.get("layout") == "split":
         split = avoid_cam(split, src_w, src_h, W, H)   # stream part still the whole picture: keep the face cam out of it
+    if clip.get("layout") == "pop":            # the face framed in the card, the card's top edge across the head
+        from . import cutout
+        try:
+            split = dict(split, pop_face=cutout.face_box(src, start, end - start, split["cam"]))
+        except Exception:  # noqa: BLE001 - no face: "Head pops out" is a share of the picture instead
+            pass
     _frame.split = split                       # the split layout's two parts, for the picture step below
     _frame.pip_geo = pip_geometry(W, H, split, src_w, src_h) if clip.get("layout") == "pip" else None
     _frame.pop_geo = pop_geometry(W, H, split, src_w, src_h) if clip.get("layout") == "pop" else None
@@ -2185,7 +2372,7 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
         words = _cut_words(words, start, keeps)
         out_end = start + sum(b - a for a, b in keeps)
     _frame.grid_segs = grid_segments(split, start, keeps, out_end - start) if layout == "grid" else None
-    ass = build_ass(words, start, out_end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show, hk)
+    ass = build_ass(words if not look or look.get("caps", True) else [], start, out_end, hook, style, clip.get("highlight_words", []), hook_y, cap_y, hook_font, hook_size, hook_show, hk)
     # The clip is made in a short work folder and moved into place afterwards. The caption step of ffmpeg cannot
     # open files whose full path is longer than 260 characters on Windows, which a data folder deep inside other
     # folders easily reaches. Inside the work folder every name is short and relative (a drive colon would also
@@ -2224,7 +2411,7 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             stills = ["round", "ring"]
             if g["pop"] + g["r"] > 0 or g["fill"]:     # the person cut out of the face cam, frame by frame (a video)
                 from . import cutout
-                if cutout.matte(src, start, end - start, split["cam"], g["w"], g["t"], g["pop"] + max(g["r"], g["b"]),
+                if cutout.matte(src, start, end - start, g["crop"], g["w"], g["t"], g["pop"] + max(g["r"], g["b"]),
                                 work / "matte.mkv", config.OUT_FPS,
                                 card={"h": g["h"], "r": g["r"], "b": g["b"], "plain": bool(g["fill"])}):
                     stills.append("matte")
@@ -2272,8 +2459,17 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
                     shutil.copyfile(f, work / f"outro{f.suffix}")
                     outro = {"file": f"outro{f.suffix}", "video": f.suffix == ".mp4", "secs": ot["secs"], "main": main}
             else:
-                pic = clip.get("logo_path", "") if ot["pic"] == "logo" else str(mdir / f"{ot['pic']}.png") if ot["pic"] else ""
-                outro_card(ot, pic, work / "outro.png")
+                pic = (clip.get("logo_path", "") if ot["pic"] == "logo" else str(SOCIALSHOT_MARK) if ot["pic"] == "socialshot"
+                       else str(mdir / f"{ot['pic']}.png") if ot["pic"] else "")
+                bgf = None
+                if ot.get("bg_kind") == "blur":        # the clip's last moment, for the blurred background
+                    bgf = work / "outro_bg.jpg"
+                    try:
+                        subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{max(0.0, end - 0.4):.2f}", "-i", str(src),
+                                        "-frames:v", "1", "-q:v", "4", str(bgf)], capture_output=True, timeout=60)
+                    except Exception:  # noqa: BLE001
+                        bgf = None
+                outro_card(ot, pic, work / "outro.png", bgf)
                 outro = {"file": "outro.png", "video": False, "secs": ot["secs"], "main": main}
         music = None
         mp = Path(clip.get("music_path") or "")

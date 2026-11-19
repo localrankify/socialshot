@@ -20,6 +20,7 @@ CHECK_EVERY = 180     # look at the stream every 3 minutes...
 QUIET_MAX = 600       # ...but only ask the AI when something happened, or at most every 10 minutes when calm
 WINDOW = 240          # seconds of transcript shown to the AI per check
 BEST_EVERY = 15 * 60  # with no clip for this long, the best moment of that stretch is clipped anyway
+GOAL_EVERY = 8 * 60   # with a clip goal not reached yet: the best moment of each stretch this long is clipped
 SR = 16000
 
 
@@ -146,6 +147,10 @@ class Session:
         self.last_best = 0.0          # stream second the last "best of the last 15 minutes" looked up to
         self.finding = False          # "Find best moments" pressed and still looking
         self.keep_all = bool(settings.get("keep_recording", True))   # the whole stream is kept, for more clips later
+        # how many clips to make in all, set when the recording started (0: as the judges decide). Kept here, not in
+        # the settings, which a change in the creator's Setup replaces while recording.
+        self.goal = max(0, min(20, int(settings.get("clip_goal") or 0)))
+        job["live_goal"] = self.goal
 
     # ---------------------------------------------------------------- recording
     def start(self):
@@ -362,6 +367,9 @@ class Session:
         last_clip = max((c.get("made_at", 0) for c in self.job["clips"]), default=self.started_at)
         must = st["must_clip_min"] > 0 and time.time() - last_clip >= st["must_clip_min"] * 60
         verdict = {"t": round(now), "transcript": None, "reaction": None, "trigger": why}
+        if self._goal_met():
+            self.skipped += 1
+            return self._verdict(verdict, f"Skipped: {self.goal} clips made, as you asked")
         if len(win) < 8:
             self.skipped += 1
             return self._verdict(verdict, "Skipped: nobody talking")
@@ -473,21 +481,30 @@ class Session:
                 self.finding = False
         threading.Thread(target=ctx.bind(run), daemon=True).start()
 
+    def _made(self) -> int:
+        return sum(1 for k in self.job["clips"] if k.get("status") != "error")
+
+    def _goal_met(self) -> bool:
+        return bool(self.goal) and self._made() >= self.goal
+
     def _best_recent(self):
-        """No clip in the last 15 minutes: clip the best moment of them anyway, if anyone talked."""
+        """No clip in the last 15 minutes: clip the best moment of them anyway, if anyone talked. With a clip goal
+        not reached yet, this runs every 8 minutes and clips the best moment even when the judges made one too."""
         a, b = self.last_best, self.t_done
         self.last_best = b
-        if any(k["start"] >= a for k in self.job["clips"]):
+        if self._goal_met() or (not self.goal and any(k["start"] >= a for k in self.job["clips"])):
             return
-        if self._pick_best(a, b, 1, "best moment of the last 15 minutes"):
-            self._verdict({"t": round(b), "transcript": None, "reaction": None, "trigger": "Every 15 minutes"},
-                          "Clipped: best moment of the last 15 minutes")
+        mins = round((b - a) / 60)
+        if self._pick_best(a, b, 1, f"best moment of the last {mins} minutes"):
+            self._verdict({"t": round(b), "transcript": None, "reaction": None,
+                           "trigger": f"Clip goal: {self._made()} of {self.goal}" if self.goal else "Every 15 minutes"},
+                          f"Clipped: best moment of the last {mins} minutes")
 
     def _best_of_stream(self):
         """When the stream is over: top it up to the clip count in Setup with the best moments of the whole stream."""
         if not self.keep_all:
             return
-        want = int(self.settings.get("max_clips", 6))
+        want = self.goal or int(self.settings.get("max_clips", 6))
         have = sum(1 for k in self.job["clips"] if k.get("status") != "error")
         end = self.t_done
         if have >= want or end < 120:
@@ -646,7 +663,7 @@ class Session:
                       "rejected": self.rejected, "verdicts": list(reversed(self.verdicts)),
                       "every_min": int(self.settings.get("ai_every_min", 3)) or 3,
                       "auto": None,
-                      "pending_clips": len(self.manual), "finding": self.finding})
+                      "pending_clips": len(self.manual), "finding": self.finding, "goal": self.goal})
         jobs.save(self.job)
 
     def _analyze(self):
@@ -680,7 +697,7 @@ class Session:
                     self._ai_check((sp["t"] - self.AUTO_BEFORE, sp["t"] + self.AUTO_AFTER), "Jump: " + sp["why"])
                 elif self.t_done - self.last_check >= every * 60 or (self.ended and not busy and self.t_done > self.last_check):
                     self._ai_check()
-                elif not self.ended and self.t_done - self.last_best >= BEST_EVERY:
+                elif not self.ended and self.t_done - self.last_best >= (GOAL_EVERY if self.goal and not self._goal_met() else BEST_EVERY):
                     self._best_recent()
                 self._publish()
             except Exception as e:  # noqa: BLE001
@@ -948,7 +965,7 @@ def recover(job):
     jobs.submit_live(cleanup)
 
 
-def start_session(creator: dict, url=None) -> dict:
+def start_session(creator: dict, url=None, goal=0) -> dict:
     url = normalize(url or creator.get("channel") or "")
     if not re.match(r"^https?://[^/]+\.[^/]+/", url + "/"):
         raise ValueError("Add this creator's channel link first.")
@@ -971,11 +988,11 @@ def start_session(creator: dict, url=None) -> dict:
                       creator=creator["id"], kind="live")
     job.update(status="live", stage="Connecting to the stream")
     jobs.save(job)
-    Session(job, creator).start()
+    Session(job, dict(creator, clip_goal=goal) if goal else creator).start()
     return job
 
 
-def start_quick(url: str, style=None, layout=None) -> dict:
+def start_quick(url: str, style=None, layout=None, goal=0) -> dict:
     """Record a live stream from its link alone: no creator needed. It uses the usual creator settings; the clips are
     kept as a video of its own on the Videos page."""
     url = normalize(url or "")
@@ -990,7 +1007,7 @@ def start_quick(url: str, style=None, layout=None) -> dict:
         settings["style"] = style
     if layout:
         settings["layout"] = layout
-    return start_session(settings, url)
+    return start_session(settings, url, goal)
 
 
 def _watch_user(uid):

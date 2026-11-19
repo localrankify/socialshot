@@ -122,7 +122,7 @@ class _Head:
         body), the body being the neck, shoulders and chest below it, widening like a person does, so a chair beside
         the head stays out either way."""
         import cv2
-        if self.n % 3 == 0:                  # every third frame is plenty: heads move slowly
+        if self.n % 6 == 0:                  # five times a second is plenty: heads move slowly
             small = cv2.cvtColor(cv2.resize(img, self.size, interpolation=cv2.INTER_AREA), cv2.COLOR_RGB2BGR)
             _, found = self.det.detect(small)
             if found is not None and len(found):
@@ -132,6 +132,13 @@ class _Head:
         self.n += 1
         if self.box is None:
             return (None, None) if body else None
+        key = (rows, body, *np.round(self.box, 1))
+        if getattr(self, "_key", None) == key:
+            return self._win                    # the face hasn't moved: the same area as the last frame
+        self._key, self._win = key, self._area(rows, body)
+        return self._win
+
+    def _area(self, rows, body):
         x, y, fw, fh = self.box
         # the face box runs from the eyebrows to the chin: hair and headphones reach about half a face above it and
         # most of a face to each side. Past that it fades out, so a headrest just above the hair stays behind.
@@ -145,6 +152,46 @@ class _Head:
             torso = np.clip((half - np.abs(xx - cx)) / (fw * 0.2), 0.0, 1.0) * np.clip((yy - (y + fh * 0.7)) / (fh * 0.3), 0.0, 1.0)
             return win, np.maximum(win, torso)
         return win
+
+
+_faces: dict = {}
+
+
+def face_box(src: Path, start: float, dur: float, cam, n: int = 7):
+    """Where the streamer's face is in the face cam part `cam` of src between start and start + dur: [x, y, w, h] as
+    fractions of that part (the middle of what was found in n frames across the clip), or None. The pop-out card's
+    top edge is set from it, so the head clearly rises over the card however much room is above it in the box."""
+    key = (str(src), round(start, 2), round(dur, 2), tuple(round(float(c), 4) for c in cam))
+    if key in _faces:
+        return _faces[key]
+    if not available() or not ensure():
+        return None
+    import cv2
+    x, y, cw, ch = cam
+    found = []
+    det = None
+    for i in range(n):
+        t = start + dur * (i + 0.5) / n
+        try:
+            p = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.2f}", "-i", str(src), "-frames:v", "1",
+                                "-vf", f"crop=iw*{cw}:ih*{ch}:iw*{x}:ih*{y},scale={FACE_W}:-2", "-f", "image2pipe",
+                                "-vcodec", "bmp", "-"], capture_output=True, timeout=30, creationflags=media.NO_WINDOW)
+        except (subprocess.TimeoutExpired, OSError):
+            continue
+        img = cv2.imdecode(np.frombuffer(p.stdout, np.uint8), cv2.IMREAD_COLOR) if p.stdout else None
+        if img is None:
+            continue
+        h, w = img.shape[:2]
+        if det is None:
+            det = cv2.FaceDetectorYN.create(str(_path("face_detection_yunet.onnx")), "", (w, h), 0.6, 0.3, 20)
+        det.setInputSize((w, h))
+        _, faces = det.detect(img)
+        if faces is not None and len(faces):
+            f = max(faces, key=lambda r: r[2] * r[3] * r[-1])
+            found.append([f[0] / w, f[1] / h, f[2] / w, f[3] / h])
+    box = [round(float(np.median([b[k] for b in found])), 4) for k in range(4)] if len(found) >= 2 else None
+    _faces[key] = box
+    return box
 
 
 def _card_shape(w, h, card):
@@ -179,7 +226,10 @@ def _run(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, fp
     keep = max(1, min(h, keep))
     inside = _card_shape(w, h, card) if card else None
     plain = bool(card and card.get("plain"))
-    out_of_card = None if inside is None or plain else 1.0 - inside   # the card shows its own sharp picture inside
+    out_of_card = None                       # the card shows its own sharp picture inside it
+    if inside is not None and not plain:
+        e = max(3, w // 120) * 2 + 1          # reach a few pixels into the card, so its soft edge never lets the
+        out_of_card = 1.0 - cv2.erode(inside, np.ones((e, e), np.uint8))    # border show through the head
     if plain:
         keep = h                            # the whole picture; the card's shape decides below the head
     rows = np.zeros((h, 1), np.float32)
@@ -200,13 +250,16 @@ def _run(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, fp
             if len(buf) < size:
                 break
             img = np.frombuffer(buf, np.uint8).reshape(h, w, 3)
-            x_in = cv2.resize(img, (SIDE, SIDE), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
-            m = sess.run(None, {name: x_in.transpose(2, 0, 1)[None]})[0][0, 0]
-            m = _person(m)
-            prev = m if prev is None else 0.6 * m + 0.4 * prev          # steadier from frame to frame: no flicker
+            if prev is None or frames % 2 == 0:    # the person model every other frame; the edges follow every frame
+                x_in = cv2.resize(img, (SIDE, SIDE), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+                m = sess.run(None, {name: x_in.transpose(2, 0, 1)[None]})[0][0, 0]
+                m = _person(m)
+                prev = m if prev is None else 0.65 * m + 0.35 * prev    # steadier from frame to frame: no flicker
             part = cv2.resize(prev, (w, h), interpolation=cv2.INTER_LINEAR)[:top]
             grey = cv2.cvtColor(img[:top], cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-            a = _guided(grey, part, rad)
+            hs = (max(8, w // 2), max(8, top // 2))   # the edge clean-up at half size, then back to full
+            a = cv2.resize(_guided(cv2.resize(grey, hs, interpolation=cv2.INTER_AREA), cv2.resize(part, hs, interpolation=cv2.INTER_AREA),
+                                   max(3, (rad // 2) | 1)), (w, top), interpolation=cv2.INTER_LINEAR)
             a = np.clip((a - lo) / span, 0.0, 1.0)                       # a firm edge, still soft over a pixel or two
             a = a * a * (3 - 2 * a) * rows[:top]
             if plain:                       # plain: the head may rise anywhere, the body stays inside the card

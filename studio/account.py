@@ -2,6 +2,7 @@
 
 Nothing here can be undone, so every caller asks the person first. Work in progress is never pulled out from under
 itself: a video still being made, or a stream still being recorded, has to finish or be stopped first."""
+import re
 import shutil
 import time
 import zipfile
@@ -66,9 +67,17 @@ def delete_many(job_ids: list, clip_ids: list) -> dict:
     return out
 
 
+def folder_name(job) -> str:
+    """The folder a video's clips go in: its creator's name, else the channel, else "SocialShot clips"."""
+    c = creators.get(job.get("creator")) if job.get("creator") else None
+    raw = (c or {}).get("name") or job.get("uploader") or re.sub(r" live$", "", str((job.get("source") or {}).get("name") or ""))
+    return re.sub(r"\s+", " ", re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", str(raw or ""))).strip()[:60] or "SocialShot clips"
+
+
 def zip_clips(clip_ids: list, limit_gb: float = 4.0) -> Path:
-    """One .zip of finished clips, for downloading many at once. Clips are already compressed, so they are only
-    stored, not squeezed again: making the file is as fast as copying."""
+    """One .zip of finished clips, for downloading many at once, each creator's clips in a folder of their own.
+    Clips are already compressed, so they are only stored, not squeezed again: making the file is as fast as
+    copying."""
     files, total, seen = [], 0, set()
     for jid, cid in dict.fromkeys(clip_ids):
         job = jobs.get(jid)
@@ -82,9 +91,10 @@ def zip_clips(clip_ids: list, limit_gb: float = 4.0) -> Path:
         if total > limit_gb * 1e9:
             raise ValueError(f"That is more than {limit_gb:g} GB of clips. Download them in smaller groups.")
         base = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (clip.get("title") or clip.get("hook") or cid))[:60].strip() or cid
-        name, n = f"{base}.mp4", 2
+        folder = folder_name(job)
+        name, n = f"{folder}/{base}.mp4", 2
         while name.lower() in seen:
-            name, n = f"{base} ({n}).mp4", n + 1
+            name, n = f"{folder}/{base} ({n}).mp4", n + 1
         seen.add(name.lower())
         files.append((f, name))
     if not files:

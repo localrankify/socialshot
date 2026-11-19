@@ -416,7 +416,7 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <link rel="stylesheet" href="/assets/ui.css?v=7">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=31">
+<link rel="stylesheet" href="/assets/site.css?v=33">
 <script src="/assets/site.js?v=4" defer></script>
 {extra}
 </head>
@@ -868,6 +868,23 @@ def comp_alerts():
     return _card("Alerts and usage", body, "w360")
 
 
+FEATURES_JS = """<script>
+/* the bar of parts: the part being read lights up, and on narrow screens the bar slides to keep it in view */
+(() => {
+  const nav = document.querySelector(".fs-nav-in"); if (!nav) return;
+  const links = [...nav.querySelectorAll("a[data-id]")];
+  const mark = id => links.forEach(a => {
+    const on = a.dataset.id === id; a.classList.toggle("on", on);
+    if (on) { a.setAttribute("aria-current", "true"); nav.scrollTo({left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: "smooth"}); }
+    else a.removeAttribute("aria-current");
+  });
+  const seen = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) mark(e.target.id); }), {rootMargin: "-35% 0px -60% 0px"});
+  links.forEach(a => { const s = document.getElementById(a.dataset.id); if (s) seen.observe(s); });
+})();
+</script>
+"""
+
+
 COMPS = {"setup": comp_setup, "sources": comp_sources, "moments": comp_moments, "clips": comp_clips, "editor": comp_editor,
          "brand": comp_brand, "schedule": comp_schedule, "alerts": comp_alerts}
 TINTS = ["violet", "green", "rose", "violet", "green", "rose", "violet", "green"]
@@ -883,7 +900,7 @@ def features_page():
     desc = f"All {n} SocialShot features: live clipping, scored moments, 9:16 layouts, 38 caption styles, an editor, a brand kit and auto-posting, free on Windows."
     og = og_card("features", "reel-poster", "Everything SocialShot does")
     path = "/features"
-    chips = "".join(f'<a href="#{E(g["id"])}">{E(g["name"])}<span>{len(g["items"])}</span></a>' for g in gs)
+    chips = "".join(f'<a href="#{E(g["id"])}" data-id="{E(g["id"])}">{_ico(FI[g["icon"]])}{E(g["name"])}<span>{len(g["items"])}</span></a>' for g in gs)
     secs = ""
     for i, g in enumerate(gs):
         items = "".join(f'<li><b>{E(a)}</b><span>{E(b_)}</span></li>' for a, b_ in g["items"])
@@ -898,8 +915,8 @@ def features_page():
            + f'<h1>Everything SocialShot does</h1><p>All {n} features, by part of the app: how videos come in, how moments are found, the clips, the editor, your brand and posting.</p>'
            + f'<div class="ctas"><a class="btn lg primary" href="/#get-app">Get the Windows app{ARROW}</a><a class="btn lg outline" href="/changelog">What is new in 1.1</a></div>'
            + f'<ul class="fine"><li>{n} features</li><li>Free on Windows</li><li>Your own AI key</li></ul></div></section>'
-           f'<section class="feats"><div class="wrap"><nav class="cl-chips fs-chips" aria-label="Parts of the app">{chips}</nav>{secs}</div></section>'
-           + cta() + tail())
+           f'<section class="feats"><div class="wrap"><nav class="fs-nav" aria-label="Parts of the app"><div class="fs-nav-in">{chips}</div></nav>{secs}</div></section>'
+           + cta() + FEATURES_JS + tail())
     (OUT / "features.html").write_text(out, encoding="utf-8")
 
 

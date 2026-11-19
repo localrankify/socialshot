@@ -111,7 +111,8 @@ on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first f
 
 DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "auto", "layout": "blur", "quality": 1080,
             "range_start": None, "range_end": None, "use_chat": True,
-            "watermark": True,    # a social watermark crediting the source ("Full video on YouTube /channel") on every new clip
+            "end_card": True,     # a two-second "Made with SocialShot" card after every new clip
+            "watermark": False,   # a social watermark crediting the source ("Full video on YouTube /channel"); off unless turned on
             "ai_edit": False}      # the AI editor: music, zooms, sound effects (and a reaction) on every new clip
 
 
@@ -150,7 +151,7 @@ def clean_options(options) -> dict:
             v = v if v in render.STYLES or v == "auto" else DEFAULTS["style"]
         elif k == "layout":
             v = v if v in render.LAYOUTS else DEFAULTS["layout"]
-        elif k in ("use_chat", "ai_edit", "watermark"):        # on/off settings
+        elif k in ("use_chat", "ai_edit", "watermark", "end_card"):        # on/off settings
             v = v is True or v in (1, "1", "true", "on")
         else:                                    # range_start, range_end: seconds into the video
             v = float(v)
@@ -540,7 +541,7 @@ def _source_watermark(job, clip):
     """A new clip, before its first render: a social watermark crediting where the video came from, the way clip pages
     do it ("Full video on" + the platform's icon + /channel). Only when the clip's look has no brand of its own and the
     option is on; the person can change or turn it off in the editor's Brand panel."""
-    if clip.get("version", 0) or clip.get("wm_done") or not (job.get("options") or {}).get("watermark", True):
+    if clip.get("version", 0) or clip.get("wm_done") or not (job.get("options") or {}).get("watermark", False):
         return
     clip["wm_done"] = True
     look = dict(clip.get("look") or {k: v for k, v in render.PRESETS.get(clip.get("style"), render.PRESETS["studio"]).items() if k != "label"})
@@ -556,6 +557,20 @@ def _source_watermark(job, clip):
     look.update(brand_on=True, brand_kind="social", brand_head="Full video on" if plat else "", brand_icon=plat or "none",
                 brand_handle=("/" + handle) if handle else "", brand_tag_on=False, brand_font=look.get("brand_font") or "Inter",
                 brand_color=look.get("brand_color") or "#FFFFFF", brand_size=look.get("brand_size") or 84, brand_pos=look.get("brand_pos") or "tr")
+    clip["look"] = render.clean_look(look) or look
+
+
+def _end_card(job, clip):
+    """Every clip, on its next render: the "Made with SocialShot" end card (the SocialShot mark and
+    socialshot.io), unless the clip already has an outro of its own. It can be changed or turned off in the
+    editor (Media, Outro)."""
+    if clip.get("end_done") or not (job.get("options") or {}).get("end_card", True):   # every clip, once (older ones too)
+        return
+    clip["end_done"] = True
+    look = dict(clip.get("look") or {k: v for k, v in render.PRESETS.get(clip.get("style"), render.PRESETS["studio"]).items() if k != "label"})
+    if (look.get("outro") or {}).get("on"):            # their saved brand already ends on something
+        return
+    look["outro"] = dict(render.MADE_WITH)
     clip["look"] = render.clean_look(look) or look
 
 
@@ -582,6 +597,7 @@ def render_one(job, clip, words):
     save(job)
     try:
         _source_watermark(job, clip)
+        _end_card(job, clip)
         _ai_edit(job, clip, words, Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "") if job.get("source_path") else None)
         words = with_heard(clip, words)
         off = clip.get("src_offset", 0.0)

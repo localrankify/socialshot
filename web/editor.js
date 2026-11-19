@@ -77,7 +77,8 @@ const HOOK_DEFAULT = {hook_font: "Mazzard H", hook_size: 88, hook_y: null, hook_
   brand_anim: "float", brand_size: 84, brand_op: 90,                         // how it moves, how big, how solid
   aspect: "9:16"};                                                           // and the clip's shape
 const BRAND_KEYS = ["brand_on", "brand_logo", "brand_text", "brand_pos", "brand_anim", "brand_size", "brand_op",
-  "brand_kind", "brand_head", "brand_icon", "brand_handle", "brand_tag", "brand_tag_on", "brand_font", "brand_color"];
+  "brand_kind", "brand_head", "brand_icon", "brand_handle", "brand_tag", "brand_tag_on", "brand_font", "brand_color",
+  "brand_style", "brand_head_pct", "brand_align"];
 // how the brand moves; the same motions as the render (render.brand_overlay)
 const BRAND_ANIMS = [["none", "Still"], ["float", "Float"], ["slide", "Slide in"], ["drift", "Drift"], ["fade", "Fade in"]];
 const BRAND_POSES = [["tl", "Top left"], ["tc", "Top centre"], ["tr", "Top right"], ["bl", "Bottom left"], ["bc", "Bottom centre"], ["br", "Bottom right"]];
@@ -203,17 +204,67 @@ const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at
   trio: [[0, 0, 0.3333, 1], [0.3333, 0, 0.3333, 1], [0.6667, 0, 0.3333, 1]],
   faces: [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]], grid_share: 50, scenes: [],
   pop_shape: "rounded", pop_size: 70, pop_x: null, pop_y: null, pop_radius: 8, pop_border: 8, pop_edge: "solid", pop_c1: "#FFFFFF",
-  pop_c2: "#FF8A1F", pop_out: 22, pop_bg: "cam", pop_fill: "#FFFFFF"};
+  pop_c2: "#FF8A1F", pop_out: 22, pop_bg: "cam", pop_fill: "#FFFFFF", pop_fit: "face"};
 // the layouts made of parts of the picture (the split boxes), not one framed shot (render.PARTS)
 const PARTS = ["split", "pip", "trio", "grid", "pop"];
 const POP_AT = [50, 57];               // the pop-out card's middle until it is dragged (render.POP_AT)
-const POP_KEYS = ["pop_shape", "pop_size", "pop_x", "pop_y", "pop_radius", "pop_border", "pop_edge", "pop_c1", "pop_c2", "pop_out", "pop_bg", "pop_fill"];
+const POP_KEYS = ["pop_fit", "pop_shape", "pop_size", "pop_x", "pop_y", "pop_radius", "pop_border", "pop_edge", "pop_c1", "pop_c2", "pop_out", "pop_bg", "pop_fill"];
 /* the pop-out card in frame pixels (render.pop_geometry): the face cam fills a w x t picture, the card shows its lower
    h rows at (x, y), and the cut-out person over the whole picture rises `pop` pixels above the card */
+/* where the face is inside the face cam box, asked of the server once per box (render.pop_line uses the same) */
+const popFaceKey = sp => `${E.jid}/${E.cid}/${sp.cam.map(v => (+v).toFixed(4)).join(",")}`;
+function popFace(sp) {                  // the face as [x, y, w, h] of the box, null if none, undefined while asking
+  const key = popFaceKey(sp);
+  if (E.popFace?.key === key) return E.popFace.face;
+  if (E.popFaceAsk !== key) {
+    E.popFaceAsk = key;
+    fetch(`/api/jobs/${E.jid}/clips/${E.cid}/popface?cam=${encodeURIComponent(sp.cam.map(v => (+v).toFixed(4)).join(","))}`)
+      .then(r => r.ok ? r.json() : {face: null}).catch(() => ({face: null}))
+      .then(j => { if (E.popFaceAsk !== key) return; E.popFace = {key, face: j.face || null}; E.lastKey = ""; if (E.layout === "pop") { placeSplit(); paintOverlay(); } });
+  }
+  return undefined;
+}
+/* render.pop_line: how much of the picture rises above the card. With the face found, "Head pops out" is how much of
+   the head rises (the card's top edge crosses the forehead), whatever room is above the head in the box */
+function popLine(sp) {
+  const out = (sp.pop_out ?? 22) / 100, face = popFace(sp);
+  if (!face || !out) return out;
+  const [, fy, , fh] = face, line = fy - 0.45 * fh + (out / 0.9) * 1.45 * fh, c = sp.cam;
+  const a = (c[3] * (E.sh || 9)) / Math.max(1e-6, c[2] * (E.sw || 16)), square = sp.pop_shape === "circle" || sp.pop_shape === "square";
+  let p = Math.max(0.03, line);
+  for (let i = 0; i < 8; i++) {
+    const r = square ? 1 / Math.max(0.5, 1 - p) : Math.max(0.8, Math.min(1.6, a));
+    const p2 = r >= a ? line : (line - (1 - r / a) / 2) / (r / a);
+    p = Math.max(0.03, Math.min(square ? 0.5 : 0.6, p2));
+  }
+  return p;
+}
+/* render.pop_frame: the face framed in the card (centred, POP_FACE of its width, hair just below the top) and how
+   much rises above it, so the card's top edge crosses the head at the head line. null: show the box as placed */
+const POP_FACE = 0.42, POP_ROUND_H = 0.95;
+function popFrame(sp, w, h) {
+  const face = popFace(sp);
+  if (!face || (sp.pop_fit || "face") !== "face") return null;
+  const [fx, fy, fw, fh] = face, c = sp.cam, bw = c[2] * (E.sw || 16), bh = c[3] * (E.sh || 9), out = (sp.pop_out ?? 22) / 100;
+  const top = fy - 0.45 * fh, line = top + (out / 0.9) * 1.45 * fh, cw0 = Math.min(1, Math.max(0.5, fw / POP_FACE));
+  let p = out ? 0.2 : 0, cw = cw0, ch = 1, y0 = 0;
+  for (let i = 0; i < 10; i++) {
+    const tw = (h / w) / Math.max(0.4, 1 - p);
+    cw = cw0; ch = cw0 * tw * bw / bh;
+    if (ch > 1) { cw /= ch; ch = 1; }
+    y0 = Math.min(Math.max(0, top - 0.06 * ch), 1 - ch);
+    p = out ? Math.min(0.6, Math.max(0, (line - y0) / ch)) : 0;
+  }
+  const x0 = Math.min(Math.max(0, fx + fw / 2 - cw / 2), 1 - cw), t = Math.round(h / Math.max(0.4, 1 - p) / 2) * 2;
+  const r4 = v => Math.round(v * 1e4) / 1e4;
+  return {t, pop: t - h, crop: [r4(c[0] + x0 * c[2]), r4(c[1] + y0 * c[3]), r4(cw * c[2]), r4(ch * c[3])]};
+}
 function popGeo(sp = splitOf()) {
-  const W = OUT_W, H = OUT_H, pw = Math.round(W * (sp.pop_size || 70) / 100 / 2) * 2, c = sp.cam, shape = sp.pop_shape || "rounded", out = sp.pop_out ?? 22;
-  let t, pop, h;
-  if (shape === "circle" || shape === "square") { h = pw; t = Math.round(h / Math.max(0.5, 1 - out / 100) / 2) * 2; pop = t - h; }   // as tall as wide
+  const W = OUT_W, H = OUT_H, pw = Math.round(W * (sp.pop_size || 70) / 100 / 2) * 2, c = sp.cam, shape = sp.pop_shape || "rounded", out = popLine(sp) * 100;
+  let t, pop, h, crop = c;
+  const fr = popFrame(sp, pw, shape === "circle" || shape === "square" ? pw : Math.round(pw * POP_ROUND_H / 2) * 2);
+  if (fr) { ({t, pop, crop} = fr); h = t - pop; }
+  else if (shape === "circle" || shape === "square") { h = pw; t = Math.round(h / Math.max(0.5, 1 - out / 100) / 2) * 2; pop = t - h; }   // as tall as wide
   else {
     const ar = (c[3] * (E.sh || 9)) / Math.max(1e-6, c[2] * (E.sw || 16));
     t = Math.round(pw * Math.max(0.8, Math.min(1.6, ar)) / 2) * 2; pop = Math.round(t * out / 100 / 2) * 2; h = t - pop;
@@ -224,7 +275,7 @@ function popGeo(sp = splitOf()) {
   x = Math.max(b, Math.min(W - pw - b, x)); y = Math.max(pop, b, Math.min(H - h - b, y));
   const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_edge === "gradient" ? sp.pop_c2 || c1 : c1;
   const r = shape === "circle" ? pw / 2 : Math.round(pw * (sp.pop_radius ?? 8) / 100);
-  return {x, y, w: pw, h, t, pop, b, r, c1, c2, fill: sp.pop_bg === "plain" ? sp.pop_fill || "#FFFFFF" : null};
+  return {x, y, w: pw, h, t, pop, b, r, c1, c2, fill: sp.pop_bg === "plain" ? sp.pop_fill || "#FFFFFF" : null, crop};
 }
 const isParts = l => PARTS.includes(l);
 // picture in picture's small box, in frame pixels (render.pip_geometry)
@@ -1058,6 +1109,7 @@ function drawStage() {
           + `<i class="ed-popfill" id="edPopFill" aria-hidden="true"></i><div class="ed-band ed-pipb ed-popb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
           + `<div class="ed-band ed-popo" id="edBandO" title="Drag to move the card"><video class="ed-bv" id="edVid3" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
           + `<video class="ed-popcut" id="edPopCut" playsinline preload="auto" muted aria-hidden="true"></video><canvas class="ed-popcut" id="edPopCv" aria-hidden="true"></canvas>`
+          + `<i class="ed-popguide" id="edPopGuide" aria-hidden="true"></i><button class="ed-gseam ed-popline" id="edPopLine" aria-label="Drag up or down to set where the card's top edge crosses the head" title="Drag up or down: where the card's edge crosses the head"><i></i></button>`
         : g.layout === "trio" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) + band("edBandT", "edVid3", true)
         : g.layout === "grid" ? GRID_V.slice(0, sp.faces.length).map(([b, v], i) => band(b, v, i > 0).replace('class="ed-band"', 'class="ed-band ed-gcell"')).join("")
           + `<button class="ed-gseam" id="edGseam" aria-label="Drag to resize the rows" title="Drag to resize the rows"><i></i></button>`
@@ -1259,18 +1311,49 @@ async function exGo() {
   // finished: the full button and "Downloaded" stay a moment, then the window shows the finished file; a failure keeps the settings
   setTimeout(() => { E.exBusy = false; drawEx(); }, ok ? 900 : 300);
 }
-async function exSave() {               // save the finished file: choose the folder where the browser can ask, else a download
+/* Exports are saved in one folder the person picks once (kept in this browser), each creator's clips in a folder
+   of their own inside it, made the first time: "<your folder>/<creator>/<clip>.mp4". Where the browser can't
+   write to folders, the file downloads with the creator's name in front. */
+const exFolderName = () => {
+  const job = typeof jobOf === "function" ? jobOf(E.jid) : null;
+  const c = job?.creator && (S.creators || []).find(x => x.id === job.creator);
+  const raw = c?.name || job?.uploader || (job?.source?.name || "").replace(/ live$/, "") || "SocialShot clips";
+  return raw.replace(/[\\/:*?"<>|\x00-\x1f]/g, "").replace(/\s+/g, " ").trim().slice(0, 60) || "SocialShot clips";
+};
+function exDb(mode, fn) {               // a small store in this browser for the chosen folder (it can't go to the server)
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("socialshot", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => { const t = r.result.transaction("kv", mode), q = fn(t.objectStore("kv")); t.oncomplete = () => res(q?.result); t.onerror = () => rej(t.error); };
+  });
+}
+const exRootGet = () => exDb("readonly", s => s.get("exportRoot")).catch(() => null);
+const exRootSet = h => exDb("readwrite", s => h ? s.put(h, "exportRoot") : s.delete("exportRoot")).catch(() => null);
+async function exRoot(pickNew) {
+  let root = pickNew ? null : await exRootGet();
+  if (root && (await root.queryPermission({mode: "readwrite"})) !== "granted" && (await root.requestPermission({mode: "readwrite"})) !== "granted") root = null;
+  if (!root) { root = await window.showDirectoryPicker({id: "socialshot-exports", mode: "readwrite", startIn: "videos"}); await exRootSet(root); }
+  return root;
+}
+async function exSave(pickNew = false) {
   const d = E.exDone; if (!d) return;
-  if (window.showSaveFilePicker) {
+  const folder = exFolderName();
+  if (window.showDirectoryPicker) {
     try {
-      const h = await window.showSaveFilePicker({suggestedName: d.name, types: [{description: d.fmt === "gif" ? "GIF" : "MP4 video",
-        accept: d.fmt === "gif" ? {"image/gif": [".gif"]} : {"video/mp4": [".mp4"]}}]});
-      const w = await h.createWritable(); await w.write(await (await fetch(d.url)).blob()); await w.close();
-      d.saved = h.name; drawEx(); return toast(`Saved as ${h.name}`, "ok");
+      const root = await exRoot(pickNew), dir = await root.getDirectoryHandle(folder, {create: true});
+      const dot = d.name.lastIndexOf("."), stem = d.name.slice(0, dot), ext = d.name.slice(dot);
+      let name = d.name;
+      for (let n = 2; n < 100; n++) {      // never over an earlier export: "name (2).mp4" and so on
+        try { await dir.getFileHandle(name); name = `${stem} (${n})${ext}`; } catch { break; }
+      }
+      const h = await dir.getFileHandle(name, {create: true}), w = await h.createWritable();
+      await w.write(await (await fetch(d.url)).blob()); await w.close();
+      d.saved = `${root.name}/${folder}/${name}`; drawEx(); return toast(`Saved in ${root.name} › ${folder}`, "ok");
     } catch (er) { if (er.name === "AbortError") return; }
   }
-  const a = document.createElement("a"); a.href = d.url; a.download = d.name;
-  document.body.append(a); a.click(); a.remove(); d.saved = d.name; drawEx();
+  const a = document.createElement("a"); a.href = d.url; a.download = `${folder} - ${d.name}`;
+  document.body.append(a); a.click(); a.remove(); d.saved = `${folder} - ${d.name}`; drawEx();
 }
 function exDoneClear() { if (E.exDone) { URL.revokeObjectURL(E.exDone.url); E.exDone = null; } }
 // the finished export: the file playing, what it is, and what to do next
@@ -1292,8 +1375,9 @@ function exDoneHtml() {
         <b class="ed-xname" title="${esc(d.name)}">${esc(d.name)}</b>
         <div class="ed-xtiles">${tile("Resolution", `${w}×${h}`)}${tile("Frame rate", `${d.fps} fps`)}${tile("Quality", Q[d.q] || (gif ? "GIF" : d.q))}
           ${tile("Length", ts(d.secs) + (d.speed !== 1 ? ` · ${d.speed}×` : ""))}${tile("Format", gif ? "GIF" : "MP4")}${tile("File size", `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`)}</div>
-        ${d.saved ? `<p class="ed-xsaved">${ic("check")}Saved as ${esc(d.saved)}</p>` : ""}
-        <button class="ed-xsave" data-ed="exagain">${ic("down")}${d.saved ? "Save another copy" : "Save to folder…"}</button>
+        ${d.saved ? `<p class="ed-xsaved">${ic("check")}Saved: ${esc(d.saved)}</p>` : ""}
+        <button class="ed-xsave" data-ed="exagain">${ic("down")}${d.saved ? "Save another copy" : `Save to ${esc(exFolderName())} folder`}</button>
+        ${window.showDirectoryPicker ? `<button class="ed-xmore" data-ed="exfolder">Choose a different main folder</button>` : ""}
         <button class="ed-xmore" data-ed="exnew">Export another way</button>
       </div></div>`;
 }
@@ -1499,15 +1583,19 @@ dlg_on("pointerup", () => {
 /* ---------- the outro (Media > Outro): a card or a file, a few seconds after the clip. The same card as
    render.outro_card, from the same numbers (outroGeo = render.outro_geometry). */
 const OUTRO_BG = {black: "#0E0E10", white: "#FFFFFF", gray: "#2A2A2E"};
-const outroOf = () => ({on: false, kind: "card", secs: 3, bg: OUTRO_BG.black, pic: "", pic_size: 270, pic_round: 0, title: "", sub: "", file: "", ...(E.look?.outro || {})});
+const outroOf = () => ({on: false, kind: "card", secs: 3, bg: OUTRO_BG.black, pic: "", pic_size: 270, pic_round: 0, title: "", sub: "", file: "",
+  bg_kind: "solid", fx: false, icons: false, ...(E.look?.outro || {})});
+const OUTRO_ICONS = ["youtube", "tiktok", "instagram"];     // the same as render.OUTRO_ICONS
 function outroGeo(Wd, Hd, o, hasPic) {
   const u = Math.min(Wd, Hd * 9 / 16) / 1080, ps = hasPic ? Math.round(o.pic_size * u) : 0;
   const parts = [...(hasPic ? [ps] : []), ...(o.title ? [Math.round(64 * u)] : []), ...(o.sub ? [Math.round(44 * u)] : [])];
-  const gp = Math.round(36 * u), gt = Math.round(10 * u);
-  const total = parts.reduce((a, b) => a + b, 0) + (hasPic && (o.title || o.sub) ? gp : 0) + (o.title && o.sub ? gt : 0);
+  const gp = Math.round(36 * u), gt = Math.round((o.fx && o.sub ? 26 : 10) * u);
+  const total = parts.reduce((a, b) => a + b, 0) + (hasPic && (o.title || o.sub) ? gp : 0) + (o.title && o.sub ? gt : 0)
+    + (o.icons ? Math.round(64 * u) + Math.round(92 * u) : 0);
   let y = (Hd - total) / 2; const g = {u, ps, pic_y: Math.round(y)};
   y += ps + (hasPic && (o.title || o.sub) ? gp : 0); g.title_y = Math.round(y + 32 * u);
   y += o.title ? Math.round(64 * u) + (o.sub ? gt : 0) : 0; g.sub_y = Math.round(y + 22 * u);
+  y += o.sub ? Math.round(44 * u) : 0; g.icons_y = Math.round(y + 64 * u);
   return g;
 }
 const inkFor = bg => { const n = parseInt(bg.slice(1), 16), l = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); return l > 150 ? ["#111114", "#55555C"] : ["#FFFFFF", "#A1A1AA"]; };
@@ -1518,12 +1606,18 @@ function outroHtml(o, k) {
     if (!m) return `<div class="ed-outro-c" style="background:#000"><span style="color:#888;font-size:12px">Pick or upload a file</span></div>`;
     return `<div class="ed-outro-c" style="background:#000">${m.kind === "video" ? `<video src="${mediaUrl(m.id)}" muted autoplay loop playsinline></video>` : `<img src="${mediaUrl(m.id)}" alt="">`}</div>`;
   }
-  const picSrc = o.pic === "logo" ? (E.logoV ? `/api/brand/logo?v=${E.logoV}` : "") : o.pic ? mediaUrl(o.pic) : "";
-  const g = outroGeo(OUT_W, OUT_H, o, !!picSrc), [ink, sub] = inkFor(o.bg || "#0E0E10"), u = g.u * k;
-  return `<div class="ed-outro-c" style="background:${o.bg}">
-    ${picSrc ? `<img class="op" src="${picSrc}" alt="" style="top:${g.pic_y * k}px;width:${g.ps * k}px;height:${g.ps * k}px;border-radius:${o.pic_round}%">` : ""}
+  const picSrc = o.pic === "logo" ? (E.logoV ? `/api/brand/logo?v=${E.logoV}` : "") : o.pic === "socialshot" ? "/brand/logo-mark.png" : o.pic ? mediaUrl(o.pic) : "";
+  const g = outroGeo(OUT_W, OUT_H, o, !!picSrc), dark = o.bg_kind === "blur" || o.fx, [ink, sub] = dark ? ["#FFFFFF", "#E4E4E7"] : inkFor(o.bg || "#0E0E10"), u = g.u * k;
+  const cover = `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`;
+  const disc = 92 * u, gap = 24 * u, row = OUTRO_ICONS.length * disc + (OUTRO_ICONS.length - 1) * gap;
+  return `<div class="ed-outro-c ${o.fx ? "fx" : ""}" style="background:${o.bg}">
+    ${o.bg_kind === "blur" ? `<i class="ob" style="background-image:url('${cover}');filter:blur(${Math.max(3, 56 * u)}px) brightness(.38)"></i>` : ""}
+    ${o.fx ? `<i class="og"></i><i class="ogr" style="--s:${108 * u}px"></i><i class="on"></i><i class="ol" style="inset:${56 * u}px;border-radius:${48 * u}px"></i>` : ""}
+    ${picSrc ? `<img class="op" src="${picSrc}" alt="" style="top:${g.pic_y * k}px;width:${g.ps * k}px;height:${g.ps * k}px;border-radius:${o.pic_round}%${o.fx ? `;filter:drop-shadow(0 ${18 * u}px ${22 * u}px rgba(6,4,12,.6))` : ""}">` : ""}
     ${o.title ? `<b style="top:${g.title_y * k}px;font-size:${52 * u}px;color:${ink}">${esc(o.title)}</b>` : ""}
-    ${o.sub ? `<span style="top:${g.sub_y * k}px;font-size:${34 * u}px;color:${sub}">${esc(o.sub)}</span>` : ""}</div>`;
+    ${o.sub ? `<span class="${o.fx ? "pill" : ""}" style="top:${g.sub_y * k}px;font-size:${34 * u}px;color:${sub}${o.fx ? `;height:${64 * u}px;line-height:${64 * u}px;padding:0 ${28 * u}px;border-radius:${32 * u}px` : ""}">${esc(o.sub)}</span>` : ""}
+    ${o.icons ? `<div class="oi" style="top:${g.icons_y * k}px;gap:${gap}px;width:${row}px">${OUTRO_ICONS.map(i => `<em style="width:${disc}px;height:${disc}px">${
+      WM_ICONS[i][1].replace("<svg ", `<svg style="height:${40 * u}px;width:auto" `)}</em>`).join("")}</div>` : ""}</div>`;
 }
 // show the outro on the preview for its length; at the end of playback the clip then starts again
 function playOutro(fromEnd) {
@@ -1536,6 +1630,7 @@ function outroCard() {
   const o = outroOf(), imgs = (E.media || []).filter(m => m.kind === "image"), all = E.media || [];
   const seg = (k, opts) => `<div class="ed-seg">${opts.map(([v, l]) => `<button data-ed="outroset" data-k="${k}" data-v="${v}" aria-pressed="${String(o[k]) === String(v)}">${l}</button>`).join("")}</div>`;
   const sl = (k, label, lo, hi, step, shown) => `<label class="ed-sl" style="--p:${pctOf(o[k], lo, hi)}"><input type="range" min="${lo}" max="${hi}" step="${step}" value="${o[k]}" data-outro="${k}" aria-label="${label}"><span class="ed-sl-l">${label}</span><output>${shown}</output></label>`;
+  const tog = k => `<div class="ed-seg sm">${[["0", "Off"], ["1", "On"]].map(([v, l]) => `<button data-ed="outroset" data-k="${k}" data-v="${v}" aria-pressed="${(o[k] ? "1" : "0") === v}">${l}</button>`).join("")}</div>`;
   const picBtn = (v, inner, title) => `<button class="ed-med sm" data-ed="outroset" data-k="pic" data-v="${v}" aria-pressed="${o.pic === v}" title="${title}">${inner}</button>`;
   return `<div class="ed-card"><div class="ed-h"><b>Outro</b>${seg("on", [["0", "Off"], ["1", "On"]]).replace('class="ed-seg"', 'class="ed-seg sm"')}</div>
     ${o.on ? `${seg("kind", [["card", "Outro card"], ["file", "Your own file"]])}
@@ -1545,7 +1640,10 @@ function outroCard() {
       ${o.kind === "card" ? `
         <div class="ed-f">Canvas${seg("bg", [[OUTRO_BG.white, "White"], [OUTRO_BG.black, "Black"], [OUTRO_BG.gray, "Gray"]])}
           <label class="ed-f ed-colf" style="margin-top:6px">Your colour<span class="ed-swc" style="background:${o.bg}"><input type="color" data-outro="bg" value="${o.bg}" aria-label="Canvas colour"></span></label></div>
-        <div class="ed-f">Picture<div class="ed-medgrid sm">${picBtn("", "None", "No picture")}${E.logoV ? picBtn("logo", `<img src="/api/brand/logo?v=${E.logoV}" alt="">`, "Your logo") : ""}
+        <div class="ed-f">Background${seg("bg_kind", [["solid", "Canvas colour"], ["blur", "Blurred video"]])}</div>
+        <div class="ed-f">Glow, grain and lines${tog("fx")}</div>
+        <div class="ed-f">YouTube, TikTok and Instagram icons${tog("icons")}</div>
+        <div class="ed-f">Picture<div class="ed-medgrid sm">${picBtn("", "None", "No picture")}${picBtn("socialshot", `<img src="/brand/logo-mark.png" alt="">`, "SocialShot")}${E.logoV ? picBtn("logo", `<img src="/api/brand/logo?v=${E.logoV}" alt="">`, "Your logo") : ""}
           ${imgs.map(m => picBtn(m.id, `<img src="${mediaUrl(m.id)}" alt="">`, esc(m.name))).join("")}
           <label class="ed-med sm add" title="Upload a picture">${ic("up")}<input type="file" accept="image/png,image/jpeg,image/webp" id="edMedIn" data-for="outro" hidden></label></div></div>
         ${o.pic ? sl("pic_size", "Picture size", 60, 600, 10, o.pic_size) + sl("pic_round", "Roundness", 0, 50, 1, o.pic_round + "%") : ""}
@@ -2353,48 +2451,65 @@ const WM_ICONS = {
   x: ["X", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#fff" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>'],
   twitch: ["Twitch", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#9146FF" d="M6 0 1.71 4.29v15.42h5.15V24l4.28-4.29h3.43L22.29 12V0z"/><path fill="#fff" d="M20.57 11.14l-3.43 3.43h-3.43l-3 3v-3H6.86V1.71h13.71z"/><path fill="#9146FF" d="M11.57 4.71h1.72v5.15h-1.72zm4.72 0H18v5.15h-1.71z"/></svg>'],
   kick: ["Kick", '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#53FC18" d="M1.5 1.5h7v6h2.5V5h2.5V2.5H16v-1h6.5v7H20V11h-2.5v2H20v2.5h2.5v7H16v-1h-2.5V19H11v-2.5H8.5v6h-7z"/></svg>']};
-const wmGeo = s => ({pad: 8, hs: Math.round(s * 0.36), ts: Math.round(s * 0.5), ic: Math.round(s * 0.6), gs: Math.round(s * 0.44), g: Math.round(s * 0.12)});
-const WM_PRESETS = [["off", "Off"], ["promo", "Episode promo"], ["tag", "Hashtag"], ["dual", "Dual"]];
+const wmGeo = (s, st = "plain") => ({pad: st === "pill" || st === "glass" ? Math.round(s * 0.22) : 8, r: Math.round(s * 0.24),
+  hs: Math.round(s * 0.36), ts: Math.round(s * 0.5), ic: Math.round(s * 0.6), gs: Math.round(s * 0.44), g: Math.round(s * 0.12)});
+const WM_PRESETS = [["promo", "Episode promo"], ["tag", "Hashtag"], ["dual", "Dual"], ["handle", "Handle only"]];
+const WM_STYLES = [["plain", "Plain"], ["outline", "Outline"], ["pill", "Dark pill"], ["glass", "Glass"]];   // the same as render.WM_STYLES
 // the social watermark's inner HTML at scale k (frame pixels to screen pixels)
 function wmHtml(L, k, logoV) {
-  const q = wmGeo(L.brand_size || 84), col = L.brand_color || "#FFFFFF", fam = fontCss(L.brand_font || "Inter", 700).family;
+  const st = L.brand_style || "plain", q = wmGeo(L.brand_size || 84, st), col = L.brand_color || "#FFFFFF", fam = fontCss(L.brand_font || "Inter", 700).family;
+  const hs = Math.max(8, Math.round(q.hs * (L.brand_head_pct || 100) / 100)), al = L.brand_align || "left";
+  const jc = {left: "flex-start", center: "center", right: "flex-end"}[al];
   const icon = L.brand_icon || "youtube", tag = L.brand_tag_on && (L.brand_tag || "").trim();
   const head = (L.brand_head || "").trim(), handle = (L.brand_handle || "").trim();
   const ic = icon === "none" ? "" : icon === "logo" ? (logoV ? `<img src="/api/brand/logo?v=${logoV}" alt="" style="height:${q.ic * k}px">` : "")
     : (WM_ICONS[icon] ? WM_ICONS[icon][1].replace("<svg ", `<svg style="height:${q.ic * k}px;width:auto;display:block" `) : "");
   if (!head && !handle && !tag && !ic) return "";
-  const sh = `text-shadow:0 ${2 * k}px ${6 * k}px rgba(0,0,0,.55)`;
-  return `<div class="wm" style="padding:${q.pad * k}px;color:${col};font-family:${fam};${sh}">
-    ${head ? `<div style="font-weight:500;font-size:${q.hs * k}px;line-height:${q.hs * 1.25 * k}px">${esc(head)}</div>` : ""}
-    ${handle || ic ? `<div style="display:flex;align-items:center;gap:${handle && ic ? q.g * k : 0}px;height:${Math.max(q.ic, q.ts * 1.25) * k}px;margin-top:${head ? q.g / 2 * k : 0}px;font-weight:700;font-size:${q.ts * k}px">${ic}${handle ? `<span>${esc(handle)}</span>` : ""}</div>` : ""}
+  const sh = st === "outline" ? `-webkit-text-stroke:${2 * Math.max(2, Math.round(q.ts / 12)) * k}px #000;paint-order:stroke fill`
+    : st === "pill" ? "" : `text-shadow:0 ${2 * k}px ${6 * k}px rgba(0,0,0,.55)`;
+  const box = st === "pill" ? `background:rgba(10,10,12,.65);border-radius:${q.r * k}px;`
+    : st === "glass" ? `background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 ${Math.max(1, 2 * k)}px rgba(255,255,255,.27);border-radius:${q.r * k}px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);` : "";
+  return `<div class="wm" style="padding:${q.pad * k}px;color:${col};font-family:${fam};text-align:${al};${box}${sh}">
+    ${head ? `<div style="font-weight:500;font-size:${hs * k}px;line-height:${hs * 1.25 * k}px">${esc(head)}</div>` : ""}
+    ${handle || ic ? `<div style="display:flex;justify-content:${jc};align-items:center;gap:${handle && ic ? q.g * k : 0}px;height:${Math.max(q.ic, q.ts * 1.25) * k}px;margin-top:${head ? q.g / 2 * k : 0}px;font-weight:700;font-size:${q.ts * k}px">${ic}${handle ? `<span>${esc(handle)}</span>` : ""}</div>` : ""}
     ${tag ? `<div style="margin:${q.g * k}px 0;border-top:${2 * k}px dashed ${col}99"></div><div style="font-weight:700;font-size:${q.gs * k}px;line-height:${q.gs * 1.25 * k}px">${esc(tag)}</div>` : ""}</div>`;
 }
 // the Brand panel's social watermark: presets, a preview of exactly what goes on the video, and its parts
 const slug = () => (cardName() || "yourchannel").toLowerCase().replace(/[^a-z0-9_]/g, "") || "yourchannel";
 function wmPreset(k) {
   const L = E.look, h = slug();
-  if (k === "off") { L.brand_on = false; return; }
   Object.assign(L, {brand_on: true, brand_kind: "social", brand_font: L.brand_font || "Inter", brand_color: L.brand_color || "#FFFFFF",
     brand_size: L.brand_size || 84, brand_pos: L.brand_pos || "tr"});
   if (k === "promo") Object.assign(L, {brand_head: "Full video on", brand_icon: "youtube", brand_handle: "/" + h, brand_tag_on: false});
   if (k === "tag") Object.assign(L, {brand_head: "", brand_icon: "none", brand_handle: "", brand_tag_on: true, brand_tag: "#" + h});
   if (k === "dual") Object.assign(L, {brand_head: "Full video on", brand_icon: "youtube", brand_handle: "/" + h, brand_tag_on: true, brand_tag: L.brand_tag || "#" + h});
+  if (k === "handle") Object.assign(L, {brand_head: "", brand_icon: L.brand_icon && L.brand_icon !== "none" ? L.brand_icon : "youtube", brand_handle: "@" + h, brand_tag_on: false});
 }
 const wmPvHtml = L => L.brand_on && L.brand_kind === "social" ? (wmHtml(L, 0.5, E.logoV) || "<span>Add a header, handle or hashtag</span>") : "<span>Turned off</span>";
 function wmCards(L) {
   const f = FONTS(), icon = L.brand_icon || "youtube";
   const ico = k => k === "none" ? "None" : k === "logo" ? (E.logoV ? `<img src="/api/brand/logo?v=${E.logoV}" alt="">` : "Logo") : WM_ICONS[k][1];
-  return `<div class="ed-card"><b>Presets</b>
-      <div class="ed-chips">${WM_PRESETS.map(([k, l]) => `<button data-ed="wmpreset" data-v="${k}">${l}</button>`).join("")}</div>
-      <div class="ed-wmpv" id="edWmPv" aria-label="What goes on the video">${wmPvHtml(L)}</div></div>
-    <div class="ed-card"><b>Watermark</b>
+  const st = L.brand_style || "plain", al = L.brand_align || "left";
+  const cover = `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`;
+  const sample = {...L, brand_on: true, brand_kind: "social", brand_size: 64, brand_tag_on: false,
+    brand_head: L.brand_head || "Full video on", brand_handle: L.brand_handle || "/" + slug(), brand_icon: icon};
+  return `<div class="ed-card"><b>Style</b>
+      <div class="ed-wmstyles">${WM_STYLES.map(([k, l]) => `<button data-ed="wmstyle" data-v="${k}" aria-pressed="${st === k}">
+        <span class="ed-wmst-pv"><i style="background-image:url('${E.shot || cover}')"></i>${wmHtml({...sample, brand_style: k}, 0.42, E.logoV)}</span><b>${l}</b></button>`).join("")}</div>
+      <div class="ed-wmpv" id="edWmPv" aria-label="What goes on the video">${wmPvHtml(L)}</div>
+      <p class="ed-sub">Presets</p>
+      <div class="ed-chips">${WM_PRESETS.map(([k, l]) => `<button data-ed="wmpreset" data-v="${k}">${l}</button>`).join("")}</div></div>
+    <div class="ed-card"><b>Words</b>
       <label class="ed-f">Header<input class="ed-text" data-look="brand_head" value="${esc(L.brand_head || "")}" maxlength="40" placeholder="Full video on"></label>
       <div class="ed-f">Icon<div class="ed-wmicons">${["none", "logo", ...Object.keys(WM_ICONS)].map(k =>
         `<button data-ed="wmicon" data-v="${k}" aria-pressed="${icon === k}" title="${k === "none" ? "No icon" : k === "logo" ? "Your logo" : WM_ICONS[k][0]}">${ico(k)}</button>`).join("")}</div></div>
       <label class="ed-f">Handle<input class="ed-text" data-look="brand_handle" value="${esc(L.brand_handle || "")}" maxlength="40" placeholder="/${esc(slug())}"></label>
       <div class="ed-row">
         <label class="ed-f" style="flex:1">Font<select data-look="brand_font">${Object.keys(f).sort((a, b) => a.localeCompare(b)).map(k => `<option ${k === (L.brand_font || "Inter") ? "selected" : ""}>${esc(k)}</option>`).join("")}</select></label>
-        <label class="ed-f ed-colf" style="flex:none;width:72px">Colour<span class="ed-swc" style="background:${L.brand_color || "#FFFFFF"}"><input type="color" data-look="brand_color" value="${L.brand_color || "#FFFFFF"}" aria-label="Colour"></span></label></div></div>
+        <label class="ed-f ed-colf" style="flex:none;width:72px">Colour<span class="ed-swc" style="background:${L.brand_color || "#FFFFFF"}"><input type="color" data-look="brand_color" value="${L.brand_color || "#FFFFFF"}" aria-label="Colour"></span></label></div>
+      ${slider("Header size", "brand_head_pct", 50, 160, 5, L.brand_head_pct || 100, (L.brand_head_pct || 100) + "%")}
+      <div class="ed-f">Align<div class="ed-seg">${[["left", "Left"], ["center", "Centre"], ["right", "Right"]].map(([v, l]) =>
+        `<button data-ed="wmalign" data-v="${v}" aria-pressed="${al === v}">${l}</button>`).join("")}</div></div></div>
     <div class="ed-card"><label class="ed-ck"><input type="checkbox" data-look="brand_tag_on" ${L.brand_tag_on ? "checked" : ""}><span>Hashtag line<small>Under a dashed rule</small></span></label>
       ${L.brand_tag_on ? `<input class="ed-text" data-look="brand_tag" value="${esc(L.brand_tag || "")}" maxlength="40" placeholder="#YourHashtag">` : ""}</div>`;
 }
@@ -2452,10 +2567,12 @@ function popCard(sp) {
   const pick = (k, c, label) => `<label class="ed-pipcp" style="--c:${c}" title="${label}"><input type="color" value="${c.toLowerCase()}" data-popc="${k}" aria-label="${label}"></label>`;
   return `<div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Pop-out card</b><small class="ed-pipnote">Drag it on the video to move it, its corner to resize</small></div>
     <div class="ed-pipshapes" role="radiogroup" aria-label="Shape">${POP_SHAPES.map(([v, l, d]) => `<button role="radio" data-ed="popset" data-k="pop_shape" data-v="${v}" aria-checked="${shape === v}">${svg(d)}<span>${l}</span></button>`).join("")}</div>
+    <div class="ed-piprow"><span class="ed-pipl">Face</span>${seg("pop_fit", [["face", "Centred"], ["box", "As placed"]], sp.pop_fit === "box" ? "box" : "face")}</div>
     <div class="ed-piprow"><span class="ed-pipl">Place</span><div class="ed-seg">${[["40", "Higher"], ["c", "Middle"], ["70", "Lower"]].map(([v, l]) =>
       `<button data-ed="popat" data-v="${v}" aria-pressed="${spot === v}">${l}</button>`).join("")}</div></div>
     ${slider("Size", "pop_size", 40, 90, 1, sp.pop_size || 70, (sp.pop_size || 70) + "%")}
-    ${slider("Head pops out", "pop_out", 0, 45, 1, out, out ? out + "%" : "None")}
+    ${slider("Head line", "pop_out", 0, 45, 1, out, out ? out + "%" : "None")}
+    <p class="ed-help">How much of the head rises over the card. Or drag the handle beside the card's top edge.</p>
     ${shape !== "circle" ? slider("Corners", "pop_radius", 0, 30, 1, sp.pop_radius ?? 8, sp.pop_radius ?? 8) : ""}</div>
   <div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Card border</b></div>
     ${slider("Width", "pop_border", 0, 20, 1, b, b || "None")}
@@ -2668,6 +2785,9 @@ function placeSplit() {
     const lip = Math.min(Math.max(q.r, q.b), q.w * 0.08) * k, hb = q.pop * k + lip;
     const hx = Math.min(q.w * 0.22, q.w * 0.3) * k, hy = Math.min(Math.max(q.pop * 1.25, q.w * 0.22) * k, hb * 0.9);
     const cut = popCut(q, sp, k);         // the real cut-out, from the same cut-out as the finished clip
+    const L = $e("#edPopLine"), GD = $e("#edPopGuide");    // the head line: its handle beside the card, its guide across it
+    if (L) { L.style.left = `${Math.min(W - 34, (q.x + q.w + q.b) * k + 8)}px`; L.style.top = `${q.y * k}px`; }
+    if (GD) GD.style.cssText = `left:${(q.x - q.b) * k}px;top:${q.y * k}px;width:${(q.w + 2 * q.b) * k}px`;
     if (G) { G.style.height = H + "px"; fit(G, $e("#edVid"), sp.game, W, H); }
     if (R) R.style.cssText = `left:${(q.x - q.b) * k}px;top:${(q.y - q.b) * k}px;width:${(q.w + 2 * q.b) * k}px;height:${(q.h + 2 * q.b) * k}px;` +
       `border-radius:${q.r ? (q.r + q.b) * k : 0}px;background:${!q.b ? "transparent" : q.c1 === q.c2 ? q.c1 : `linear-gradient(90deg,${q.c1},${q.c2})`}`;
@@ -2678,7 +2798,7 @@ function placeSplit() {
         `radial-gradient(${(q.w * 0.47 * k).toFixed(1)}px ${(q.h * 0.62 * k).toFixed(1)}px at 50% 100%,#000 84%,transparent 100%)` : "none";
       C.style.cssText = `left:${q.x * k}px;top:${q.y * k}px;width:${q.w * k}px;height:${q.h * k}px;border-radius:${q.r * k}px;-webkit-mask-image:${m};mask-image:${m}${q.fill ? ";background:transparent" : ""}`;
       if (!C.querySelector(".ed-pipz")) C.insertAdjacentHTML("beforeend", `<i class="ed-pipz" title="Drag to resize"></i>`);
-      fit(C, $e("#edVid2"), sp.cam, q.w * k, q.t * k);
+      fit(C, $e("#edVid2"), q.crop, q.w * k, q.t * k);
       $e("#edVid2").style.top = parseFloat($e("#edVid2").style.top) - q.pop * k + "px";
       $e("#edVid2").style.visibility = cut && q.fill ? "hidden" : "";    // plain: the fill, and the cut-out person on it
     }
@@ -2687,7 +2807,7 @@ function placeSplit() {
       O.hidden = !q.pop;
       O.style.cssText = `left:${q.x * k}px;top:${(q.y - q.pop) * k}px;width:${q.w * k}px;height:${sh * k}px;` +
         `--hx:${hx.toFixed(1)}px;--hy:${hy.toFixed(1)}px;--hb:${hb.toFixed(1)}px${cut ? ";opacity:0" : ""}`;
-      fit(O, $e("#edVid3"), sp.cam, q.w * k, q.t * k);
+      fit(O, $e("#edVid3"), q.crop, q.w * k, q.t * k);
     }
     return;
   }
@@ -2727,8 +2847,9 @@ function placeSplit() {
 function popCut(q, sp, k) {
   const cut = $e("#edPopCut"); if (!cut) return false;
   if (!q.pop && !q.fill) { cut.style.display = "none"; return false; }
+  if ((sp.pop_out ?? 22) && popFace(sp) === undefined) return false;   // the card's edge isn't settled until the face is known
   const s = 256 / q.w, a = Math.max(0, E.start - 0.5);
-  const p = new URLSearchParams({a: a.toFixed(2), b: (E.end + 0.5).toFixed(2), cam: sp.cam.map(v => (+v).toFixed(4)).join(","),
+  const p = new URLSearchParams({a: a.toFixed(2), b: (E.end + 0.5).toFixed(2), cam: q.crop.map(v => (+v).toFixed(4)).join(","),
     t: Math.max(128, Math.min(640, Math.round(q.t * s / 2) * 2)), keep: Math.round((q.pop + Math.max(q.r, q.b)) * s)});
   p.set("ch", Math.round(q.h * s)); p.set("cr", Math.round(q.r * s)); p.set("cb", Math.round(q.b * s));   // nothing shows inside the card
   if (q.fill) p.set("plain", 1);
@@ -2751,7 +2872,7 @@ function popCut(q, sp, k) {
     const dpr = window.devicePixelRatio || 1, cw = Math.round(q.w * k * dpr), ch = Math.round(q.t * k * dpr);
     if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
     cv.style.cssText = `${box};display:${on ? "block" : "none"}`;
-    E.popDraw = {cam: sp.cam, ar: q.w / q.t};
+    E.popDraw = {cam: q.crop, ar: q.w / q.t};
     if (on) {
       cut.onseeked = popPaint;          // paused and moved: the new moment is drawn at once
       popPaint();
@@ -2796,6 +2917,33 @@ function syncSplit() {                  // the other bands play the same moment 
     if (a.paused && !b.paused) b.pause(); else if (!a.paused && b.paused) b.play().catch(() => {});
   }
 }
+/* the pop-out's head line: dragging its handle down lets more of the head rise over the card, up lets less ("Head
+   line", sp.pop_out, 0 to 45) */
+let plDrag = null;
+dlg_on("pointerdown", e => {
+  const h = e.target.closest("#edPopLine"); if (!h || E.layout !== "pop") return;
+  e.preventDefault(); e.stopPropagation();
+  const k = $e("#edPhone").clientWidth / OUT_W;
+  plDrag = {sy: e.clientY, k, pw: popGeo().w, v0: rawSplit().pop_out ?? 22, moved: false};
+  h.setPointerCapture?.(e.pointerId); h.classList.add("drag"); $e("#edPhone").classList.add("popline");
+  h.dataset.v = `Head line ${plDrag.v0}%`;
+});
+dlg_on("pointermove", e => {
+  const d = plDrag; if (!d) return;
+  const v = Math.round(Math.max(0, Math.min(45, d.v0 + (e.clientY - d.sy) / d.k / d.pw * 90)));
+  if (v === (rawSplit().pop_out ?? 22) && d.moved) return;
+  d.moved = true;
+  E.look.split = {...rawSplit(), pop_out: v};
+  const h = $e("#edPopLine"); if (h) h.dataset.v = `Head line ${v}%`;
+  E.lastKey = ""; placeSplit(); paintOverlay();
+});
+dlg_on("pointerup", () => {
+  const d = plDrag; plDrag = null; if (!d) return;
+  $e("#edPopLine")?.classList.remove("drag"); $e("#edPhone")?.classList.remove("popline");
+  if (!d.moved) return;
+  E.justMoved = Date.now(); E.lookTouched = true; if (E.tab === "layout") drawPanel(); after("");
+});
+$("#clipdlg").addEventListener("click", e => { if (e.target.closest("#edPopLine")) { e.stopPropagation(); e.preventDefault(); } }, true);
 /* the face cam split's line: dragging its handle sets how much of the frame the stream takes (the face cam gets the rest) */
 let ssDrag = null;
 dlg_on("pointerdown", e => {
@@ -3222,7 +3370,7 @@ function paintOverlay(t = nowT()) {
   if (wi !== E.wi) markWord(wi);
   const hookNow = t < hookEnd();       // a hook with a set time leaves the screen after it
   const typing = gi >= 0 && E.editG === gi && E.editText != null;    // the line being typed shows as it is typed
-  const shown = gi < 0 ? [] : typing ? E.editText.trim().split(/\s+/).filter(Boolean) : ls[gi].map(i => E.words[i].w);
+  const shown = gi < 0 || L.caps === false ? [] : typing ? E.editText.trim().split(/\s+/).filter(Boolean) : ls[gi].map(i => E.words[i].w);
   if (typing) act = shown.length - 1;
   const key = [gi, act, k.toFixed(3), E.lookKey, E.hook, E.layout, hookNow, shown.join(" ")].join("|");
   if (key === E.lastKey) return;
@@ -3359,7 +3507,7 @@ function drawTimeline() {
         <div class="ed-tbox" id="edNow2">${clock(nowT() - E.start, true)}</div>
         <div class="ed-thp">
           ${head("hook", TEXT_IC, "Hook", hasHook ? `<button class="ed-tb" data-ed="hookvis" aria-pressed="${!!E.look.hook}" title="${E.look.hook ? "Hide" : "Show"} the hook">${EYE(E.look.hook)}</button>` : "")}
-          ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`)}
+          ${head("caps", ic("cc"), `Captions <small class="ed-thn" id="edCapNow">${lines().length}</small>`, `<button class="ed-tb" data-ed="capvis" aria-pressed="${E.look.caps !== false}" title="${E.look.caps !== false ? "Hide" : "Show"} the captions">${EYE(E.look.caps !== false)}</button>`)}
           ${head("pics", PIC_IC, "Pictures", `<button class="ed-tb" data-ed="tab" data-t="media" title="Add a picture or a reaction face" aria-label="Pictures">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${head("music", MUSIC_IC, "Music", `<button class="ed-tb" data-ed="tab" data-t="audio" data-at="music" title="Add or change the music" aria-label="Music">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
           ${head("sfx", SFX_IC, "Sounds", `<button class="ed-tb" data-ed="tab" data-t="audio" data-at="sfx" title="Add a sound effect" aria-label="Sounds">${svg('<path d="M12 5v14M5 12h14"/>')}</button>`)}
@@ -3783,6 +3931,7 @@ dlg.addEventListener("click", async e => {
     drawTimeline();
     return requestAnimationFrame(() => { E.lastKey = ""; paintOverlay(); });     // the preview grew: redraw its captions to size
   }
+  if (a === "capvis") { E.look.caps = E.look.caps === false; E.lookTouched = true; E.lastKey = ""; after("pt"); return paintOverlay(); }   // the eye on the Captions track: hidden captions stay out of the video too
   if (a === "hookvis") { E.look.hook = !E.look.hook; E.lookTouched = true; after("pt"); return E.look.hook && showHook(); }   // the eye on the Hook track
   if (a === "mute") {               // the preview's sound only: the toolbar's speaker and the Video row follow
     E.muted = !E.muted; const v = vid(); if (v) v.muted = E.muted;
@@ -3926,6 +4075,10 @@ dlg.addEventListener("click", async e => {
   if (a === "bgkind") { E.look.bg = {...bgOf(), kind: d.v}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after(""); }
   if (a === "brandkind") { E.look.brand_kind = d.v; if (d.v === "social" && !E.look.brand_head && !E.look.brand_handle) wmPreset("dual"); E.lookTouched = true; drawPanel(); return wmRefresh(); }
   if (a === "wmpreset") { wmPreset(d.v); E.lookTouched = true; drawPanel(); return wmRefresh(); }
+  if (a === "wmstyle" || a === "wmalign") {        // the watermark's look, or how its lines line up
+    E.look[a === "wmstyle" ? "brand_style" : "brand_align"] = d.v; Object.assign(E.look, {brand_on: true, brand_kind: "social"});
+    $$e(`[data-ed=${a}]`).forEach(x => x.setAttribute("aria-pressed", String(x === b))); return wmRefresh();
+  }
   if (a === "wmicon") { E.look.brand_icon = d.v; E.look.brand_on = true; $$e("[data-ed=wmicon]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); return wmRefresh(); }
   if (a === "picadd") return picAdd(d.v);
   if (a === "zoomadd") return zoomAdd();
@@ -3950,7 +4103,7 @@ dlg.addEventListener("click", async e => {
     E.look.overlays = (E.look.overlays || []).filter(o => o.id !== d.v); E.picSel = -1; E.lookTouched = true; drawPanel(); drawTimeline(); return after("");
   }
   if (a === "outroset") {
-    const o = outroOf(), v = d.k === "on" ? d.v === "1" : d.v;
+    const o = outroOf(), v = d.k === "on" || d.k === "fx" || d.k === "icons" ? d.v === "1" : d.v;
     E.look.outro = {...o, [d.k]: v}; E.lookTouched = true; drawPanel(); after("");
     drawTimeline();
     return;
@@ -4093,6 +4246,7 @@ dlg.addEventListener("click", async e => {
   if (a === "exdlg") { if (E.exOpen) { E.exOpen = false; exDoneClear(); return drawEx(); } E.ex ||= {preset: "shorts", fmt: "mp4", fps: 60, q: "1080", speed: 1}; if (!EX_RES.some(r => r[0] === E.ex.q) && E.ex.fmt !== "gif") E.ex.q = "1080"; E.exOpen = true; return drawEx(); }
   if (a === "exclose") { E.exOpen = false; exDoneClear(); return drawEx(); }
   if (a === "exagain") return exSave();
+  if (a === "exfolder") return exSave(true);         // pick the main folder again; each creator's folder is made inside it
   if (a === "vol100") return setVolume(100);
   if (a === "exnew") { exDoneClear(); return drawEx(); }
   if (a === "expreset") { E.ex = {...E.ex, ...EX_PRESETS.find(p => p[0] === d.v)[3], preset: d.v}; return drawEx(); }
@@ -4207,6 +4361,7 @@ dlg.addEventListener("input", e => {
       E.look[k] = el.value.slice(0, 40); E.look.brand_on = true; return wmRefresh();
     }
     if (k === "brand_color") { E.look.brand_color = el.value.toUpperCase(); el.parentElement.style.background = el.value; return wmRefresh(); }
+    if (k === "brand_head_pct") { E.look.brand_head_pct = +el.value; const o = sl?.querySelector("output"); if (o) o.textContent = el.value + "%"; return wmRefresh(); }
     if (k === "brand_tag_on") { E.look.brand_tag_on = el.checked; drawPanel(); return wmRefresh(); }
     if (k === "pip_size" || k === "pip_radius" || k === "pip_border") {
       const lim = {pip_size: [22, 50], pip_radius: [0, 30], pip_border: [0, 16]}[k], v = +el.value;

@@ -5575,6 +5575,10 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .ed-popfill{position:absolute;z-index:2;pointer-events:none}
 /* the real cut-out person (a see-through video from the server) over the card, in step with the stream */
 .ed-popcut{position:absolute;z-index:2;pointer-events:none;object-fit:fill;max-width:none}
+/* the head line: its handle beside the card's top edge, and a dashed guide across the card while it is dragged */
+.ed .ed-popline{right:auto!important}
+.ed-popguide{position:absolute;z-index:6;height:0;border-top:1.5px dashed rgba(255,255,255,.9);pointer-events:none;opacity:0;transition:opacity .15s ease}
+.ed-phone.popline .ed-popguide{opacity:1}
 .ed-popo{position:absolute!important;z-index:2;overflow:hidden;cursor:grab;touch-action:none;
   -webkit-mask-image:radial-gradient(var(--hx) var(--hy) at 50% var(--hb),#000 80%,transparent 100%);mask-image:radial-gradient(var(--hx) var(--hy) at 50% var(--hb),#000 80%,transparent 100%)}
 .ed-popo:active{cursor:grabbing}
@@ -5651,10 +5655,30 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .composer .addrow .addrow-l svg{width:15px;height:15px}
 .composer .addrow .addrow-n{position:absolute;right:12px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:11px;font-weight:600;color:#8E8E96;font-variant-numeric:tabular-nums}
 .composer .addrow .addrow-l{margin:0!important;flex:none!important}
-.ox2 .o2-caps{grid-template-columns:repeat(6,minmax(0,1fr))}
-@media (max-width:1100px){.ox2 .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ox2 .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))}   /* six styles: two even rows, names in full */
 /* an open picker (creator, brand) in the add-a-video box floats over the video cards and filters below it */
 #addform:has(.pick.open),.hero:has(.pick.open){position:relative;z-index:40}
+/* the social watermark's styles, each drawn on this clip; the chosen one ringed in the accent */
+.ed-wmstyles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ed-wmstyles button{display:grid;gap:6px;padding:0;border:0;background:none;color:#A1A1AA;font-size:12px;font-weight:500;text-align:left;cursor:pointer}
+.ed-wmst-pv{position:relative;display:grid;place-items:center;height:76px;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.ed-wmst-pv>i{position:absolute;inset:0;background-size:cover;background-position:center 30%;filter:brightness(.7)}
+.ed-wmst-pv .wm{position:relative;white-space:nowrap;line-height:normal}
+.ed-wmstyles button:hover .ed-wmst-pv>i{filter:brightness(.82)}
+.ed-wmstyles button[aria-pressed=true] .ed-wmst-pv{box-shadow:inset 0 0 0 2px var(--accent)}
+.ed-wmstyles button[aria-pressed=true] b{color:#fff}
+.ed-wmstyles b{font-weight:500;padding-left:2px}
+.ed .ed-sub{margin:12px 0 6px;font-size:12px;font-weight:500;color:#8E8E96}
+/* the outro card's look in the preview, drawn the same way render._outro_backdrop and outro_card draw it */
+.ed-outro-c .ob{position:absolute;inset:-12%;background-size:cover;background-position:center}
+.ed-outro-c .og{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(124,58,237,.45),transparent 62%),radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,.45) 100%)}
+.ed-outro-c .ogr{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.09) 1px,transparent 1px);
+  background-size:var(--s) var(--s);background-position:center 42%;-webkit-mask-image:radial-gradient(circle at 50% 42%,#000,transparent 62%);mask-image:radial-gradient(circle at 50% 42%,#000,transparent 62%)}
+.ed-outro-c .on{position:absolute;inset:0;opacity:.22;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='.9 0 0 0 .2 0 .75 0 0 .1 0 0 1.1 0 .3 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.ed-outro-c .ol{position:absolute;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.ed-outro-c span.pill{left:50%;right:auto;transform:translate(-50%,-50%);background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.ed-outro-c .oi{position:absolute;left:50%;transform:translateX(-50%);display:flex}
+.ed-outro-c .oi em{display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 1px rgba(255,255,255,.19)}
 </style>
 </head>
 <body>
@@ -6711,6 +6735,7 @@ function drawAdd(variant, keep = "") {
     <div class="composer-bar">
       ${live ? "" : `<button type="button" class="chip" data-act="pickfile">${ic("up")}Upload video</button>`}
       ${who}<span id="brandPickW"></span>
+      ${live ? picker("o_goal", "Clips to make", [{v: "", label: "Clips: Auto", icon: "scissors"}, ...[2, 3, 4, 5, 6, 8, 10].map(n => ({v: String(n), label: `${n} clips`, icon: "scissors", mark: String(n)}))], S.liveGoal || "") : ""}
       <span class="grow"></span><span class="hint">${live ? "Clips are made while they stream" : "or drop a video file here"}</span>
     </div>
     <div class="composer-opts" inert><div class="og ox2">
@@ -6733,8 +6758,8 @@ function drawAdd(variant, keep = "") {
       <section class="o2-sec o2-sws">
         <div class="o2-sw"><div><b>AI editor</b><small>Music, zooms and sounds on every clip</small></div><input type="hidden" id="o_aiedit" value="0">
           <button type="button" class="o2-switch" role="switch" data-tog="o_aiedit" aria-checked="false" aria-label="AI editor"><i></i></button></div>
-        <div class="o2-sw"><div><b>Source watermark</b><small>“Full video on” + the channel, top corner</small></div><input type="hidden" id="o_wm" value="1">
-          <button type="button" class="o2-switch" role="switch" data-tog="o_wm" aria-checked="true" aria-label="Source watermark"><i></i></button></div>
+        <div class="o2-sw"><div><b>Source watermark</b><small>“Full video on” + the channel, top corner</small></div><input type="hidden" id="o_wm" value="0">
+          <button type="button" class="o2-switch" role="switch" data-tog="o_wm" aria-checked="false" aria-label="Source watermark"><i></i></button></div>
         <div class="o2-sw"><div><b>Chat spikes <span class="ox-info" tabindex="0" data-tip="YouTube replays: read on their own. Twitch: drop a chat.json from TwitchDownloader in with the video.">${ic("help")}</span></b><small>Chat's big moments first</small></div><input type="hidden" id="o_chat" value="1">
           <button type="button" class="o2-switch" role="switch" data-tog="o_chat" aria-checked="true" aria-label="Chat spikes"><i></i></button></div>
       </section>
@@ -6784,7 +6809,7 @@ function capPrev(k) {
 }
 function picker(id, aria, items, val) {
   const cur = items.find(x => String(x.v) === String(val)) || items[0];
-  const av = x => x.img ? `<img class="av" src="${x.img}" alt="">` : `<span class="av">${x.icon ? ic(x.icon) : esc((x.label || "?").trim().slice(0, 1).toUpperCase())}</span>`;
+  const av = x => x.img ? `<img class="av" src="${x.img}" alt="">` : `<span class="av">${x.mark ? esc(x.mark) : x.icon ? ic(x.icon) : esc((x.label || "?").trim().slice(0, 1).toUpperCase())}</span>`;
   return `<div class="pick"><input type="hidden" id="${id}" value="${esc(cur.v)}">
     <button type="button" class="chip pick-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(aria)}">${ic(cur.icon || "user")}<span class="pv">${esc(cur.label)}</span>${ic("caret").replace("<svg", '<svg class="car"')}</button>
     <div class="pick-menu" role="listbox">${items.map(x => `<button type="button" class="pick-opt" role="option" data-v="${esc(x.v)}" aria-selected="${String(x.v) === String(cur.v)}">${av(x)}<span class="pl">${esc(x.label)}</span>${ic("check").replace("<svg", '<svg class="tick"')}</button>`).join("")}${id === "o_creator" ? `${items.length < 2 ? `<p class="pick-empty">No creators yet. Add one to keep each streamer's clips, settings and accounts together.</p>` : ""}<button type="button" class="pick-new" data-act="newcreator"><span class="av">${ic("plus")}</span>New creator</button>` : ""}</div></div>`;
@@ -6833,7 +6858,7 @@ const targetCreator = () => creatorId() || $("#o_creator")?.value || "";
 function jobOptions() {
   const n = id => { const v = $(id).value; return v === "" ? null : Number(v); };
   const o = {max_clips:n("#o_max"), min_len:n("#o_min"), max_len:n("#o_maxlen"), style:$("#o_style").value, layout:$("#o_layout").value, quality:n("#o_quality"),
-             use_chat: ($("#o_chat")?.value ?? "1") === "1", ai_edit: ($("#o_aiedit")?.value ?? "0") === "1", watermark: ($("#o_wm")?.value ?? "1") === "1"};
+             use_chat: ($("#o_chat")?.value ?? "1") === "1", ai_edit: ($("#o_aiedit")?.value ?? "0") === "1", watermark: ($("#o_wm")?.value ?? "0") === "1"};
   if (n("#o_from") !== null) o.range_start = n("#o_from") * 60;
   if (n("#o_to") !== null) o.range_end = n("#o_to") * 60;
   return o;
@@ -7178,7 +7203,7 @@ function liveHtml(j) {
         <button class="btn danger" data-act="stoplive" data-j="${j.id}">${ic("stop")}Stop</button></div></div>
     <div class="stats"><div class="stat"><b>${fmt(L.elapsed)}</b><span>Recorded</span></div><div class="stat"><b>${Math.round(L.buffer_sec / 60)} min</b><span>Kept in buffer</span></div>
       <div class="stat">${everyPick(j.creator, L.every_min ?? 3)}<span>${L.every_min === 0 ? (L.auto?.warming ? "AI checks: learning the stream" : L.auto?.waiting ? "AI checks: jump spotted, checking soon" : `AI checks on jumps · ${L.auto?.spikes || 0} so far`) : "AI checks every"}</span></div>
-      <div class="stat"><b>${L.checks}</b><span>AI calls${L.skipped ? ` · ${L.skipped} skipped` : ""}${L.rejected ? ` · ${L.rejected} turned down` : ""}</span></div><div class="stat"><b>${j.clips.length}</b><span>Clips so far</span></div>
+      <div class="stat"><b>${L.checks}</b><span>AI calls${L.skipped ? ` · ${L.skipped} skipped` : ""}${L.rejected ? ` · ${L.rejected} turned down` : ""}</span></div><div class="stat"><b>${j.clips.length}${L.goal ? `<small> of ${L.goal}</small>` : ""}</b><span>${L.goal ? (j.clips.length >= L.goal ? "Clips made, goal reached" : "Clips toward your goal") : "Clips so far"}</span></div>
       ${L.pending_clips ? `<div class="stat"><b>${L.pending_clips}</b><span>Hand clip being prepared</span></div>` : ""}</div>
     <div class="meters">
       <div class="meter"><h4>Loudness, last minute</h4>${spark(L.level, "", -55, -8)}</div>
@@ -8141,10 +8166,12 @@ async function startLive() {
   if (url && !isChannel(url)) { toast("Paste a channel link, like twitch.tv/name, kick.com/name or youtube.com/@name.", "bad"); return $("#url").focus(); }
   if (!cid && !url) { toast("Paste the channel link of the stream to record.", "bad"); return $("#url").focus(); }
   const was = b.innerHTML; b.disabled = true; b.innerHTML = "Starting…";
+  const clips = Number($("#o_goal")?.value || 0);        // Clips to make: 0 lets the AI judges decide
+  S.liveGoal = clips ? String(clips) : "";
   try {
     const full = url && !/^https?:\/\//.test(url) ? "https://" + url : url;
     if (!cid) {                         // no creator picked: record the link as it is, nothing to set up first
-      const j = await send("/api/live", {url: full});
+      const j = await send("/api/live", {url: full, clips});
       if (j?.id && !jobOf(j.id)) S.jobs.unshift(j);
       toast("Recording started. Clips appear on Videos as the best moments happen.", "ok");
       go("library"); tick(); return;
@@ -8152,7 +8179,7 @@ async function startLive() {
       const c = S.creators.find(x => x.id === cid);
       if (c && !Object.values(c.channels || {}).includes(full)) Object.assign(c, await send(`/api/creators/${cid}`, {channel: full}, "PUT"));
     }
-    const j = await send(`/api/creators/${cid}/live`, full ? {channel: full} : {});
+    const j = await send(`/api/creators/${cid}/live`, full ? {channel: full, clips} : {clips});
     if (j?.id) { const c = S.creators.find(x => x.id === cid); if (c) c.live_job = j.id; if (!jobOf(j.id)) S.jobs.unshift(j); }
     toast("Recording started. Clips appear as the best moments happen.", "ok");
     go("c:" + cid, "clips");
@@ -8513,6 +8540,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=166"></script>
+<script src="/assets/editor.js?v=174"></script>
 </body>
 </html>
