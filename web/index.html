@@ -6002,6 +6002,67 @@ dialog.sd{width:min(600px,calc(100vw - 32px))!important;max-height:calc(100vh - 
 .crcard.v3 .cropen svg{width:14px;height:14px}
 .crcard.v3:hover .cropen{color:#fff;gap:6px}
 @media (prefers-reduced-motion:reduce){.cr3-st b{animation:none}}
+/* ================= the calendar's header: the month and three counts that open the list; on the right, two matching
+   controls (back, Today, forward; Month or Week), one height, one style */
+.sc-head4{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;padding:20px 20px 16px}
+.sc-ttl4{display:grid;gap:10px;min-width:0}
+.sc-ttl4 h2{margin:0;font-size:24px;line-height:1.1;font-weight:700;letter-spacing:-.015em;color:#F4F4F5;font-family:var(--font-head,inherit)}
+.sc-stats4{display:flex;flex-wrap:wrap;gap:6px}
+.sc-stat4{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border:0;border-radius:999px;background:rgba(255,255,255,.04);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#A1A1AA;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease,box-shadow .15s ease}
+.sc-stat4:hover{background:rgba(255,255,255,.08);color:#F4F4F5}
+.sc-stat4 i{width:7px;height:7px;border-radius:50%;background:var(--dot)}
+.sc-stat4 b{font-weight:700;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.sc-stat4.k-scheduled{--dot:var(--accent)}.sc-stat4.k-posted{--dot:#22C55E}.sc-stat4.k-failed{--dot:#F43F5E}
+.sc-stat4.zero{opacity:.6}
+.sc-stat4.k-failed:not(.zero){box-shadow:inset 0 0 0 1px rgba(244,63,94,.35);background:rgba(244,63,94,.08)}
+.sc-tools4{display:flex;align-items:center;gap:8px}
+.sc-nav4,.sc-view4{display:flex;align-items:center;height:36px;padding:3px;gap:2px;border-radius:11px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.sc-nav4 button,.sc-view4 button{display:grid;place-items:center;height:30px;min-width:30px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#A1A1AA;
+  font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.sc-nav4 button:not(.t){padding:0}
+.sc-nav4 button svg{width:16px;height:16px}
+.sc-nav4 button:hover,.sc-view4 button:hover{background:rgba(255,255,255,.07);color:#F4F4F5}
+.sc-nav4 .t{color:#E4E4E7}
+.sc-view4 button[aria-selected=true]{background:#2A2A2F;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.sc-head4+.sc-gridw{border-top:1px solid rgba(255,255,255,.05);padding-top:14px!important}
+@media (max-width:720px){.sc-head4{align-items:flex-start}.sc-tools4{width:100%;justify-content:space-between}}
+/* the month never scrolls sideways: the days shrink with the card */
+.sc-mg3{grid-template-columns:repeat(7,minmax(0,1fr))!important;min-width:0!important}
+.sc-cal3 .sc-gridw.month{overflow:visible}
+.sc-mc3{min-width:0}
+/* the Schedule dialog on a desktop: wide and short, in two columns (the clip and where it goes; its words and when),
+   so it fits the screen with no scrollbar. One column on a phone. */
+dialog.sd{width:min(940px,calc(100vw - 32px))!important}
+.sd-body{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:start;gap:18px 24px!important;padding:18px 22px 6px!important}
+.sd-body.one{grid-template-columns:1fr}
+.sd-col{display:grid;gap:16px;min-width:0}
+.sd-col+.sd-col{padding-left:24px;border-left:1px solid rgba(255,255,255,.06)}
+.sd .sd-targets{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sd .sd-t{padding:10px 11px!important;gap:10px}
+.sd .sd-t .mk{width:32px;height:32px}
+.sd-in2 textarea{min-height:96px}
+.sd .sd-when{grid-template-columns:1fr .75fr 1.35fr}
+@media (max-width:860px){.sd-body{grid-template-columns:1fr}.sd-col+.sd-col{padding-left:0;border-left:0}}
+@media (min-width:861px){.sd-col:last-child .sd-in2 textarea{min-height:196px}}
+/* ================= the Schedule dialog's date, time and zone: three matching fields, an icon tile, a quiet label and
+   the value in plain words; the browser's own picker opens on click (its input sits invisibly over the field) */
+.sd-when2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:8px}
+.sd-when2 .sd-fld.tz{grid-column:1/-1}
+.sd-fld{position:relative;display:flex;align-items:center;gap:10px;min-width:0;height:52px;padding:0 12px 0 8px;border-radius:12px;background:#0E0E11;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);cursor:pointer;transition:box-shadow .15s ease,background-color .15s ease}
+.sd-fld:hover{background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.sd-fld:focus-within{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sd-fi{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.05);color:#C4C4CC}
+.sd-fi svg{width:16px;height:16px}
+.sd-fld:focus-within .sd-fi{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.sd-ft{display:grid;gap:1px;min-width:0}
+.sd-ft small{font-size:11px;color:#71717A}
+.sd-ft b{font-size:13.5px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.sd-fc{margin-left:auto;flex:none;color:#71717A}.sd-fc svg{width:14px;height:14px}
+.sd-fld input,.sd-fld select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;color-scheme:dark}
+.sd-fld input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+@media (max-width:420px){.sd-when2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -6866,13 +6927,17 @@ function drawSchedule() {
     const nPlan = shown.filter(isPlanned).length, nPost = shown.filter(p => p.status === "posted").length, nFail = shown.filter(p => p.status === "failed").length;
     const step = view === "week" ? 7 : 1, selList = byDay[sel] || [];
     main = `<div class="sc-main3"><section class="sc-cal sc-cal3">
-      <div class="sc-head3">
-        <div class="sc-ttl3"><h2>${range}</h2><p>${nPlan} planned · ${nPost} posted${nFail ? ` · ${nFail} failed` : ""}</p></div>
-        <span class="grow"></span>
-        <div class="sc-legend" aria-hidden="true"><span><i class="lg-p"></i>Planned</span><span><i class="lg-o"></i>Posted</span><span><i class="lg-f"></i>Failed</span></div>
-        <div class="sc-seg" role="tablist" aria-label="View">${[["month", "Month"], ["week", "Week"]].map(([k, l]) => `<button role="tab" data-act="schview" data-v="${k}" aria-selected="${view === k}">${l}</button>`).join("")}</div>
-        <button class="sc-today3" data-act="schstep" data-d="0">Today</button>
-        <div class="sc-arrows"><button data-act="schstep" data-d="-${step}" aria-label="Previous ${view}">${ic("chevl")}</button><button data-act="schstep" data-d="${step}" aria-label="Next ${view}">${ic("chevr")}</button></div>
+      <div class="sc-head4">
+        <div class="sc-ttl4"><h2>${range}</h2>
+          <div class="sc-stats4">${[["scheduled", "Planned", nPlan], ["posted", "Posted", nPost], ["failed", "Failed", nFail]].map(([k, l, v]) =>
+            `<button class="sc-stat4 k-${k} ${v ? "" : "zero"}" data-act="schlist" data-v="${k}" title="See every ${l.toLowerCase()} post in the list"><i></i><b>${v}</b>${l}</button>`).join("")}</div></div>
+        <div class="sc-tools4">
+          <div class="sc-nav4" role="group" aria-label="Move through the calendar">
+            <button data-act="schstep" data-d="-${step}" aria-label="Previous ${view}">${ic("chevl")}</button>
+            <button class="t" data-act="schstep" data-d="0">Today</button>
+            <button data-act="schstep" data-d="${step}" aria-label="Next ${view}">${ic("chevr")}</button></div>
+          <div class="sc-view4" role="tablist" aria-label="View">${[["month", "Month"], ["week", "Week"]].map(([k, l]) => `<button role="tab" data-act="schview" data-v="${k}" aria-selected="${view === k}">${l}</button>`).join("")}</div>
+        </div>
       </div>
       <div class="sc-gridw ${view}">${grid}</div></section>
       <section class="sc-day3 ${sel < today ? "past" : ""}" data-drop="day:${sel}">
@@ -6931,7 +6996,7 @@ function schDialog({job, clip, day, post, hour}) {
       ${d.accounts.map(a => { const done = already.some(x => x.account === a.id);
         return `<label class="sd-t ${done ? "done" : ""}"><input type="checkbox" name="sdacc" value="${esc(a.id)}" ${done ? "disabled" : ""}><span class="mk">${schPlatMark(a.platform)}</span><span class="sd-tt"><b>${esc(a.name)}</b><small>${done ? "Already planned" : esc(a.label)}</small></span>${tick}</label>`; }).join("")}
       ${SCH_PLAT.filter(([k]) => !d.accounts.some(a => a.platform === k)).map(([k, l]) => { const done = already.some(x => !x.account && x.platform === k);
-        return `<label class="sd-t off ${done ? "done" : ""}"><input type="checkbox" name="sdplat" value="${k}" ${done ? "disabled" : ""}><span class="mk">${schPlatMark(k)}</span><span class="sd-tt"><b>${l}</b><small>${done ? "Already planned" : `<em class="sd-warn">Not connected</em> · connect before it's due`}</small></span>${tick}</label>`; }).join("")}</div></div>`;
+        return `<label class="sd-t off ${done ? "done" : ""}"><input type="checkbox" name="sdplat" value="${k}" ${done ? "disabled" : ""}><span class="mk">${schPlatMark(k)}</span><span class="sd-tt"><b>${l}</b><small title="Connect it in Settings before the post is due">${done ? "Already planned" : `<em class="sd-warn">Not connected yet</em>`}</small></span>${tick}</label>`; }).join("")}</div></div>`;
   // the post's own words: the title, the caption (the clip's description and hashtags to start), and who can see it
   const capDef = [r.description || "", (r.hashtags || []).map(x => "#" + x).join(" ")].filter(Boolean).join("\n\n");
   const details = p ? "" : `<div class="sd-f"><div class="sd-lh"><span class="sd-l">Details</span><small>Used on every platform picked</small></div>
@@ -6945,25 +7010,35 @@ function schDialog({job, clip, day, post, hour}) {
   dlg.className = "sd"; dlg.id = "schdlg";
   dlg.innerHTML = `<form method="dialog" class="sd-in">
     <header><div><h3>${p ? "Change the time" : "Schedule a post"}</h3><p>${p ? "Move this post to another day or time." : "Where it goes, what it says, and when."}</p></div><button type="button" class="icon-btn" data-sd="close" aria-label="Close">${ic("x")}</button></header>
-    <div class="sd-body">
+    <div class="sd-body ${p ? "one" : ""}"><div class="sd-col">
     <div class="sd-clip">${r.cover ? `<img src="/media/${esc(r.job)}/${esc(r.cover)}?v=${r.version || 0}" alt="">` : `<span></span>`}<div><b>${esc(r.title)}</b><small>${esc(r.creator_name || "No creator")}${r.length ? ` · ${fmt(r.length)}` : ""}${p ? ` · ${esc(p.account_name)}` : ""}</small></div></div>
     ${targets}
-    ${details}
     <div class="sd-f"><div class="sd-lh"><span class="sd-l">When</span></div>
       ${p ? "" : `<div class="sd-soon">${soon.map(([k, l]) => `<button type="button" class="chip" data-sds="${k}">${l}</button>`).join("")}</div>`}
-      <div class="sd-when">
-      <input type="date" id="sdDay" value="${parts ? parts.day : def}" min="${tzParts(Date.now(), tz).day}" required>
-      <input type="time" id="sdTime" value="${hm}" required>
-      <select id="sdTz">${TZ_LIST.map(([z, l]) => `<option value="${esc(z)}" ${z === ptz ? "selected" : ""}>${esc(l)} · ${esc(tzShort(z))}</option>`).join("")}</select></div>
+      <div class="sd-when2">
+        <label class="sd-fld" data-pick="sdDay"><span class="sd-fi">${ic("calendar")}</span><span class="sd-ft"><small>Date</small><b id="sdDayTxt"></b></span>
+          <input type="date" id="sdDay" value="${parts ? parts.day : def}" min="${tzParts(Date.now(), tz).day}" required aria-label="Date"></label>
+        <label class="sd-fld" data-pick="sdTime"><span class="sd-fi">${ic("clock")}</span><span class="sd-ft"><small>Time</small><b id="sdTimeTxt"></b></span>
+          <input type="time" id="sdTime" value="${hm}" required aria-label="Time"></label>
+        <label class="sd-fld tz"><span class="sd-fi">${ic("globe")}</span><span class="sd-ft"><small>Time zone</small><b id="sdTzTxt"></b></span><span class="sd-fc">${ic("caret")}</span>
+          <select id="sdTz" aria-label="Time zone">${TZ_LIST.map(([z, l]) => `<option value="${esc(z)}" ${z === ptz ? "selected" : ""}>${esc(l)} · ${esc(tzShort(z))}</option>`).join("")}</select></label></div>
       <div class="sd-quick">${quick.map(([z, t, l]) => `<button type="button" class="chip" data-sdq="${z}|${t}">${l}</button>`).join("")}</div>
       <p class="sd-here" id="sdHere"></p></div>
-    </div>
+    </div><div class="sd-col">
+    ${details}
+    </div></div>
     <p class="sd-err" id="sdErr" hidden></p>
     <footer>${p && p.status === "scheduled" ? `<button type="button" class="btn ghost danger-t" data-sd="unplan">${ic("trash")}Delete this post</button>` : ""}<span class="grow"></span>
       <button type="button" class="btn" data-sd="close">Cancel</button><button type="submit" class="btn primary" id="sdGo">${p ? "Save time" : "Schedule"}</button></footer></form>`;
   document.body.append(dlg);
   const here = () => {
     const at = zonedToUtc($("#sdDay").value || def, $("#sdTime").value || "18:00", $("#sdTz").value);
+    // the three fields read in plain words: "Thu, 19 Nov", "6:00 PM", "India · GMT+5:30"
+    const dv = $("#sdDay").value || def, [hh, mm] = ($("#sdTime").value || "18:00").split(":").map(Number);
+    $("#sdDayTxt").textContent = dv === tzParts(Date.now(), $("#sdTz").value).day ? `Today, ${dayLabel(dv, {day: "numeric", month: "short"})}`
+      : dv === addDays(tzParts(Date.now(), $("#sdTz").value).day, 1) ? `Tomorrow, ${dayLabel(dv, {day: "numeric", month: "short"})}` : dayLabel(dv, {weekday: "short", day: "numeric", month: "short"});
+    $("#sdTimeTxt").textContent = new Date(2000, 0, 1, hh || 0, mm || 0).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+    const zo = $("#sdTz").selectedOptions[0]; $("#sdTzTxt").textContent = zo ? zo.textContent : $("#sdTz").value;
     const z = $("#sdTz").value, mine = HERE_TZ;
     $("#sdHere").innerHTML = z === mine ? `${ic("clock")}Posts ${new Date(at).toLocaleString([], {weekday: "long", day: "numeric", month: "short", hour: "numeric", minute: "2-digit"})}, your time.`
       : `${ic("clock")}That's <b>${new Date(at).toLocaleString([], {timeZone: mine, weekday: "short", hour: "numeric", minute: "2-digit"})}</b> where you are (${esc(tzShort(mine))}).`;
@@ -6978,6 +7053,8 @@ function schDialog({job, clip, day, post, hour}) {
   };
   dlg.addEventListener("input", () => { here(); counts(); }); dlg.addEventListener("change", () => { here(); counts(); }); here();
   dlg.addEventListener("click", async e => {
+    const fp = e.target.closest("[data-pick]");
+    if (fp && e.target.tagName !== "INPUT") { const inp = $("#" + fp.dataset.pick); try { inp.showPicker(); } catch { inp.focus(); } }
     const q = e.target.closest("[data-sdq]"); if (q) { const [z, t] = q.dataset.sdq.split("|"); $("#sdTz").value = z; $("#sdTime").value = t; here(); return; }
     const sn = e.target.closest("[data-sds]"); if (sn) {           // in an hour, tonight, tomorrow morning: in the zone picked
       const z = $("#sdTz").value, k = sn.dataset.sds, now = tzParts(Date.now() + (k === "+1h" ? 3600e3 : 0), z);
@@ -8752,7 +8829,8 @@ document.addEventListener("click", async e => {
     // the Schedule page: switch view, change week, plan a clip, open a planned post
     if (a === "schtab") { S.schTab = d.t; drawShell(); return drawSchedule(); }
     if (a === "schview") { S.schView = d.v; return drawSchedule(); }
-    if (a === "schday") { S.schDay = d.day; return drawSchedule(); }               // a day picked on the calendar: its posts below
+    if (a === "schday") { S.schDay = d.day; return drawSchedule(); }
+    if (a === "schlist") { S.schTab = "list"; S.schFilt = d.v; drawShell(); return drawSchedule(); }   // a count on the calendar: those posts, listed               // a day picked on the calendar: its posts below
     if (a === "schrefresh") { b.classList.add("spin1"); await loadSchedule(); setTimeout(() => b.classList.remove("spin1"), 500); return; }
     if (a === "schfilt") { S.schFilt = d.v; return drawSchedule(); }
     if (a === "schstep") {
