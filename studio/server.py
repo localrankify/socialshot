@@ -2366,7 +2366,8 @@ def schedule_post(body: dict = Body(...)):
         raise HTTPException(404, "That clip is not ready")
     try:
         made = posting.schedule(job, clip, body.get("at"), body.get("tz", ""),
-                                [str(a) for a in body.get("accounts", []) or []][:20], [str(p) for p in body.get("platforms", []) or []][:4])
+                                [str(a) for a in body.get("accounts", []) or []][:20], [str(p) for p in body.get("platforms", []) or []][:4],
+                                title=body.get("title"), caption=body.get("caption"), privacy=body.get("privacy"))
     except ValueError as e:
         raise HTTPException(400, str(e))
     if not made:

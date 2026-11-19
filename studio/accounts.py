@@ -183,10 +183,11 @@ def connect_url(platform: str) -> str:
     if platform == "youtube":
         return "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode({
             "client_id": cid, "redirect_uri": redirect, "response_type": "code", "scope": YT_SCOPES,
-            "access_type": "offline", "prompt": "consent", "state": state})
+            "access_type": "offline", "prompt": "select_account consent", "state": state})    # the account chooser every time: add as many channels as you like
     if platform == "instagram":
         return "https://www.instagram.com/oauth/authorize?" + urlencode({
-            "client_id": cid, "redirect_uri": redirect, "response_type": "code", "scope": IG_SCOPES, "state": state})
+            "client_id": cid, "redirect_uri": redirect, "response_type": "code", "scope": IG_SCOPES, "state": state,
+            "force_reauth": "true"})                 # sign in again, so another Instagram account can be added
     if platform == "x":
         # X asks for PKCE: a one-time secret kept here, and its hash sent along with the sign-in
         verifier = secrets.token_urlsafe(48)
@@ -196,7 +197,8 @@ def connect_url(platform: str) -> str:
             "response_type": "code", "client_id": cid, "redirect_uri": redirect, "scope": X_SCOPES, "state": state,
             "code_challenge": challenge, "code_challenge_method": "S256"})
     return "https://www.tiktok.com/v2/auth/authorize/?" + urlencode({
-        "client_key": cid, "redirect_uri": redirect, "response_type": "code", "scope": TT_SCOPES, "state": state})
+        "client_key": cid, "redirect_uri": redirect, "response_type": "code", "scope": TT_SCOPES, "state": state,
+        "disable_auto_auth": "1"})                   # no silent sign-in: another TikTok account can be picked
 
 
 def connect_finish(platform: str, code: str, state: str) -> dict:

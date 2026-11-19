@@ -5828,6 +5828,123 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .sc-mchip em{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal;opacity:.8}
 /* past days: a quiet shade instead of stripes */
 .sc-cell.past,.sc-mc.past{background:rgba(0,0,0,.18)!important}
+/* ================= Schedule, second layout: the calendar card and the day under it on the left, Ready to post on
+   the right; the time zone under the title; Calendar, List and Board with a refresh button at the top */
+.sc-wrap.sc-wrap3{grid-template-columns:minmax(0,1fr) 288px!important;align-items:start}
+.sc-main3{display:grid;gap:14px;min-width:0}
+.sh-tz{position:relative;display:inline-flex;align-items:center;gap:3px;color:#D4D4D8;cursor:pointer;border-radius:5px}
+.sh-tz:hover{color:#fff}
+.sh-tz svg{width:12px;height:12px;opacity:.7}
+.sh-tz select{position:absolute;inset:0;opacity:0;cursor:pointer}
+.icon-btn.spin1 svg{animation:jp-spin .5s linear}
+.sc-cal3,.sc-list3,.sc-day3{border-radius:16px;background:#151517;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);overflow:hidden}
+.sc-head3{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:16px 16px 12px}
+.sc-ttl3 h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;color:#F4F4F5;font-family:var(--font-head,inherit)}
+.sc-ttl3 p{margin:3px 0 0;font-size:12.5px;color:#8E8E96;font-variant-numeric:tabular-nums}
+.sc-legend{display:flex;gap:12px;margin-right:6px;font-size:12px;color:#A1A1AA}
+.sc-legend span{display:inline-flex;align-items:center;gap:6px}
+.sc-legend i{display:block;width:7px;height:7px;border-radius:50%}
+.sc-legend .lg-p{background:var(--accent)}.sc-legend .lg-o{background:#22C55E}.sc-legend .lg-f{background:#F43F5E}
+.sc-today3{height:34px;padding:0 14px;border:0;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#F4F4F5;font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s ease}
+.sc-today3:hover{background:rgba(255,255,255,.1)}
+.sc-arrows{display:flex;gap:6px}
+.sc-arrows button{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#D4D4D8;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.sc-arrows button:hover{background:rgba(255,255,255,.09);color:#fff}
+.sc-arrows svg{width:16px;height:16px}
+.sc-cal3 .sc-gridw{padding:0 16px 16px;overflow:auto}
+/* the month: each day a rounded box; today ringed in the accent; the picked day lit */
+.sc-mg3{display:grid;grid-template-columns:repeat(7,minmax(84px,1fr));gap:8px;min-width:640px}
+.sc-mgh3{padding:2px 0 4px;text-align:center;font-size:12px;font-weight:500;color:#71717A}
+.sc-mc3{position:relative;display:flex;flex-direction:column;gap:4px;min-height:96px;padding:8px;border-radius:12px;background:rgba(255,255,255,.025);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.sc-mc3:hover{background:rgba(255,255,255,.045)}
+.sc-mc3.out{background:none;box-shadow:none;cursor:default}
+.sc-mc3.past{background:rgba(0,0,0,.14)}
+.sc-mc3>b{font-size:12.5px;font-weight:600;color:#A1A1AA;font-variant-numeric:tabular-nums}
+.sc-mc3.today{box-shadow:inset 0 0 0 1.5px var(--accent);background:color-mix(in srgb,var(--accent) 8%,rgba(255,255,255,.02))}
+.sc-mc3.today>b{display:inline-grid;place-items:center;align-self:flex-start;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff}
+.sc-mc3.sel:not(.today){box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.28);background:rgba(255,255,255,.05)}
+.sc-mc3.sc-over{background:color-mix(in srgb,var(--accent) 16%,transparent)!important}
+.sc-mc3 .sc-more{font-size:11px;color:#8E8E96;padding-left:2px}
+.sc-tgh[data-act]{cursor:pointer}.sc-tgh.sel b{text-decoration:underline;text-underline-offset:3px}
+/* the picked day under the calendar */
+.sc-day3{padding:14px 16px 16px}
+.sc-day3.sc-over{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sc-dayh3{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sc-dayh3 h3{margin:0;font-size:15px;font-weight:600;color:#F4F4F5}
+.sc-dayh3 span{font-size:12px;color:#8E8E96}
+.sc-dayl3{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.sc-daye3{margin:0;padding:18px;border-radius:12px;border:1px dashed rgba(255,255,255,.12);text-align:center;font-size:12.5px;color:#8E8E96}
+/* the list: days in order, each with its posts */
+.sc-listb3{display:grid;gap:8px;padding:0 16px 16px}
+.sc-lday3{display:flex;align-items:baseline;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
+.sc-lday3:first-child{margin-top:0;padding-top:0;border-top:0}
+.sc-lday3 b{font-size:13.5px;font-weight:600;color:#F4F4F5}.sc-lday3 span{font-size:12px;color:#8E8E96}
+.sc-lday3.today b{color:color-mix(in srgb,var(--accent) 50%,#fff)}
+/* Ready to post on the right: a full-height card of its own */
+.sc-wrap3 .sc-tray{max-height:calc(100vh - 150px)}
+@media (max-width:1100px){.sc-wrap.sc-wrap3{grid-template-columns:minmax(0,1fr) 240px!important}.sc-legend{display:none}}
+@media (max-width:900px){.sc-wrap.sc-wrap3{grid-template-columns:1fr!important}.sc-wrap3 .sc-tray{order:-1;max-height:none}}
+/* ================= the Schedule dialog: the clip, the places as cards that tick, the post's words, and when */
+dialog.sd{width:min(600px,calc(100vw - 32px))!important;max-height:calc(100vh - 48px);padding:0!important;border-radius:18px!important;background:#151517!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 30px 70px -20px rgba(0,0,0,.8)!important;overflow:hidden}
+.sd .sd-in{display:flex;flex-direction:column;max-height:calc(100vh - 48px);padding:0!important;gap:0!important}
+.sd header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 14px!important;border-bottom:1px solid rgba(255,255,255,.06)}
+.sd header h3{margin:0;font-size:17px;font-weight:600;color:#F4F4F5}
+.sd header p{margin:3px 0 0;font-size:12.5px;color:#8E8E96}
+.sd-body{display:grid;gap:18px;padding:16px 20px 4px;overflow-y:auto;scrollbar-width:thin}
+.sd .sd-clip{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.sd .sd-clip img,.sd .sd-clip>span{width:42px;height:74px;flex:none;border-radius:8px;object-fit:cover;background:#0E0E10}
+.sd .sd-clip b{display:block;font-size:14px;font-weight:600;color:#F4F4F5}
+.sd .sd-clip small{font-size:12px;color:#8E8E96}
+.sd-f{display:grid;gap:10px}
+.sd-lh{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sd .sd-l{font-size:13px!important;font-weight:600!important;letter-spacing:0!important;text-transform:none!important;color:#E4E4E7!important}
+.sd-lh small{font-size:12px;color:#71717A}
+.sd .sd-targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sd .sd-t{position:relative;display:flex!important;align-items:center;gap:11px;padding:11px 12px!important;border:0!important;border-radius:12px!important;background:rgba(255,255,255,.025)!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);cursor:pointer;transition:background-color .15s ease,box-shadow .15s ease}
+.sd .sd-t:hover{background:rgba(255,255,255,.05)!important}
+.sd .sd-t input{position:absolute;opacity:0;pointer-events:none}
+.sd .sd-t .mk{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#0E0E10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.sd .sd-t .mk svg{width:18px;height:18px}
+.sd-tt{flex:1;min-width:0;display:grid;gap:2px}
+.sd-tt b{font-size:13px;font-weight:600;color:#F4F4F5}
+.sd-tt small{font-size:11.5px;line-height:1.35;color:#8E8E96}
+.sd-warn{font-style:normal;color:#FBBF24}
+.sd-ck{flex:none;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.22);color:transparent;transition:background-color .15s ease,box-shadow .15s ease}
+.sd-ck svg{width:12px;height:12px}
+.sd .sd-t:has(input:checked){background:color-mix(in srgb,var(--accent) 10%,transparent)!important;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sd .sd-t:has(input:checked) .sd-ck{background:var(--accent);box-shadow:none;color:#fff}
+.sd .sd-t:has(input:focus-visible){box-shadow:inset 0 0 0 2px var(--accent)}
+.sd .sd-t.done{opacity:.5;cursor:default}
+.sd-in2{position:relative;display:grid;gap:6px}
+.sd-in2>span{font-size:12px;color:#A1A1AA}
+.sd-in2 input,.sd-in2 textarea{width:100%;padding:10px 12px;border:0;border-radius:10px;background:#0E0E11;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#F4F4F5;font:inherit;font-size:13px;line-height:1.45;resize:vertical;outline:none}
+.sd-in2 input{padding-right:64px}
+.sd-in2 input:focus,.sd-in2 textarea:focus{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sd-in2>em{position:absolute;right:10px;top:31px;font-style:normal;font-size:11px;color:#6B6B73;font-variant-numeric:tabular-nums}
+.sd-in2 textarea{padding-bottom:26px}
+.sd-in2 textarea+em{top:auto;bottom:8px;padding:0 4px;border-radius:4px;background:#0E0E11}
+.sd-vis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border-radius:11px;background:#0E0E11;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.sd-vis label{position:relative;cursor:pointer}
+.sd-vis input{position:absolute;opacity:0}
+.sd-vis span{display:flex;align-items:center;justify-content:center;gap:6px;height:32px;border-radius:8px;font-size:12.5px;font-weight:500;color:#A1A1AA;transition:background-color .15s ease,color .15s ease}
+.sd-vis span svg{width:14px;height:14px}
+.sd-vis input:checked+span{background:#26262B;color:#fff}
+.sd-vis input:focus-visible+span{box-shadow:0 0 0 2px var(--accent)}
+.sd-soon,.sd .sd-quick{display:flex;flex-wrap:wrap;gap:6px}
+.sd .sd-when{display:grid!important;grid-template-columns:1.1fr .8fr 1.4fr;gap:8px}
+.sd .sd-when input,.sd .sd-when select{height:40px;border-radius:10px!important;background:#0E0E11!important;border:0!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#F4F4F5;color-scheme:dark}
+.sd .sd-here{display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px;color:#A1A1AA}
+.sd footer{display:flex;align-items:center;gap:8px;padding:14px 20px 16px!important;border-top:1px solid rgba(255,255,255,.06);background:#131315}
+.sd #sdGo{background:var(--accent)!important;border-color:transparent!important;color:#fff!important;min-width:110px}
+.sd #sdGo:hover{filter:brightness(1.08)}
+.sd .sd-err{margin:8px 20px 0}
+@media (max-width:560px){.sd .sd-targets{grid-template-columns:1fr}.sd .sd-when{grid-template-columns:1fr 1fr}.sd .sd-when select{grid-column:1/-1}}
+/* Connected apps: how many accounts each platform has, and how to add one more */
+.appn{margin-left:6px;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.07);font-style:normal;font-size:11px;font-weight:600;color:#C4C4CC;vertical-align:1px}
+.appmore{margin:8px 0 0;font-size:12px;line-height:1.45;color:#8E8E96}
 </style>
 </head>
 <body>
@@ -6445,7 +6562,13 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
   const c = creator();
   const recording = S.creators.filter(x => x.live_job).length;
   let title = {overview:"Home", library:"Videos", creators:"Creators", settings:"Settings", usage:"AI usage", schedule:"Schedule"}[S.view] || "", sub = "", act = "";
-  if (S.view === "schedule") sub = "Plan when each clip goes out, on every platform, in any time zone";
+  if (S.view === "schedule") {             // the line under the title: the time zone every time on the page is in
+    const tz = schTz();
+    const longName = (() => { try { return new Intl.DateTimeFormat("en-US", {timeZone: tz, timeZoneName: "long"}).formatToParts(new Date()).find(x => x.type === "timeZoneName")?.value; } catch { return ""; } })() || tzName(tz);
+    S.schSub = `Times in <label class="sh-tz" title="Change the time zone">${esc(longName)} (${esc(tzShort(tz))})${ic("caret")}<select data-act="schtz" aria-label="Time zone">${TZ_LIST.map(([z, l]) =>
+      `<option value="${esc(z)}" ${z === tz ? "selected" : ""}>${esc(l)} · ${esc(tzShort(z))}</option>`).join("")}${TZ_LIST.some(x => x[0] === tz) ? "" : `<option selected value="${esc(tz)}">${esc(tz)}</option>`}</select></label>`;
+    act = `<button class="icon-btn" data-act="schrefresh" title="Refresh" aria-label="Refresh the schedule">${ic("refresh")}</button>`;
+  }
   if (S.view === "usage") sub = "What the AI has been used for";
   if (S.view === "overview") sub = `${S.creators.length} creator${S.creators.length === 1 ? "" : "s"}${recording ? ` · ${recording} recording now` : ""}`;
   if (S.view === "library") sub = "Every video and recording, across all creators";
@@ -6456,7 +6579,7 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
   }
   if (S.view === "creators") sub = "Everyone you clip. SocialShot records them when they go live.";
   if (S.view === "settings") sub = "Your profile, AI, notifications and connected apps";
-  let pic = "", subHtml = null, tabs = "";
+  let pic = "", subHtml = S.view === "schedule" ? S.schSub : null, tabs = "";
   if (c) {
     title = c.name;
     pic = cav(c);
@@ -6483,7 +6606,7 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
   if (S.view === "creators" && S.creators.length) act = `<button class="btn primary" data-act="newcreator">${ic("plus")}Add creator</button>`;
   if (S.view === "schedule") {             // Calendar or Board, in the same tab strip the creator pages use
     const st = S.schTab || "calendar";
-    tabs = [["calendar", "Calendar", "calendar"], ["board", "Board", "board"]].map(([k, l, i]) =>
+    tabs = [["calendar", "Calendar", "calendar"], ["list", "List", "menu"], ["board", "Board", "board"]].map(([k, l, i]) =>
       `<button class="tabbtn ${st === k ? "on" : ""}" data-act="schtab" data-t="${k}" role="tab" aria-selected="${st === k}">${ic(i)}${l}</button>`).join("");
   }
   // the bell lives at the top right of every page
@@ -6645,53 +6768,76 @@ function drawSchedule() {
     <div class="sc-list">${ready.length ? ready.map(schClipCard).join("") : `<p class="sc-empty">${d.ready.length ? "No clip matches." : "Finished clips show up here, ready to plan."}</p>`}</div>
     <p class="sc-tip">Drag a clip onto a day${tab === "board" ? " or a column" : ""}, or press Schedule.</p></aside>`;
   let main = "";
+  const live = d.posts.filter(p => p.status !== "cancelled");
+  const byDay = {}; live.forEach(p => { const k = tzParts(p.due_at * 1000, tz).day; (byDay[k] = byDay[k] || []).push(p); });
+  Object.values(byDay).forEach(l => l.sort((x, y) => x.due_at - y.due_at));
+  const isPlanned = p => p.status === "scheduled" || p.status === "posting";
   if (tab === "calendar") {
-    // a week as a time grid (hours down the side, each post a card tinted in its platform's colour), or a month
-    const view = S.schView || "week", filt = S.schFilt || "all";
-    const keep = p => p.status !== "cancelled" && (filt === "all" || (filt === "scheduled" ? ["scheduled", "posting"].includes(p.status) : p.status === filt));
-    const posts = d.posts.filter(keep);
-    const byDay = {}; posts.forEach(p => { const k = tzParts(p.due_at * 1000, tz).day; (byDay[k] = byDay[k] || []).push(p); });
-    Object.values(byDay).forEach(l => l.sort((a, b) => a.due_at - b.due_at));
-    const n = k => k === "all" ? d.posts.filter(p => p.status !== "cancelled").length : d.posts.filter(p => k === "scheduled" ? ["scheduled", "posting"].includes(p.status) : p.status === k).length;
-    const ago = Math.round((Date.now() - (S.schedAt || Date.now())) / 60000);
-    let range = "", grid = "";
+    // a month (or a week) in one card: its name and totals, a legend, Week or Month, Today and the arrows; under it,
+    // the day picked (today to start) with its posts, where a clip can be dropped too
+    const view = S.schView || "month", sel = S.schDay || today;
+    let range = "", grid = "", inRange = () => false;
     if (view === "week") {
       const start = S.schWeek || weekStart(today), days = Array.from({length: 7}, (_, i) => addDays(start, i));
       range = `${dayLabel(days[0], {day: "numeric", month: "short"})} – ${dayLabel(days[6], {day: "numeric", month: "short", year: "numeric"})}`;
+      inRange = k => k >= days[0] && k <= days[6];
       const hrs = days.flatMap(day => (byDay[day] || []).map(p => tzParts(p.due_at * 1000, tz).h));
       const h0 = Math.min(9, ...hrs), h1 = Math.max(21, ...hrs);
       const hourLabel = h => new Date(2000, 0, 1, h).toLocaleTimeString([], {hour: "numeric"});
       grid = `<div class="sc-tg" style="--days:7">
         <div class="sc-tgh sc-tgc"><span>Time</span></div>
-        ${days.map(day => `<div class="sc-tgh ${day === today ? "today" : ""}"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b></div>`).join("")}
+        ${days.map(day => `<div class="sc-tgh ${day === today ? "today" : ""} ${day === sel ? "sel" : ""}" data-act="schday" data-day="${day}"><span>${dayLabel(day, {weekday: "short"})}</span><b>${dayLabel(day, {day: "numeric"})}</b></div>`).join("")}
         ${Array.from({length: h1 - h0 + 1}, (_, i) => h0 + i).map(h => `<div class="sc-tgt">${hourLabel(h)}</div>` + days.map(day => {
           const list = (byDay[day] || []).filter(p => tzParts(p.due_at * 1000, tz).h === h), past = day < today;
           return `<div class="sc-cell ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}@${h}">${list.map(p => schEvent(p, tz)).join("")}</div>`;
         }).join("")).join("")}</div>`;
     } else {
-      const t0 = new Date((S.schMonth || today.slice(0, 7)) + "-01T12:00:00Z"), first = t0.toISOString().slice(0, 10);
-      const start = weekStart(first), mon = first.slice(0, 7);
+      const first = (S.schMonth || today.slice(0, 7)) + "-01", mon = first.slice(0, 7);
       range = dayLabel(first, {month: "long", year: "numeric"});
-      const days = Array.from({length: 42}, (_, i) => addDays(start, i));
-      grid = `<div class="sc-mg">${days.slice(0, 7).map(day => `<div class="sc-mgh">${dayLabel(day, {weekday: "short"})}</div>`).join("")}
-        ${days.map(day => { const list = byDay[day] || [], out = day.slice(0, 7) !== mon, past = day < today;
-          return `<div class="sc-mc ${out ? "out" : ""} ${day === today ? "today" : ""} ${past ? "past" : ""}" data-drop="day:${day}"><b>${dayLabel(day, {day: "numeric"})}</b>
-            ${list.slice(0, 3).map(p => `<div class="sc-mchip pf-${esc(p.platform)} ${esc(p.status)}" data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)}"><span class="sc-mth">${p.cover && p.job ? `<img src="/media/${esc(p.job)}/${esc(p.cover)}?v=${p.version || 0}" alt="" loading="lazy">` : ""}<span class="mk">${schPlatMark(p.platform)}</span></span><span class="sc-mt">${hmIn(p.due_at * 1000, tz).replace(/\s?([AP]M)$/i, (m, x) => x[0].toLowerCase())}</span><em>${esc(p.title)}</em></div>`).join("")}
-            ${list.length > 3 ? `<small class="sc-more">+${list.length - 3} more</small>` : ""}</div>`; }).join("")}</div>`;
+      inRange = k => k.slice(0, 7) === mon;
+      const start = weekStart(first), days = Array.from({length: 42}, (_, i) => addDays(start, i));
+      const rows = days.slice(35).every(k => k.slice(0, 7) !== mon) ? 35 : 42;      // five weeks when the sixth is all next month
+      grid = `<div class="sc-mg3">${days.slice(0, 7).map(day => `<div class="sc-mgh3">${dayLabel(day, {weekday: "short"})}</div>`).join("")}
+        ${days.slice(0, rows).map(day => { if (day.slice(0, 7) !== mon) return `<div class="sc-mc3 out" aria-hidden="true"></div>`;
+          const list = byDay[day] || [], past = day < today;
+          return `<div class="sc-mc3 ${day === today ? "today" : ""} ${day === sel ? "sel" : ""} ${past ? "past" : ""}" data-drop="day:${day}" data-act="schday" data-day="${day}">
+            <b>${dayLabel(day, {day: "numeric"})}</b>
+            ${list.slice(0, 2).map(p => `<div class="sc-mchip pf-${esc(p.platform)} ${esc(p.status)}" data-act="schpost" data-id="${esc(p.id)}" title="${esc(p.title)}"><span class="sc-mth">${p.cover && p.job ? `<img src="/media/${esc(p.job)}/${esc(p.cover)}?v=${p.version || 0}" alt="" loading="lazy">` : ""}<span class="mk">${schPlatMark(p.platform)}</span></span><span class="sc-mt">${hmIn(p.due_at * 1000, tz).replace(/\s?([AP]M)$/i, (m, x) => x[0].toLowerCase())}</span><em>${esc(p.title)}</em></div>`).join("")}
+            ${list.length > 2 ? `<small class="sc-more">+${list.length - 2} more</small>` : ""}</div>`; }).join("")}</div>`;
     }
-    const step = view === "week" ? 7 : 1;
-    main = `<section class="sc-cal sc-cal2">
-      <div class="sc-bar1">
-        <div class="sc-seg" role="tablist" aria-label="View">${[["week", "Week"], ["month", "Month"]].map(([k, l]) => `<button role="tab" data-act="schview" data-v="${k}" aria-selected="${view === k}">${l}</button>`).join("")}</div>
-        <div class="sc-seg" role="tablist" aria-label="Show">${[["all", "All"], ["scheduled", "Scheduled"], ["posted", "Posted"], ["failed", "Failed"]].map(([k, l]) => `<button role="tab" data-act="schfilt" data-v="${k}" aria-selected="${filt === k}">${l}<small>${n(k)}</small></button>`).join("")}</div>
-        <span class="grow"></span><span class="sc-upd">Updated <b>${ago < 1 ? "just now" : `${ago} min ago`}</b></span></div>
-      <div class="sc-bar2">
-        <button class="sc-nb" data-act="schstep" data-d="-${step}">${ic("chevl")}Prev</button>
-        <button class="sc-nb" data-act="schstep" data-d="0">${ic("calendar")}Today</button>
-        <b class="sc-range">${range}</b>
-        <button class="sc-nb" data-act="schstep" data-d="${step}">Next${ic("chevr")}</button>
-        <span class="grow"></span>${tzSel}</div>
-      <div class="sc-gridw">${grid}</div></section>`;
+    const shown = live.filter(p => inRange(tzParts(p.due_at * 1000, tz).day));
+    const nPlan = shown.filter(isPlanned).length, nPost = shown.filter(p => p.status === "posted").length, nFail = shown.filter(p => p.status === "failed").length;
+    const step = view === "week" ? 7 : 1, selList = byDay[sel] || [];
+    main = `<div class="sc-main3"><section class="sc-cal sc-cal3">
+      <div class="sc-head3">
+        <div class="sc-ttl3"><h2>${range}</h2><p>${nPlan} planned · ${nPost} posted${nFail ? ` · ${nFail} failed` : ""}</p></div>
+        <span class="grow"></span>
+        <div class="sc-legend" aria-hidden="true"><span><i class="lg-p"></i>Planned</span><span><i class="lg-o"></i>Posted</span><span><i class="lg-f"></i>Failed</span></div>
+        <div class="sc-seg" role="tablist" aria-label="View">${[["month", "Month"], ["week", "Week"]].map(([k, l]) => `<button role="tab" data-act="schview" data-v="${k}" aria-selected="${view === k}">${l}</button>`).join("")}</div>
+        <button class="sc-today3" data-act="schstep" data-d="0">Today</button>
+        <div class="sc-arrows"><button data-act="schstep" data-d="-${step}" aria-label="Previous ${view}">${ic("chevl")}</button><button data-act="schstep" data-d="${step}" aria-label="Next ${view}">${ic("chevr")}</button></div>
+      </div>
+      <div class="sc-gridw">${grid}</div></section>
+      <section class="sc-day3 ${sel < today ? "past" : ""}" data-drop="day:${sel}">
+        <div class="sc-dayh3"><h3>${dayLabel(sel, {weekday: "long", day: "numeric", month: "long", year: "numeric"})}</h3>
+          <span>${selList.length ? `${selList.length} post${selList.length === 1 ? "" : "s"}` : sel === today ? "Today" : ""}</span></div>
+        ${selList.length ? `<div class="sc-dayl3">${selList.map(p => schEvent(p, tz)).join("")}</div>`
+          : `<p class="sc-daye3">${sel < today ? "Nothing was posted this day." : "Nothing planned for this day. Drag a clip from Ready to post here, or onto any day above."}</p>`}
+      </section></div>`;
+  } else if (tab === "list") {
+    // every post in order, grouped by day; the status filter lives here
+    const filt = S.schFilt || "all";
+    const keep = p => filt === "all" || (filt === "scheduled" ? isPlanned(p) : p.status === filt);
+    const n = k => live.filter(p => k === "all" || (k === "scheduled" ? isPlanned(p) : p.status === k)).length;
+    const list = live.filter(keep).sort((x, y) => x.due_at - y.due_at);
+    let last = "";
+    main = `<div class="sc-main3"><section class="sc-cal sc-list3">
+      <div class="sc-head3"><div class="sc-ttl3"><h2>All posts</h2><p>${n("scheduled")} planned · ${n("posted")} posted${n("failed") ? ` · ${n("failed")} failed` : ""}</p></div><span class="grow"></span>
+        <div class="sc-seg" role="tablist" aria-label="Show">${[["all", "All"], ["scheduled", "Planned"], ["posted", "Posted"], ["failed", "Failed"]].map(([k, l]) => `<button role="tab" data-act="schfilt" data-v="${k}" aria-selected="${filt === k}">${l}<small>${n(k)}</small></button>`).join("")}</div></div>
+      <div class="sc-listb3">${list.map(p => { const k = tzParts(p.due_at * 1000, tz).day, head = k !== last
+          ? `${last ? "</div>" : ""}<div class="sc-lday3 ${k === today ? "today" : ""}"><b>${k === today ? "Today" : dayLabel(k, {weekday: "long"})}</b><span>${dayLabel(k, {day: "numeric", month: "long", year: "numeric"})}</span></div><div class="sc-dayl3">` : "";
+          last = k; return head + schEvent(p, tz); }).join("") + (list.length ? "</div>" : "")
+        || `<p class="sc-daye3">${live.length ? "No post matches." : "No posts yet. Drag a clip from Ready to post onto a day in the Calendar."}</p>`}</div></section></div>`;
   } else {
     const planned = new Set(d.posts.filter(p => ["scheduled", "posting", "posted"].includes(p.status)).map(p => p.job + "|" + p.clip));
     const cols = [["scheduled", "Scheduled", "#3B82F6", "Drop a clip here to plan it", d.posts.filter(p => p.status === "scheduled" || p.status === "posting").sort((a, b) => a.due_at - b.due_at)],
@@ -6708,7 +6854,7 @@ function drawSchedule() {
             || `<p class="sc-empty2">${empty}</p>`}</div></div>`; }).join("")}</div></section>`;
   }
   const typed = $("#schQ")?.matches(":focus") ? $("#schQ").selectionStart : null;
-  put(box, `${banner}<div class="sc-wrap">${tray}${main}</div>`);
+  put(box, `${banner}<div class="sc-wrap sc-wrap3">${main}${tray}</div>`);      // the calendar first, Ready to post on the right
   if (typed != null) { const i = $("#schQ"); i.focus(); i.setSelectionRange(typed, typed); }
 }
 
@@ -6723,22 +6869,38 @@ function schDialog({job, clip, day, post, hour}) {
   const def = day || tzParts(Date.now() + 3600e3, tz).day;
   const hm = parts ? `${String(parts.h).padStart(2, "0")}:${String(parts.mi).padStart(2, "0")}` : hour != null ? `${String(hour).padStart(2, "0")}:00` : "18:00";
   const already = d.posts.filter(x => x.job === r.job && x.clip === (p ? p.clip : clip) && ["scheduled", "posting", "posted"].includes(x.status));
-  const targets = p ? "" : `<div class="sd-f"><span class="sd-l">Post to</span><div class="sd-targets">
-      ${d.accounts.map(a => `<label class="sd-t"><input type="checkbox" name="sdacc" value="${esc(a.id)}" ${already.some(x => x.account === a.id) ? "disabled" : ""}><span class="mk">${schPlatMark(a.platform)}</span><span><b>${esc(a.name)}</b><small>${esc(a.label)}${already.some(x => x.account === a.id) ? " · already planned" : ""}</small></span></label>`).join("")}
-      ${SCH_PLAT.filter(([k]) => !d.accounts.some(a => a.platform === k)).map(([k, l]) => `<label class="sd-t off"><input type="checkbox" name="sdplat" value="${k}" ${already.some(x => !x.account && x.platform === k) ? "disabled" : ""}><span class="mk">${schPlatMark(k)}</span><span><b>${l}</b><small>Not connected yet. Connect it before the time comes</small></span></label>`).join("")}</div></div>`;
+  const tick = `<i class="sd-ck" aria-hidden="true">${ic("check")}</i>`;
+  const targets = p ? "" : `<div class="sd-f"><div class="sd-lh"><span class="sd-l">Post to</span><small id="sdN">Pick one or more</small></div><div class="sd-targets">
+      ${d.accounts.map(a => { const done = already.some(x => x.account === a.id);
+        return `<label class="sd-t ${done ? "done" : ""}"><input type="checkbox" name="sdacc" value="${esc(a.id)}" ${done ? "disabled" : ""}><span class="mk">${schPlatMark(a.platform)}</span><span class="sd-tt"><b>${esc(a.name)}</b><small>${done ? "Already planned" : esc(a.label)}</small></span>${tick}</label>`; }).join("")}
+      ${SCH_PLAT.filter(([k]) => !d.accounts.some(a => a.platform === k)).map(([k, l]) => { const done = already.some(x => !x.account && x.platform === k);
+        return `<label class="sd-t off ${done ? "done" : ""}"><input type="checkbox" name="sdplat" value="${k}" ${done ? "disabled" : ""}><span class="mk">${schPlatMark(k)}</span><span class="sd-tt"><b>${l}</b><small>${done ? "Already planned" : `<em class="sd-warn">Not connected</em> · connect before it's due`}</small></span>${tick}</label>`; }).join("")}</div></div>`;
+  // the post's own words: the title, the caption (the clip's description and hashtags to start), and who can see it
+  const capDef = [r.description || "", (r.hashtags || []).map(x => "#" + x).join(" ")].filter(Boolean).join("\n\n");
+  const details = p ? "" : `<div class="sd-f"><div class="sd-lh"><span class="sd-l">Details</span><small>Used on every platform picked</small></div>
+      <label class="sd-in2"><span>Title</span><input id="sdTitle" maxlength="100" value="${esc(r.title || "")}" placeholder="The title people see"><em id="sdTitleN">${(r.title || "").length}/100</em></label>
+      <label class="sd-in2"><span>Caption</span><textarea id="sdCap" rows="3" maxlength="2200" placeholder="A line about the clip, then hashtags">${esc(capDef)}</textarea><em id="sdCapN">${capDef.length}/2200</em></label>
+      <div class="sd-vis" role="radiogroup" aria-label="Who can see it">${[["public", "Public", "globe"], ["unlisted", "Unlisted", "link"], ["private", "Private", "lock"]].map(([v, l, i], n) =>
+        `<label><input type="radio" name="sdvis" value="${v}" ${n === 0 ? "checked" : ""}><span>${ic(i)}${l}</span></label>`).join("")}</div></div>`;
   const quick = [["America/New_York", "19:00", "7 PM New York"], ["Europe/London", "19:00", "7 PM London"], ["Asia/Kolkata", "20:00", "8 PM India"], ["America/Los_Angeles", "18:00", "6 PM Los Angeles"]];
+  const soon = [["+1h", "In an hour"], ["tonight", "Tonight, 7 PM"], ["tomorrow", "Tomorrow, 9 AM"]];
   const dlg = document.createElement("dialog");
   dlg.className = "sd"; dlg.id = "schdlg";
   dlg.innerHTML = `<form method="dialog" class="sd-in">
-    <header><h3>${p ? "Change the time" : "Schedule a post"}</h3><button type="button" class="icon-btn" data-sd="close" aria-label="Close">${ic("x")}</button></header>
-    <div class="sd-clip">${r.cover ? `<img src="/media/${esc(r.job)}/${esc(r.cover)}?v=${r.version || 0}" alt="">` : `<span></span>`}<div><b>${esc(r.title)}</b><small>${esc(r.creator_name || "No creator")}${p ? ` · ${esc(p.account_name)}` : ""}</small></div></div>
+    <header><div><h3>${p ? "Change the time" : "Schedule a post"}</h3><p>${p ? "Move this post to another day or time." : "Where it goes, what it says, and when."}</p></div><button type="button" class="icon-btn" data-sd="close" aria-label="Close">${ic("x")}</button></header>
+    <div class="sd-body">
+    <div class="sd-clip">${r.cover ? `<img src="/media/${esc(r.job)}/${esc(r.cover)}?v=${r.version || 0}" alt="">` : `<span></span>`}<div><b>${esc(r.title)}</b><small>${esc(r.creator_name || "No creator")}${r.length ? ` · ${fmt(r.length)}` : ""}${p ? ` · ${esc(p.account_name)}` : ""}</small></div></div>
     ${targets}
-    <div class="sd-f"><span class="sd-l">When</span><div class="sd-when">
+    ${details}
+    <div class="sd-f"><div class="sd-lh"><span class="sd-l">When</span></div>
+      ${p ? "" : `<div class="sd-soon">${soon.map(([k, l]) => `<button type="button" class="chip" data-sds="${k}">${l}</button>`).join("")}</div>`}
+      <div class="sd-when">
       <input type="date" id="sdDay" value="${parts ? parts.day : def}" min="${tzParts(Date.now(), tz).day}" required>
       <input type="time" id="sdTime" value="${hm}" required>
       <select id="sdTz">${TZ_LIST.map(([z, l]) => `<option value="${esc(z)}" ${z === ptz ? "selected" : ""}>${esc(l)} · ${esc(tzShort(z))}</option>`).join("")}</select></div>
       <div class="sd-quick">${quick.map(([z, t, l]) => `<button type="button" class="chip" data-sdq="${z}|${t}">${l}</button>`).join("")}</div>
       <p class="sd-here" id="sdHere"></p></div>
+    </div>
     <p class="sd-err" id="sdErr" hidden></p>
     <footer>${p && p.status === "scheduled" ? `<button type="button" class="btn ghost danger-t" data-sd="unplan">${ic("trash")}Delete this post</button>` : ""}<span class="grow"></span>
       <button type="button" class="btn" data-sd="close">Cancel</button><button type="submit" class="btn primary" id="sdGo">${p ? "Save time" : "Schedule"}</button></footer></form>`;
@@ -6750,9 +6912,23 @@ function schDialog({job, clip, day, post, hour}) {
       : `${ic("clock")}That's <b>${new Date(at).toLocaleString([], {timeZone: mine, weekday: "short", hour: "numeric", minute: "2-digit"})}</b> where you are (${esc(tzShort(mine))}).`;
     return at;
   };
-  dlg.addEventListener("input", here); dlg.addEventListener("change", here); here();
+  const counts = () => {
+    const n = $$('input[name="sdacc"]:checked, input[name="sdplat"]:checked', dlg).length;
+    if ($("#sdN")) $("#sdN").textContent = n ? `${n} picked` : "Pick one or more";
+    if (!p) $("#sdGo").textContent = n > 1 ? `Schedule ${n} posts` : "Schedule";
+    if ($("#sdTitleN")) $("#sdTitleN").textContent = `${$("#sdTitle").value.length}/100`;
+    if ($("#sdCapN")) $("#sdCapN").textContent = `${$("#sdCap").value.length}/2200`;
+  };
+  dlg.addEventListener("input", () => { here(); counts(); }); dlg.addEventListener("change", () => { here(); counts(); }); here();
   dlg.addEventListener("click", async e => {
     const q = e.target.closest("[data-sdq]"); if (q) { const [z, t] = q.dataset.sdq.split("|"); $("#sdTz").value = z; $("#sdTime").value = t; here(); return; }
+    const sn = e.target.closest("[data-sds]"); if (sn) {           // in an hour, tonight, tomorrow morning: in the zone picked
+      const z = $("#sdTz").value, k = sn.dataset.sds, now = tzParts(Date.now() + (k === "+1h" ? 3600e3 : 0), z);
+      const day = k === "tomorrow" ? addDays(now.day, 1) : now.day;
+      $("#sdDay").value = k === "tonight" && now.h >= 19 ? addDays(now.day, 1) : day;
+      $("#sdTime").value = k === "+1h" ? `${String(now.h).padStart(2, "0")}:${String(Math.ceil(now.mi / 5) * 5 % 60).padStart(2, "0")}` : k === "tonight" ? "19:00" : "09:00";
+      here(); return;
+    }
     const a = e.target.closest("[data-sd]")?.dataset.sd;
     if (a === "close") dlg.close();
     if (a === "unplan") { try { await send(`/api/posts/${p.id}/delete`); toast("Post deleted.", "ok"); dlg.close(); loadSchedule(); } catch (er) { toast(er.message, "bad"); } }
@@ -6768,6 +6944,8 @@ function schDialog({job, clip, day, post, hour}) {
         body.accounts = $$('input[name="sdacc"]:checked', dlg).map(i => i.value);
         body.platforms = $$('input[name="sdplat"]:checked', dlg).map(i => i.value);
         if (!body.accounts.length && !body.platforms.length) throw new Error("Pick at least one place to post it.");
+        body.title = $("#sdTitle")?.value.trim() || ""; body.caption = $("#sdCap")?.value ?? null;
+        body.privacy = ($('input[name="sdvis"]:checked', dlg) || {}).value || "public";
         await send("/api/schedule", body);
       }
       toast(p ? "Moved." : `Scheduled for ${new Date(at).toLocaleString([], {timeZone: body.tz, weekday: "short", hour: "numeric", minute: "2-digit"})} ${tzShort(body.tz, at)}.`, "ok");
@@ -6809,7 +6987,7 @@ document.addEventListener("input", e => { if (e.target.id === "schQ") { S.schQ =
 document.addEventListener("change", e => {
   if (e.target.dataset?.act !== "schtz") return;
   S.schTz = e.target.value; try { localStorage.setItem("sch_tz", S.schTz); } catch {}
-  drawSchedule();
+  drawSchedule(); drawShell();
 });
 /* ============================================================ a creator's latest videos
    On a creator's page, instead of the general add box: their newest streams or videos, read from their channel,
@@ -8275,8 +8453,12 @@ async function drawSettings() {
               <label class="f">${esc(st.secret_label)}<input id="app_secret" type="password" placeholder="${st.ready ? "Saved. Paste a new one to replace it" : ""}" autocomplete="off"></label></div>
             <p class="sub">${g[3]}</p>
             <div class="row"><button class="btn primary" data-act="appsave" data-p="${pf}">Save</button><button class="btn ghost" data-act="appsetup" data-p="">Close</button></div></div>` : "";
+        // more than one account per platform: each is listed, and "Add another" signs in to one more
+        const more = accs.length && ok[pf] ? `<p class="appmore">${pf === "x" ? "To add a different X account, switch to it on x.com first, then press Add another."
+          : pf === "youtube" ? "Add another opens Google's account picker: pick another Google account or a brand channel." : `Add another asks you to sign in, so you can pick a different ${name} account.`}
+          ${accs.length > 1 ? ` When you schedule, each account is its own choice.` : ""}</p>` : "";
         return `<div class="appcard"><span class="applogo" style="background:${bg}">${logo}</span>
-          <div class="apptx"><b>${name}</b><span>${desc}</span>${listOf(accs)}</div><div class="appact">${act}</div>${panel}</div>`;
+          <div class="apptx"><b>${name}${accs.length ? ` <em class="appn">${accs.length} account${accs.length === 1 ? "" : "s"}</em>` : ""}</b><span>${desc}</span>${listOf(accs)}${more}</div><div class="appact">${act}</div>${panel}</div>`;
       };
       S.cookies = await api("/api/me/cookies").catch(() => S.cookies || {});
       body.innerHTML = `${head("Connected apps", "Connect the accounts SocialShot posts clips to. Press Connect, sign in on the platform's own page, and you're back here. SocialShot never sees your passwords.")}
@@ -8504,10 +8686,12 @@ document.addEventListener("click", async e => {
     // the Schedule page: switch view, change week, plan a clip, open a planned post
     if (a === "schtab") { S.schTab = d.t; drawShell(); return drawSchedule(); }
     if (a === "schview") { S.schView = d.v; return drawSchedule(); }
+    if (a === "schday") { S.schDay = d.day; return drawSchedule(); }               // a day picked on the calendar: its posts below
+    if (a === "schrefresh") { b.classList.add("spin1"); await loadSchedule(); setTimeout(() => b.classList.remove("spin1"), 500); return; }
     if (a === "schfilt") { S.schFilt = d.v; return drawSchedule(); }
     if (a === "schstep") {
       const tz = schTz(), today = tzParts(Date.now(), tz).day;
-      if ((S.schView || "week") === "week") { const now = weekStart(today); S.schWeek = +d.d ? addDays(S.schWeek || now, +d.d) : now; }
+      if ((S.schView || "month") === "week") { const now = weekStart(today); S.schWeek = +d.d ? addDays(S.schWeek || now, +d.d) : now; }
       else { const [y, m] = (S.schMonth || today.slice(0, 7)).split("-").map(Number), t = new Date(Date.UTC(y, m - 1 + (+d.d), 1));
         S.schMonth = +d.d ? t.toISOString().slice(0, 7) : today.slice(0, 7); }
       return drawSchedule();

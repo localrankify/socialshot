@@ -95,7 +95,10 @@ def _when(at) -> float:
     return max(at, time.time())
 
 
-def schedule(job, clip, at, tz="", account_ids=(), platforms=()) -> list:
+VISIBILITY = ("public", "unlisted", "private")
+
+
+def schedule(job, clip, at, tz="", account_ids=(), platforms=(), title=None, caption=None, privacy=None) -> list:
     """Post one clip at a time the user picked, to connected accounts and/or to platforms not connected yet.
     A post for a platform without an account waits; when it is due it uses that platform's first connected
     account, or fails with a note to connect one. tz is only remembered, to show the time the way it was picked."""
@@ -114,7 +117,11 @@ def schedule(job, clip, at, tz="", account_ids=(), platforms=()) -> list:
             p = {"id": secrets.token_hex(8), "user": ctx.uid(), "job": job["id"], "clip": clip["id"], "creator": job["creator"],
                  "account": acc["id"] if acc else "", "account_name": acc["name"] if acc else accounts.PLATFORM_NAMES.get(plat, plat),
                  "platform": plat, "status": "scheduled", "due_at": due, "tz": tz, "created": time.time(),
-                 "title": clip.get("title") or clip.get("hook") or "Clip", "score": clip.get("score", 0), "tries": 0,
+                 "title": (str(title or "").strip()[:100] or clip.get("title") or clip.get("hook") or "Clip"),
+                 # what the Schedule dialog set for this post (empty: the clip's own words and the creator's setting)
+                 "custom_title": str(title or "").strip()[:100], "caption": str(caption).strip()[:2200] if caption is not None else None,
+                 "privacy": privacy if privacy in VISIBILITY else "",
+                 "score": clip.get("score", 0), "tries": 0,
                  "url": "", "remote_id": "", "error": None, "views": None}
             _posts.append(p)
             made.append(p)
@@ -149,6 +156,7 @@ def board() -> dict:
             ready.append({"job": j["id"], "clip": k["id"], "title": k.get("title") or k.get("hook") or "Clip",
                           "cover": k.get("cover") or "", "version": k.get("version", 0), "length": round(k["end"] - k["start"], 1),
                           "score": k.get("score", 0), "made_at": k.get("made_at") or j.get("created", 0),
+                          "description": k.get("description", ""), "hashtags": k.get("hashtags", []),
                           "creator": j.get("creator") or "", "creator_name": names.get(j.get("creator"), "")})
     ready.sort(key=lambda r: -r["made_at"])
     keep = [p for p in _mine() if p["status"] != "cancelled" or time.time() - p.get("created", 0) < 7 * 86400]
@@ -196,7 +204,9 @@ def _post(p):
             raise RuntimeError("That account was disconnected.")
         path = Path(job["dir"]) / "clips" / clip["file"]
         creator = creators.get(job["creator"]) or dict(creators.DEFAULTS, name="clips")
-        title, cap = clip.get("title") or clip.get("hook") or "Clip", _caption(clip, creator)
+        title = p.get("custom_title") or clip.get("title") or clip.get("hook") or "Clip"
+        cap = p["caption"] if p.get("caption") is not None else _caption(clip, creator)
+        creator = dict(creator, privacy=p.get("privacy") or creator["privacy"])
         if acc["platform"] == "youtube":
             rid, url = accounts.youtube_upload(acc, path, title, cap + "\n\n#Shorts", clip.get("hashtags", []), creator["privacy"])
         elif acc["platform"] == "instagram":
