@@ -149,7 +149,10 @@ def info(url: str) -> dict:
     return {"title": i.get("title") or "", "uploader": i.get("uploader") or i.get("channel") or "",
             "duration": float(i.get("duration") or 0), "is_live": bool(i.get("is_live")),
             "thumbnail": i.get("thumbnail") or "", "kind": i.get("_type") or "video",
-            "views": int(i.get("view_count") or 0), "date": str(i.get("upload_date") or "")}
+            "views": int(i.get("view_count") or 0), "date": str(i.get("upload_date") or ""),
+            # a gaming video, or a stream that was live: its clips get the gaming captions when the style is Auto
+            "gaming": "Gaming" in (i.get("categories") or []),
+            "was_live": bool(i.get("was_live")) or i.get("live_status") in ("was_live", "post_live")}
 
 
 def youtube_words(url: str):

@@ -416,7 +416,7 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <link rel="stylesheet" href="/assets/ui.css?v=7">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=26">
+<link rel="stylesheet" href="/assets/site.css?v=31">
 <script src="/assets/site.js?v=4" defer></script>
 {extra}
 </head>
@@ -653,46 +653,255 @@ def dates(posts):
     DATES.write_text(json.dumps(new, indent=1, sort_keys=True), encoding="utf-8")
 
 
+# ---- the changelog's app windows: one screen of SocialShot per release, drawn in HTML -------------------------------
+def _ico(d):
+    return f'<svg class="ti" viewBox="0 0 24 24">{d}</svg>'
+
+
+IC = {
+    "home": '<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/>',
+    "clips": '<path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/>',
+    "live": '<path d="M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M7.8 16.2c-2.3 -2.3 -2.3 -6.1 0 -8.5"/>',
+    "cal": '<path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/>',
+    "set": '<path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06 .06a2 2 0 1 1 -2.83 2.83l-.06 -.06a1.65 1.65 0 0 0 -2.82 1.17v.17a2 2 0 1 1 -4 0v-.09a1.65 1.65 0 0 0 -2.82 -1.19l-.06 .06a2 2 0 1 1 -2.83 -2.83l.06 -.06a1.65 1.65 0 0 0 -1.17 -2.82h-.17a2 2 0 1 1 0 -4h.09a1.65 1.65 0 0 0 1.19 -2.82l-.06 -.06a2 2 0 1 1 2.83 -2.83l.06 .06a1.65 1.65 0 0 0 2.82 -1.17v-.17a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.19l.06 -.06a2 2 0 1 1 2.83 2.83l-.06 .06a1.65 1.65 0 0 0 1.17 2.82h.17a2 2 0 1 1 0 4h-.09z"/>',
+    "search": '<path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>',
+    "check": '<path d="M5 12l5 5l10 -10"/>',
+    "x": '<path d="M18 6l-12 12"/><path d="M6 6l12 12"/>',
+    "play": '<path d="M7 4v16l13 -8z"/>',
+}
+
+
+def _window(title, active, body, tools=""):
+    side = "".join(f'<i class="{"on" if k == active else ""}">{_ico(IC[k])}</i>' for k in ("home", "clips", "live", "cal", "set"))
+    return (f'<div class="sw-win"><div class="sw-top"><span class="sw-dots"><i></i><i></i><i></i></span><b>{title}</b>'
+            f'<span class="sw-search">{_ico(IC["search"])}<em>Search</em></span>{tools}</div>'
+            f'<div class="sw-main"><nav class="sw-side"><img src="/brand/logo-mark.png" alt="">{side}</nav><div class="sw-body">{body}</div></div></div>')
+
+
+def scene_clips():
+    """1.1: a video's finished clips, scored and captioned, with the scheduler open over the window's edge."""
+    clips = [("yt/eQp4cDRghMA.jpg", "38% 40%", 94, "no win, <em>no sleep</em>", "0:42"),
+             ("clip-garyvee.jpg", "50% 30%", 91, "provide value <em>first</em>", "0:31"),
+             ("yt/SXAwIHOLmjY.jpg", "76% 40%", 88, "he did <em>not</em> see it", "0:55"),
+             ("yt/tg2MwT5FPdY.jpg", "72% 40%", 81, "wait for <em>it</em>", "0:28")]
+    cards = "".join(
+        f'<figure class="sc-clip"><img src="/brand/{s}" alt="" loading="lazy" style="object-position:{pos}">'
+        f'<span class="sc-score">{sc}</span><span class="sc-cap">{cap}</span><span class="sc-dur">{d}</span></figure>'
+        for s, pos, sc, cap, d in clips)
+    body = ('<div class="sw-head"><div><small>Clips</small><b>ranked-grind-day-12</b></div>'
+            '<span class="sw-chip ok">8 clips ready</span></div>'
+            '<div class="sc-tabs"><span class="on">Best first</span><span>Newest</span><span>Posted</span></div>'
+            f'<div class="sc-grid">{cards}</div>')
+    tools = '<span class="sw-btn">Download all</span><span class="sw-btn pr">Post</span>'
+    panel = ('<aside class="sw-panel"><div class="sp-head"><b>Schedule</b>' + _ico(IC["x"]) + '</div>'
+             '<div class="sp-row"><span class="pf yt"></span><div><b>YouTube Shorts</b><small>Today, 6:00 PM</small></div><em class="st ok">Posted</em></div>'
+             '<div class="sp-row"><span class="pf tt"></span><div><b>TikTok</b><small>Today, 8:30 PM</small></div><em class="st">Scheduled</em></div>'
+             '<div class="sp-row"><span class="pf ig"></span><div><b>Instagram Reels</b><small>Tomorrow, 12:00 PM</small></div><em class="st">Scheduled</em></div>'
+             '<div class="sp-rule"><small>Auto-post</small><span class="tg on"><i></i></span></div>'
+             '<div class="sp-bar"><i></i><i></i></div></aside>')
+    return _window("SocialShot", "clips", body, tools) + panel
+
+
+def scene_editor():
+    """1.0.1: the editor, a word fixed in the transcript and lit in the caption on the clip."""
+    lines = [("0:02", "everything I want to happen", False), ("0:05", "will happen if I", False),
+             ("0:07", "provide <mark>value</mark> first", True), ("0:10", "and that is the whole game", False)]
+    rows = "".join(f'<div class="se-line{" on" if on else ""}"><small>{ts}</small><span>{tx}</span></div>' for ts, tx, on in lines)
+    body = ('<div class="sw-head"><div><small>Editor</small><b>provide-value-first.mp4</b></div><span class="sw-chip">Saved</span></div>'
+            '<div class="se-wrap"><div class="se-list"><div class="se-tabs"><span class="on">Transcript</span><span>Captions</span><span>Layout</span></div>'
+            f'{rows}<div class="se-bar w70"></div><div class="se-bar w45"></div></div>'
+            '<div class="se-phone"><img src="/brand/clip-garyvee.jpg" alt="" loading="lazy"><span class="se-cap">provide <em>value</em> first</span></div></div>'
+            '<div class="se-track"><span class="se-play">' + _ico(IC["play"]) + '</span><div class="se-wave"><i class="sel"></i></div><small>0:07 / 0:31</small></div>')
+    tools = '<span class="sw-btn">Re-listen</span><span class="sw-btn pr">Render</span>'
+    panel = ('<aside class="sw-panel sm"><div class="sp-head"><b>Caption style</b></div>'
+             '<div class="sp-styles"><span class="on">Editorial</span><span>Bounce</span><span>Karaoke</span><span>Neon</span></div>'
+             '<div class="sp-rule"><small>Word by word</small><span class="tg on"><i></i></span></div></aside>')
+    return _window("SocialShot", "clips", body, tools) + panel
+
+
+def scene_live():
+    """1.0: a stream being recorded, two moments already saved as clips."""
+    hs = [.3, .45, .38, .5, .42, .36, .62, .95, .88, .4, .35, .48, .4, .33, .44, .5, .38, .46, .9, .84, .4, .36, .5, .42, .38, .55, .47, .4]
+    bars = "".join(f'<i class="{"hot" if h > .8 else ""}" style="height:{round(h * 100)}%"></i>' for h in hs)
+    body = ('<div class="sw-head"><div><small>Creators</small><b>CarryisLive</b></div><span class="sw-chip live"><i></i>Live</span></div>'
+            '<div class="sl-meta"><span>Recording for 1:42:10</span><span>Chat 2.4k / min</span></div>'
+            f'<div class="sl-wave">{bars}<span class="sl-tag t1">{_ico(IC["check"])}Clip saved</span><span class="sl-tag t2">{_ico(IC["check"])}Clip saved</span></div>'
+            '<div class="sl-axis"><small>1:00:00</small><small>1:15:00</small><small>1:30:00</small><small>now</small></div>')
+    panel = ('<aside class="sw-panel sm"><div class="sp-head"><b>Saved this stream</b></div>'
+             '<div class="sp-row"><img src="/brand/yt/eQp4cDRghMA.jpg" alt="" loading="lazy" style="object-position:38% 40%"><div><b>No win, no sleep</b><small>Score 94 · 0:42</small></div></div>'
+             '<div class="sp-row"><img src="/brand/yt/SXAwIHOLmjY.jpg" alt="" loading="lazy" style="object-position:76% 40%"><div><b>The ambush</b><small>Score 88 · 0:55</small></div></div></aside>')
+    return _window("SocialShot", "live", body) + panel
+
+
+SCENES = {"clips": scene_clips, "editor": scene_editor, "live": scene_live}
+
+
 def changelog_page():
-    """/changelog: every release, newest first. Each shows its version and date, a short summary, and its features
-    in groups as cards with a picture. Written in content/changelog.json, so a new release is a new entry there."""
+    """/changelog: one entry per release, newest first, on a dated timeline. Each has its version and title, a window
+    of the app on a tinted backdrop, a few lines about the day, and what changed. The latest also lists every feature.
+    Written in content/changelog.json, so a new release is a new entry there."""
     data = json.loads((ROOT / "content" / "changelog.json").read_text(encoding="utf-8"))
     rels = data["releases"]
     latest = rels[0]
     title = f"Changelog: What's New in SocialShot {latest['version']} | SocialShot"
-    desc = (f"Everything new in SocialShot {latest['version']}: {latest['title']}. " + latest["summary"])[:300]
+    desc = (f"What changed in SocialShot, day by day since launch. The latest is {latest['version']}: "
+            + " ".join(latest["notes"]))[:300]
     og = og_card("changelog", "reel-poster", f"What's new in SocialShot {latest['version']}")
     path = "/changelog"
-    blocks = []
-    for n, r in enumerate(rels):
-        when = nice(r["date"])
-        total = sum(len(g["items"]) for g in r["groups"])
-        chips = "".join(f'<a href="#{E(r["version"])}-{E(g["id"])}">{E(g["name"])}<span>{len(g["items"])}</span></a>' for g in r["groups"])
-        groups = ""
-        for g in r["groups"]:
-            cards = "".join(
-                f'<article class="cl-card">'
-                f'<span class="cl-pic"><img src="/brand/{E(it["img"])}" alt="" loading="lazy" decoding="async"></span>'
-                f'<span class="cl-tx">{"<em class=cl-new>New</em>" if it.get("new") else ""}<b>{E(it["title"])}</b><small>{E(it["text"])}</small></span>'
-                f'</article>' for it in g["items"])
-            groups += (f'<section class="cl-group" id="{E(r["version"])}-{E(g["id"])}"><h3>{E(g["name"])}<span>{len(g["items"])}</span></h3>'
-                       f'<div class="cl-grid">{cards}</div></section>')
-        hl = "".join(f"<li>{E(h)}</li>" for h in r.get("highlights", []))
-        blocks.append(
-            f'<div class="cl-rel" id="v{E(r["version"])}">'
-            f'<aside class="cl-side"><span class="cl-ver">v{E(r["version"])}</span>'
-            + ('<span class="cl-latest"><i></i>Latest</span>' if n == 0 else "")
-            + f'<time datetime="{E(r["date"])}">{E(when)}</time><small>{total} features</small></aside>'
-            f'<div class="cl-body"><h2>{E(r["title"])}</h2><p class="cl-sum">{E(r["summary"])}</p>'
-            + (f'<ul class="cl-hl">{hl}</ul>' if hl else "")
-            + f'<nav class="cl-chips" aria-label="Parts of this release">{chips}</nav>{groups}</div></div>')
+    entries = ""
+    for r in rels:
+        d = r["date"]
+        y, m, dd = d.split("-")
+        pill = f'{y} {["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(m)]} {int(dd)}'
+        notes = "".join(f"<p>{E(p)}</p>" for p in r["notes"])
+        changes = "".join(f"<li>{E(c)}</li>" for c in r.get("changes", []))
+        feats = ""
+        if r.get("features"):
+            groups = "".join(
+                f'<div class="cf-g"><h4>{E(g["name"])}</h4><ul>'
+                + "".join(f"<li><b>{E(a)}</b><span>{E(b_)}</span></li>" for a, b_ in g["items"]) + "</ul></div>"
+                for g in r["features"])
+            n = sum(len(g["items"]) for g in r["features"])
+            feats = f'<div class="cf"><h3>Everything in {E(r["version"])} <span>{n} features</span></h3><div class="cf-grid">{groups}</div></div>'
+        entries += (
+            f'<article class="ce" id="v{E(r["version"])}"><div class="ce-when"><time datetime="{E(d)}">{E(pill)}</time></div>'
+            f'<div class="ce-body"><h2>v{E(r["version"])} <span>{E(r["title"])}</span>'
+            + ('<em class="ce-latest"><i></i>Latest</em>' if r.get("latest") else "") + '</h2>'
+            f'<div class="ce-stage t-{E(r.get("tint", "violet"))}" aria-hidden="true">{SCENES[r["scene"]]()}</div>'
+            f'<div class="ce-notes">{notes}' + (f'<ul class="ce-changes">{changes}</ul>' if changes else "")
+            + (f'<a class="ce-more" href="{E(r["more"]["href"])}">{E(r["more"]["label"])}{ARROW}</a>' if r.get("more") else "")
+            + f'</div>{feats}</div></article>')
     extra = graph(ORG, WEBSITE, webpage(path, title, desc, og), crumbs(path, [("Home", "/"), ("Changelog", path)]))
     out = (head(title, desc, path, og, extra)
-           + '<section class="bhead cl-head"><div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><b>Changelog</b></nav>'
-           f'<h1>Changelog</h1><p>What is new in SocialShot. The latest is version {E(latest["version"])}, from {E(nice(latest["date"]))}.</p></div></section>'
-           f'<section class="clog"><div class="wrap">{"".join(blocks)}</div></section>'
+           + '<section class="phead tool">' + hero_deco() + '<div class="wrap">'
+           + '<span class="ph-mark ai ln" aria-hidden="true"><svg class="ti" viewBox="0 0 24 24">' + FI["cal"] + '</svg></span>'
+           + f'<h1>Changelog</h1><p>What changed in SocialShot, day by day since launch. The latest is version {E(latest["version"])}.</p>'
+           + f'<div class="ctas"><a class="btn lg primary" href="/#get-app">Get the Windows app{ARROW}</a><a class="btn lg outline" href="/features">See all features</a></div>'
+           + f'<ul class="fine"><li>Updated daily since launch</li><li>Latest: v{E(latest["version"])}</li><li>Free on Windows</li></ul></div></section>'
+           f'<section class="clog"><div class="wrap"><div class="ce-line">{entries}</div></div></section>'
            + cta() + tail())
     (OUT / "changelog.html").write_text(out, encoding="utf-8")
+
+
+# ---- /features: every feature, by part of the app, each part beside a component of the app --------------------------
+FI = {  # one line icon per part of the app
+    "windows": '<path d="M3 5l8 -1.2v7.7h-8z"/><path d="M13 3.5l8 -1.5v9.5h-8z"/><path d="M3 13.5h8v7.7l-8 -1.2z"/><path d="M13 13.5h8v8.5l-8 -1.5z"/>',
+    "link": '<path d="M9 15l6 -6"/><path d="M11 6l.46 -.54a5 5 0 0 1 7.07 7.07l-.54 .47"/><path d="M13 18l-.4 .53a5.07 5.07 0 0 1 -7.12 0a4.97 4.97 0 0 1 0 -7.07l.52 -.46"/>',
+    "spark": '<path d="M3 12h4l3 8l4 -16l3 8h4"/>',
+    "clips": '<path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/>',
+    "edit": '<path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/>',
+    "brand": '<path d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"/><path d="M8.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M16.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/>',
+    "cal": '<path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/>',
+    "bell": '<path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/>',
+}
+
+
+def _card(title, body, cls=""):
+    return f'<div class="fc {cls}"><div class="fc-head"><b>{title}</b></div>{body}</div>'
+
+
+def comp_setup():
+    rows = [("Signed in", "you@email.com"), ("Video tools", "Ready"), ("Speech model", "Downloaded, 480 MB"), ("AI key", "Gemini connected")]
+    body = "".join(f'<div class="fx-row"><span class="fx-ok">{_ico(IC["check"])}</span><div><b>{a}</b><small>{b_}</small></div></div>' for a, b_ in rows)
+    body += '<div class="fx-prog"><small>Setting up</small><span><i style="width:100%"></i></span><em>Ready to clip</em></div>'
+    return _card("SocialShot setup", body, "w340")
+
+
+def comp_sources():
+    field = (f'<div class="fx-field">{_ico(FI["link"])}<span>youtube.com/watch?v=8ol3j7o1U7o</span><em>Make clips</em></div>')
+    rows = [("avatar-carry.jpg", "CarryisLive", "YouTube Live · recording now", '<em class="st live">Live</em>'),
+            ("avatar-garyvee.jpg", "GaryVee", "Records when live", '<span class="tg on"><i></i></span>'),
+            ("avatar-raj.jpg", "Figuring Out", "New episodes", '<span class="tg on"><i></i></span>')]
+    body = field + "".join(f'<div class="fx-row"><img src="/brand/{im}" alt="" loading="lazy"><div><b>{n}</b><small>{s}</small></div>{x}</div>' for im, n, s, x in rows)
+    return _card("Add a video or a creator", body, "w380")
+
+
+def comp_moments():
+    rows = [("1:05:12", "The 1v4 clutch", "Chat tripled, voice jumped", 94), ("1:31:40", "Chat loses it", "Big chat spike, laughter", 88),
+            ("0:42:08", "Setting up the next match", "Quiet chat, no reaction", 41)]
+    body = "".join(f'<div class="fx-mom{" low" if sc < 60 else ""}"><small>{ts}</small><div><b>{n}</b><span><i style="width:{sc}%"></i></span><small>{why}</small></div><em>{sc}</em></div>'
+                   for ts, n, why, sc in rows)
+    return _card("Moments found", body, "w400")
+
+
+def comp_clips():
+    clips = [("yt/eQp4cDRghMA.jpg", "38% 40%", 94, "no win, <em>no sleep</em>"), ("clip-garyvee.jpg", "50% 30%", 91, "provide value <em>first</em>"),
+             ("yt/SXAwIHOLmjY.jpg", "76% 40%", 88, "he did <em>not</em> see it")]
+    cards = "".join(f'<figure class="sc-clip"><img src="/brand/{s}" alt="" loading="lazy" style="object-position:{p}"><span class="sc-score">{sc}</span>'
+                    f'<span class="sc-cap">{c}</span></figure>' for s, p, sc, c in clips)
+    seg = '<div class="fx-seg"><span class="on">9:16</span><span>4:5</span><span>1:1</span><span>16:9</span></div>'
+    return _card("8 clips ready", seg + f'<div class="sc-grid fx-3">{cards}</div>', "w420")
+
+
+def comp_editor():
+    lines = [("0:05", "will happen if I", False), ("0:07", "provide <mark>value</mark> first", True), ("0:10", "and that is the whole game", False)]
+    rows = "".join(f'<div class="se-line{" on" if on else ""}"><small>{ts}</small><span>{tx}</span></div>' for ts, tx, on in lines)
+    body = (f'<div class="se-wrap fx-ed"><div>{rows}<div class="fx-tools"><span>Trim</span><span>Cleanup</span><span class="on">AI edit</span></div></div>'
+            '<div class="se-phone"><img src="/brand/clip-garyvee.jpg" alt="" loading="lazy"><span class="se-cap">provide <em>value</em> first</span></div></div>')
+    return _card("Editor", body, "w420")
+
+
+def comp_brand():
+    sw = "".join(f'<i style="background:{c}"></i>' for c in ("#8B5CF6", "#FF5A67", "#FFFFFF", "#111114"))
+    body = ('<div class="fx-brand"><div class="fx-logo"><img src="/brand/logo-mark.png" alt=""><div><b>Logo</b><small>Top right, 80%</small></div></div>'
+            f'<div class="fx-kv"><small>Colours</small><span class="fx-sw">{sw}</span></div>'
+            '<div class="fx-kv"><small>Caption font</small><b>Mazzard H</b></div>'
+            '<div class="fx-kv"><small>Watermark</small><b>@yourchannel</b></div></div>')
+    return _card("Brand kit", body, "w340")
+
+
+def comp_schedule():
+    rows = [("yt", "YouTube Shorts", "Today, 6:00 PM", '<em class="st ok">Posted</em>'), ("tt", "TikTok", "Today, 8:30 PM", '<em class="st">Scheduled</em>'),
+            ("ig", "Instagram Reels", "Tomorrow, 12:00 PM", '<em class="st">Scheduled</em>')]
+    body = "".join(f'<div class="fx-row"><span class="pf {k}"></span><div><b>{n}</b><small>{w}</small></div>{s}</div>' for k, n, w, s in rows)
+    body += ('<div class="fx-rules"><div><small>Post clips scoring above</small><b>80</b></div><div><small>Gap between posts</small><b>2 h</b></div>'
+             '<div><small>Daily limit</small><b>4</b></div></div>')
+    return _card("Schedule", body, "w380")
+
+
+def comp_alerts():
+    rows = [("Discord", "#clips channel", "on"), ("Telegram", "@socialshot_bot", "on")]
+    body = "".join(f'<div class="fx-row"><span class="fx-dot {n.lower()}"></span><div><b>{n}</b><small>{s}</small></div><span class="tg {o}"><i></i></span></div>'
+                   for n, s, o in rows)
+    bars = "".join(f'<i style="height:{h}%"></i>' for h in (30, 52, 41, 70, 46, 88, 60))
+    body += f'<div class="fx-usage"><div><small>AI cost this week</small><b>$0.84</b></div><span class="fx-chart">{bars}</span></div>'
+    return _card("Alerts and usage", body, "w360")
+
+
+COMPS = {"setup": comp_setup, "sources": comp_sources, "moments": comp_moments, "clips": comp_clips, "editor": comp_editor,
+         "brand": comp_brand, "schedule": comp_schedule, "alerts": comp_alerts}
+TINTS = ["violet", "green", "rose", "violet", "green", "rose", "violet", "green"]
+
+
+def features_page():
+    """/features: every feature by part of the app. Each part is a section: its name, a line, the features with their
+    icon, and beside them a component of the app showing that part. Written in content/features.json."""
+    data = json.loads((ROOT / "content" / "features.json").read_text(encoding="utf-8"))
+    gs = data["groups"]
+    n = sum(len(g["items"]) for g in gs)
+    title = "Features: Everything SocialShot Does | SocialShot"
+    desc = f"All {n} SocialShot features: live clipping, scored moments, 9:16 layouts, 38 caption styles, an editor, a brand kit and auto-posting, free on Windows."
+    og = og_card("features", "reel-poster", "Everything SocialShot does")
+    path = "/features"
+    chips = "".join(f'<a href="#{E(g["id"])}">{E(g["name"])}<span>{len(g["items"])}</span></a>' for g in gs)
+    secs = ""
+    for i, g in enumerate(gs):
+        items = "".join(f'<li><b>{E(a)}</b><span>{E(b_)}</span></li>' for a, b_ in g["items"])
+        secs += (f'<section class="fs{" flip" if i % 2 else ""}" id="{E(g["id"])}"><div class="fs-copy">'
+                 f'<span class="fs-ic">{_ico(FI[g["icon"]])}</span><h2>{E(g["name"])} <span>{len(g["items"])}</span></h2><p>{E(g["intro"])}</p>'
+                 f'<ul class="fs-list">{items}</ul></div>'
+                 f'<div class="fs-stage t-{TINTS[i % len(TINTS)]}" aria-hidden="true">{COMPS[g["scene"]]()}</div></section>')
+    extra = graph(ORG, WEBSITE, webpage(path, title, desc, og), crumbs(path, [("Home", "/"), ("Features", path)]))
+    out = (head(title, desc, path, og, extra)
+           + '<section class="phead tool">' + hero_deco() + '<div class="wrap">'
+           + '<span class="ph-mark ai ln" aria-hidden="true"><svg class="ti" viewBox="0 0 24 24">' + FI["spark"] + '</svg></span>'
+           + f'<h1>Everything SocialShot does</h1><p>All {n} features, by part of the app: how videos come in, how moments are found, the clips, the editor, your brand and posting.</p>'
+           + f'<div class="ctas"><a class="btn lg primary" href="/#get-app">Get the Windows app{ARROW}</a><a class="btn lg outline" href="/changelog">What is new in 1.1</a></div>'
+           + f'<ul class="fine"><li>{n} features</li><li>Free on Windows</li><li>Your own AI key</li></ul></div></section>'
+           f'<section class="feats"><div class="wrap"><nav class="cl-chips fs-chips" aria-label="Parts of the app">{chips}</nav>{secs}</div></section>'
+           + cta() + tail())
+    (OUT / "features.html").write_text(out, encoding="utf-8")
+
 
 
 def build():
@@ -812,6 +1021,7 @@ def build():
            + cta() + INDEX_JS + tail())
     (OUT / "blog" / "index.html").write_text(idx, encoding="utf-8")
     changelog_page()
+    features_page()
     dates(posts)
     print(f"built {len(pages)} pages and {len(posts)} posts into {OUT.relative_to(ROOT)}")
     return pages, posts

@@ -675,7 +675,7 @@ def status(request: Request):
     return {"user": auth.public(me_), "update": None, "accounts": config.ACCOUNTS, "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
             "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
-            "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS,
+            "styles": {"auto": "Auto", **{k: v["label"] for k, v in render.STYLES.items()}}, "layouts": render.LAYOUTS,
             "fonts": {k: {"google": v["google"], "weight": v["weight"], "local": bool(v.get("local")), "em": render.font_em(k)} for k, v in render.FONTS.items()},
             "presets": render.PRESETS, "storage": _storage(),
             # the hook's emoji picker: [group, label, [[emoji, file key, name], ...]]
@@ -1218,11 +1218,12 @@ _popcut_locks: dict = {}
 
 
 @app.get("/api/jobs/{jid}/clips/{cid}/popcut")
-def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: int, ch: int = 0, cr: int = 0, cb: int = 0):
+def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: int, ch: int = 0, cr: int = 0, cb: int = 0,
+                plain: int = 0):
     """The pop-out layout's cut-out person for the editor's live preview, made by the same cut-out as the finished
     clip: a small see-through WebM, 256 pixels wide and t tall (the face cam picture), from a to b (clip seconds).
-    keep: the rows that may show above and at the top of the card; ch, cr, cb: a plain card's height, corners and
-    edge (ch 0: the face cam's own background). Kept in the clip's folder, so the same settings are made once."""
+    keep: the rows that may show above and at the top of the card; ch, cr, cb: the card's height, corners and edge
+    (nothing shows inside it); plain=1: a plain background, the whole person shows on it. Kept in the clip's folder, so the same settings are made once."""
     job, clip = _clip_or_404(jid, cid)
     try:
         box = [float(v) for v in cam.split(",")]
@@ -1245,7 +1246,7 @@ def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: 
         f = Path(job.get("source_path") or "").resolve()
     if not f.is_file() or home not in f.resolve().parents:
         raise HTTPException(404, "The original video for this clip is no longer here.")
-    key = hashlib.sha1(json.dumps([str(f), box, t, keep, ch, cr, cb, round(a, 2), round(b, 2), 3]).encode()).hexdigest()[:16]
+    key = hashlib.sha1(json.dumps([str(f), box, t, keep, ch, cr, cb, round(a, 2), round(b, 2), bool(plain), 4]).encode()).hexdigest()[:16]
     d = home / "popcut"
     out = d / f"{cid}-{key}.webm"
     with _popcut_locks.setdefault(key, threading.Lock()):
@@ -1254,7 +1255,7 @@ def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: 
             from . import cutout
             d.mkdir(exist_ok=True)
             off = clip.get("src_offset", 0.0)
-            card = {"h": ch, "r": cr, "b": cb} if ch else None
+            card = {"h": ch, "r": cr, "b": cb, "plain": bool(plain)} if ch else None
             if not cutout.preview(f, max(0.0, a - off), b - a, box, w, t, keep, out, 12, card):
                 raise HTTPException(503, "The cut-out preview couldn't be made.")
             for old in sorted(d.glob(f"{cid}-*.webm"), key=lambda p: p.stat().st_mtime)[:-6]:

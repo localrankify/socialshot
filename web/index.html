@@ -5123,7 +5123,7 @@ body{background:#0B0B0D}
 .ox2 .nstep input{width:30px;border:0;background:transparent;text-align:center;font-size:14px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .ox2 .nstep input::-webkit-inner-spin-button{-webkit-appearance:none}
 .ox2 .nstep .ctl i{margin:0 2px 0 -2px;font-style:normal;font-size:11.5px;color:#71717A}
-.ox2 .o2-caps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ox2 .o2-caps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .ox2 .o2-lays{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .ox2 .o2-tile{display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:0 10px;border:0;border-radius:9px;background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#C4C4CC;font-size:12.5px;font-weight:500;cursor:pointer;transition:background .15s,box-shadow .15s,color .15s}
 .ox2 .o2-tile>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -5651,6 +5651,10 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .composer .addrow .addrow-l svg{width:15px;height:15px}
 .composer .addrow .addrow-n{position:absolute;right:12px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:11px;font-weight:600;color:#8E8E96;font-variant-numeric:tabular-nums}
 .composer .addrow .addrow-l{margin:0!important;flex:none!important}
+.ox2 .o2-caps{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media (max-width:1100px){.ox2 .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* an open picker (creator, brand) in the add-a-video box floats over the video cards and filters below it */
+#addform:has(.pick.open),.hero:has(.pick.open){position:relative;z-index:40}
 </style>
 </head>
 <body>
@@ -6715,8 +6719,8 @@ function drawAdd(variant, keep = "") {
         ${stepper("o_max", "How many", c?.max_clips ?? 6, 1, 20, 1, "")}
         ${stepper("o_min", "Shortest", c?.min_len ?? 15, 5, 120, 5, "s")}
         ${stepper("o_maxlen", "Longest", c?.max_len ?? 60, 10, 180, 5, "s")}</div></section>
-      <section class="o2-sec"><h5>Captions</h5><input type="hidden" id="o_style" value="${esc(c?.style ?? "studio")}">
-        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="o_style" data-v="${esc(k)}" aria-pressed="${k === (c?.style ?? "studio")}">${capPrev(k)}<span>${esc(v)}</span></button>`).join("")}</div></section>
+      <section class="o2-sec"><h5>Captions</h5><input type="hidden" id="o_style" value="${esc(c?.style ?? "auto")}">
+        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="o_style" data-v="${esc(k)}" aria-pressed="${k === (c?.style ?? "auto")}"${k === "auto" ? ` title="Gamer for gaming videos and streams, Studio for everything else"` : ""}>${capPrev(k)}<span>${esc(v)}</span></button>`).join("")}</div></section>
       <section class="o2-sec"><h5>Layout</h5><input type="hidden" id="o_layout" value="${esc(c?.layout ?? "blur")}">
         <div class="o2-lays">${Object.entries(S.status.layouts).map(([k, v]) => `<button type="button" class="o2-tile lay" data-seg="o_layout" data-v="${esc(k)}" aria-pressed="${k === (c?.layout ?? "blur")}" title="${esc(v)}">${LAY_IC[k] || LAY_IC.blur}<span>${esc(LAYOUT_SHORT[k] || k)}</span></button>`).join("")}</div></section>
       <section class="o2-sec o2-two">
@@ -6768,10 +6772,15 @@ const LAY_IC = {
   pop: `<svg class="lay-ic" viewBox="0 0 14 22" aria-hidden="true"><rect x=".75" y=".75" width="12.5" height="20.5" rx="2.5" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="3" y="11" width="8" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="10.2" r="2.2" fill="currentColor"/><path d="M3.6 18.5c.6-2.4 1.8-3.6 3.4-3.6s2.8 1.2 3.4 3.6" fill="currentColor"/></svg>`,
   grid: `<svg class="lay-ic" viewBox="0 0 14 22" aria-hidden="true"><rect x=".75" y=".75" width="12.5" height="20.5" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="2.5" y="2.5" width="4" height="8" rx="1" fill="currentColor"/><rect x="7.5" y="2.5" width="4" height="8" rx="1" fill="currentColor" fill-opacity=".75"/><rect x="2.5" y="11.5" width="9" height="8" rx="1" fill="currentColor" fill-opacity=".5"/></svg>`};
 function capPrev(k) {
+  if (k === "auto") {         // Auto: Studio or Gamer, picked from the video, both shown in the tile
+    const st = S.status.presets?.studio || {}, gm = S.status.presets?.gamer || {}, fs = S.status.fonts || {};
+    const g = f => (fs[f] || {google: f, weight: 600});
+    return `<span class="cap-prev"><span class="cp-t"><span style="font-family:'${g(st.font).google}',sans-serif;font-weight:${g(st.font).weight};color:#fff;-webkit-text-stroke:1.2px #000">Clip</span> <b style="font-family:'${g(gm.font).google}',sans-serif;font-weight:${g(gm.font).weight};color:${gm.active || "#FFE500"};-webkit-text-stroke:2px ${gm.cap_line || "#7C3AED"}">THIS</b></span></span>`;
+  }
   const p = (S.status.presets || {})[k] || {font: "Poppins", base: "#FFFFFF", active: "#FFE500", upper: true, outline: 7};
   const f = (S.status.fonts || {})[p.font] || {google: "Poppins", weight: 800};
   const t = p.upper ? ["CLIP", "THIS"] : ["Clip", "this"];
-  return `<span class="cap-prev"><span class="cp-t" style="font-family:'${f.google}',sans-serif;font-weight:${f.weight};color:${p.base};-webkit-text-stroke:${Math.max(2, p.outline / 2.4).toFixed(1)}px #000">${t[0]} <b style="color:${p.active}">${t[1]}</b></span></span>`;
+  return `<span class="cap-prev"><span class="cp-t" style="font-family:'${f.google}',sans-serif;font-weight:${f.weight};color:${p.base};-webkit-text-stroke:${Math.max(2, p.outline / 2.4).toFixed(1)}px ${p.cap_line || "#000"}">${t[0]} <b style="color:${p.active}">${t[1]}</b></span></span>`;
 }
 function picker(id, aria, items, val) {
   const cur = items.find(x => String(x.v) === String(val)) || items[0];
@@ -8504,6 +8513,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=163"></script>
+<script src="/assets/editor.js?v=166"></script>
 </body>
 </html>

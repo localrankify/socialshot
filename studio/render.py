@@ -31,6 +31,9 @@ STYLES = {
              "strong": "00D7FF", "outline": 7, "pop": 114, "upper": False, "per": 2},
     "clean": {"label": "Clean", "font": "Poppins ExtraBold", "size": 100, "base": "FFFFFF", "active": "6BD7FF",
               "strong": "FFFFFF", "outline": 5, "pop": 106, "upper": False, "per": 4},
+    # drawn from its PRESETS look below (Russo One, a purple outline); this entry names it for the clip options
+    "gamer": {"label": "Gamer", "font": "Anton", "size": 128, "base": "FFFFFF", "active": "00E5FF",
+              "strong": "FFFFFF", "outline": 6, "line": "ED3A7C", "pop": 108, "upper": True, "per": 2},
 }
 HOOK = {"font": "Mazzard H", "size": 88, "ink": "14100E", "box": "FFFFFF", "pad_x": 40, "pad_y": 24, "radius": 20,
         "max_w": 940}
@@ -164,6 +167,9 @@ PRESETS = {
     "heritage": {"label": "Heritage", "font": "Marcellus", "size": 108, "base": "#E7C88A", "active": "#FFFFFF", "upper": False, "per": 3, "outline": 3},
     "danger": {"label": "Danger", "font": "Anton", "size": 140, "base": "#FF4D4D", "active": "#FFFFFF", "upper": True, "per": 2, "outline": 4},
     "premium": {"label": "Premium", "font": "Playfair Display", "size": 100, "base": "#F5EFE3", "active": "#C8A96A", "upper": False, "per": 4, "outline": 1, "sp": 4},
+    # no box: white esports letters with a thick coloured outline, the spoken word in yellow
+    "gamer": {"label": "Gamer", "font": "Russo One", "size": 116, "base": "#FFFFFF", "active": "#FFE500", "upper": True, "per": 2,
+              "outline": 6, "cap_line": "#7C3AED"},
     "gamingneon": {"label": "Gaming", "font": "Barlow Condensed", "size": 132, "base": "#00F0FF", "active": "#FF2BD6", "upper": True, "per": 3, "outline": 4},
     "studio": {"label": "Studio", "font": "Apfel Grotezk", "size": 104, "base": "#FFFFFF", "active": "#FFD43B", "upper": False, "per": 3, "outline": 3},
     "bounce": {"label": "Bounce", "font": "Poppins", "size": 132, "base": "#FFFFFF", "active": "#FFF000", "upper": False, "per": 3, "outline": 4},
@@ -269,6 +275,7 @@ def clean_look(look) -> dict | None:
             "sp": _num(look.get("sp"), -4, 24, 0), "wgap": _num(look.get("wgap"), 0, 80, 0),
             "cap_box": _hex(look.get("cap_box"), "#000000"), "cap_op": _num(look.get("cap_op"), 0, 100, 0),
             "cap_round": _num(look.get("cap_round"), 0, 60, 18),
+            "cap_line": _hex(look.get("cap_line"), "#000000"),     # the colour of the letters' outline
             # how heavy and in what style the letters are (None: the font's own weight), for captions and hook
             "weight": _weight(look.get("weight")), "italic": bool(look.get("italic")), "underline": bool(look.get("underline")),
             # the key word: one word a line drawn in its own font, colour and size ("" font and colour: off)
@@ -1250,7 +1257,7 @@ def look_style(look: dict) -> dict:
     return {"font": ensure_font(look["font"], w), "size": look["size"],
             # a bundled font has one weight: Semibold and up are drawn bold by the renderer itself
             "bold": bool(local and w and w >= 600), "italic": look.get("italic", False), "underline": look.get("underline", False), "base": bgr(look["base"]), "active": bgr(look["active"]),
-            "strong": bgr(look["base"]), "outline": look["outline"], "pop": 112, "upper": look["upper"], "per": look["per"],
+            "strong": bgr(look["base"]), "outline": look["outline"], "line": bgr(look.get("cap_line") or "#000000"), "pop": 112, "upper": look["upper"], "per": look["per"],
             "sp": look["sp"], "wgap": look["wgap"], "box": bgr(look["cap_box"]), "box_op": look["cap_op"], "box_r": look["cap_round"],
             "x": look.get("x"),
             "kw_font": ensure_font(look["kw_font"]) if look.get("kw_font") else None,
@@ -1786,7 +1793,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00000000,&H80000000,{on(st.get('bold'))},{on(st.get('italic'))},{on(st.get('underline'))},0,100,100,0,0,1,{st['outline']},{CAP_SHADOW},5,0,0,0,1
+Style: Cap,{st['font']},{st['size']},&H00{st['base']},&H00{st['base']},&H00{st.get('line', '000000')},&H80000000,{on(st.get('bold'))},{on(st.get('italic'))},{on(st.get('underline'))},0,100,100,0,0,1,{st['outline']},{CAP_SHADOW},5,0,0,0,1
 Style: Hook,{hook_font},{hook_size},&H00{HOOK['ink']},&H00{HOOK['ink']},&H00000000,&H00000000,{on(hk.get('hook_bold'))},{on(hk.get('hook_italic'))},{on(hk.get('hook_underline'))},0,100,100,0,0,1,0,0,5,0,0,0,1
 
 [Events]
@@ -2218,7 +2225,8 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             if g["pop"] + g["r"] > 0 or g["fill"]:     # the person cut out of the face cam, frame by frame (a video)
                 from . import cutout
                 if cutout.matte(src, start, end - start, split["cam"], g["w"], g["t"], g["pop"] + max(g["r"], g["b"]),
-                                work / "matte.mkv", config.OUT_FPS, card=g if g["fill"] else None):
+                                work / "matte.mkv", config.OUT_FPS,
+                                card={"h": g["h"], "r": g["r"], "b": g["b"], "plain": bool(g["fill"])}):
                     stills.append("matte")
         _frame.inputs = {k: i + 1 for i, k in enumerate(stills)}
         main = out_end - start                       # the clip's length once cuts are out

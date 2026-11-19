@@ -109,13 +109,32 @@ _by_user: dict = {}                       # user -> {job id: job}: listing one p
 _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
 
-DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "studio", "layout": "blur", "quality": 1080,
+DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "auto", "layout": "blur", "quality": 1080,
             "range_start": None, "range_end": None, "use_chat": True,
             "watermark": True,    # a social watermark crediting the source ("Full video on YouTube /channel") on every new clip
             "ai_edit": False}      # the AI editor: music, zooms, sound effects (and a reaction) on every new clip
 
 
 LIMITS = {"max_clips": (1, 20), "min_len": (5, 120), "max_len": (10, 180), "quality": (360, 2160)}   # 2160: a 4K source
+
+
+# words in a title that mean gaming or a stream: with the Auto caption style, those clips get the Gamer captions
+GAMING_WORDS = re.compile(
+    r"\b(gam(e|es|ing|eplay|er|ers)|let'?s ?play|walkthrough|speedrun|playthrough|live|stream(s|ing|er|ers)?|vods?|"
+    r"esports?|twitch|kick|bgmi|pubg|valorant|gta|minecraft|fortnite|free ?fire|warzone|call of duty|cod|apex|cs2|"
+    r"cs ?go|counter[- ]strike|roblox|dota|league of legends|overwatch|rank(ed)? push|scrims?|clutch|lobby)\b", re.I)
+
+
+def _style_for(job, o) -> str:
+    """The caption style for a job's new clips. Auto: Gamer for gaming videos, live recordings, Twitch and Kick
+    videos and past streams; Studio for everything else."""
+    s = o.get("style") or "auto"
+    if s != "auto":
+        return s
+    url = str((job.get("source") or {}).get("url") or "")
+    gaming = (job.get("kind") == "live" or job.get("gaming") or "twitch.tv/" in url or "kick.com/" in url
+              or GAMING_WORDS.search(f"{job.get('title') or ''} {(job.get('source') or {}).get('name') or ''}"))
+    return "gamer" if gaming else "studio"
 
 
 def clean_options(options) -> dict:
@@ -128,7 +147,7 @@ def clean_options(options) -> dict:
             lo, hi = LIMITS[k]
             v = max(lo, min(hi, int(float(v))))
         elif k == "style":
-            v = v if v in render.STYLES else DEFAULTS["style"]
+            v = v if v in render.STYLES or v == "auto" else DEFAULTS["style"]
         elif k == "layout":
             v = v if v in render.LAYOUTS else DEFAULTS["layout"]
         elif k in ("use_chat", "ai_edit", "watermark"):        # on/off settings
@@ -719,7 +738,7 @@ def more_clips(job, n):
         return 0
     look = brand_look(job.get("user"))
     for c in found:
-        c.update(id=_next_id(job), style=o["style"], layout=o["layout"], status="queued", version=0, made_at=time.time(), more=True)
+        c.update(id=_next_id(job), style=_style_for(job, o), layout=o["layout"], status="queued", version=0, made_at=time.time(), more=True)
         if look:
             c["look"] = dict(look)
         job["clips"].append(c)
@@ -871,7 +890,8 @@ def _run_job(job):
         if meta["is_live"]:
             raise RuntimeError("This link is a live stream, so it would never finish downloading. Open the creator, "
                                "put this link under Setup, and press Start recording instead.")
-        _set(job, title=meta["title"], uploader=meta["uploader"], duration=meta["duration"])
+        _set(job, title=meta["title"], uploader=meta["uploader"], duration=meta["duration"],
+             gaming=bool(meta.get("gaming") or meta.get("was_live")))
         if not job.get("thumb") and media.save_thumb(d, url=src["url"]):
             _set(job, thumb=True)
         usage.set_context(job["creator"], meta["title"])
@@ -1057,7 +1077,7 @@ def _run_job(job):
         look = brand_look(job.get("user"))
         for c in found:
             c.update(id=f"clip{len(job['clips']) + 1:02d}", start=round(c["start"] + shift, 2),
-                     end=round(c["end"] + shift, 2), style=o["style"], layout=o["layout"], status="queued", version=0)
+                     end=round(c["end"] + shift, 2), style=_style_for(job, o), layout=o["layout"], status="queued", version=0)
             if look:
                 c["look"] = dict(look)
             job["clips"].append(c)

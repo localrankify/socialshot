@@ -736,7 +736,7 @@ function drawPanel() {
         <span class="ed-ps ${E.shot ? "raw" : ""}"><i style="background-image:url('${E.shot || `/media/${E.jid}/${esc(clipNow()?.cover || "")}?v=${clipNow()?.version || 0}`}')"></i>${on ?`<span class="ed-pck">${ic("check")}</span>` : ""}
           <span class="ed-pt" style="font-family:${fc.family};font-weight:${fc.weight};color:${look.base};${look.cap_op > 0
             ? `background:${rgba(look.cap_box || "#000000", look.cap_op)};padding:3px 8px;border-radius:6px;-webkit-text-stroke:0`
-            : `-webkit-text-stroke:${look.outline ? Math.max(2, look.outline / 2.4).toFixed(1) : 0}px #000`}">
+            : `-webkit-text-stroke:${look.outline ? Math.max(2, look.outline / 2.4).toFixed(1) : 0}px ${look.cap_line || "#000"}`}">
           ${look.upper ? "CLIP" : "Clip"} ${look.kw_font || look.kw_color
             ? `<em class="kw" style="color:${look.kw_color || look.active};${look.kw_font ? `font-family:${fontCss(look.kw_font).family};font-weight:${fontCss(look.kw_font).weight};` : ""}font-size:${Math.min(1.6, (look.kw_scale || 100) / 100)}em;${look.kw_italic ? "font-style:italic;" : ""}-webkit-text-stroke:0">${look.upper ? "THIS" : "this"}</em>`
             : `<em style="color:${look.active}">${look.upper ? "THIS" : "this"}</em>`}</span><b>${esc(label)}</b></span>
@@ -774,7 +774,8 @@ function drawPanel() {
         ${[["base", "Text"], ["active", "Highlight"]].map(([k, l]) => `<div class="ed-f">${l}<div class="ed-sw">
           ${SWATCHES.map(h => `<button data-ed="colour" data-k="${k}" data-v="${h}" style="background:${h}" aria-pressed="${L[k] === h}" aria-label="${h}"></button>`).join("")}
           <label class="ed-pick" style="background:${L[k]}"><input type="color" value="${L[k].toLowerCase()}" data-look="${k}" aria-label="Pick a ${l.toLowerCase()} colour"></label></div></div>`).join("")}
-        ${slider("Outline", "outline", 0, 12, 1, L.outline, L.outline)}`)}
+        ${slider("Outline", "outline", 0, 12, 1, L.outline, L.outline)}
+        ${swatches("cap_line", "Outline colour", L.cap_line || "#000000")}`)}
       ${fold("space", "Spacing", (L.sp || L.wgap) ? "Custom" : "Normal", `
         ${slider("Letter spacing", "sp", -4, 24, 1, L.sp || 0, L.sp || 0)}
         ${slider("Word spacing", "wgap", 0, 80, 2, L.wgap || 0, L.wgap || 0)}`)}
@@ -1056,7 +1057,7 @@ function drawStage() {
         : g.layout === "pop" ? band("edBandG", "edVid", false) + `<i class="ed-popring" id="edPopRing" aria-hidden="true"></i>`
           + `<i class="ed-popfill" id="edPopFill" aria-hidden="true"></i><div class="ed-band ed-pipb ed-popb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
           + `<div class="ed-band ed-popo" id="edBandO" title="Drag to move the card"><video class="ed-bv" id="edVid3" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
-          + `<video class="ed-popcut" id="edPopCut" playsinline preload="auto" muted aria-hidden="true"></video>`
+          + `<video class="ed-popcut" id="edPopCut" playsinline preload="auto" muted aria-hidden="true"></video><canvas class="ed-popcut" id="edPopCv" aria-hidden="true"></canvas>`
         : g.layout === "trio" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) + band("edBandT", "edVid3", true)
         : g.layout === "grid" ? GRID_V.slice(0, sp.faces.length).map(([b, v], i) => band(b, v, i > 0).replace('class="ed-band"', 'class="ed-band ed-gcell"')).join("")
           + `<button class="ed-gseam" id="edGseam" aria-label="Drag to resize the rows" title="Drag to resize the rows"><i></i></button>`
@@ -2729,7 +2730,8 @@ function popCut(q, sp, k) {
   const s = 256 / q.w, a = Math.max(0, E.start - 0.5);
   const p = new URLSearchParams({a: a.toFixed(2), b: (E.end + 0.5).toFixed(2), cam: sp.cam.map(v => (+v).toFixed(4)).join(","),
     t: Math.max(128, Math.min(640, Math.round(q.t * s / 2) * 2)), keep: Math.round((q.pop + Math.max(q.r, q.b)) * s)});
-  if (q.fill) { p.set("ch", Math.round(q.h * s)); p.set("cr", Math.round(q.r * s)); p.set("cb", Math.round(q.b * s)); }
+  p.set("ch", Math.round(q.h * s)); p.set("cr", Math.round(q.r * s)); p.set("cb", Math.round(q.b * s));   // nothing shows inside the card
+  if (q.fill) p.set("plain", 1);
   const url = `/api/jobs/${E.jid}/clips/${E.cid}/popcut?${p}`;
   if (cut.dataset.want !== url) {
     cut.dataset.want = url; clearTimeout(E.popCutT);
@@ -2740,9 +2742,43 @@ function popCut(q, sp, k) {
       cut.src = url;
     }, cut.dataset.ok ? 900 : 250);
   }
-  const on = cut.dataset.ok === url;
-  cut.style.cssText = `left:${q.x * k}px;top:${(q.y - q.pop) * k}px;width:${q.w * k}px;height:${q.t * k}px;display:${on ? "block" : "none"}`;
+  const on = cut.dataset.ok === url, box = `left:${q.x * k}px;top:${(q.y - q.pop) * k}px;width:${q.w * k}px;height:${q.t * k}px`;
+  // the server's cut-out is small and 12 frames a second: it only gives the outline. The person is drawn from the
+  // full-quality video, so the head is as sharp as the face in the card and moves with it.
+  cut.style.cssText = `${box};opacity:0;display:${on ? "block" : "none"}`;
+  const cv = $e("#edPopCv");
+  if (cv) {
+    const dpr = window.devicePixelRatio || 1, cw = Math.round(q.w * k * dpr), ch = Math.round(q.t * k * dpr);
+    if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
+    cv.style.cssText = `${box};display:${on ? "block" : "none"}`;
+    E.popDraw = {cam: sp.cam, ar: q.w / q.t};
+    if (on) {
+      cut.onseeked = popPaint;          // paused and moved: the new moment is drawn at once
+      popPaint();
+      if (!E.popRaf || performance.now() - (E.popRafAt || 0) > 400) { cancelAnimationFrame(E.popRaf); E.popRaf = requestAnimationFrame(popLoop); }
+    }
+  }
   return on;
+}
+function popLoop() {                    // while the pop-out is on screen: draw every screen frame
+  E.popRaf = 0;
+  if (!$e("#edPopCv") || E.layout !== "pop") return;
+  popPaint();
+  E.popRafAt = performance.now(); E.popRaf = requestAnimationFrame(popLoop);
+}
+function popPaint() {                   // the face cam picture, kept only where the cut-out is
+  const cv = $e("#edPopCv"), cut = $e("#edPopCut"), v = $e("#edVid3") || $e("#edVid");
+  if (!cv || !cut || !v || !E.popDraw) return;
+  if (cv.style.display === "none" || v.readyState < 2 || cut.readyState < 2 || !v.videoWidth) return;
+  const at = v.currentTime + (E.off || 0) - (+cut.dataset.a || 0);   // outside what the cut-out covers: nothing
+  if (at < 0 || at > (cut.duration || Infinity) + 0.1) { cv.getContext("2d").clearRect(0, 0, cv.width, cv.height); return; }
+  const ctx = cv.getContext("2d"), c = E.popDraw.cam, vw = v.videoWidth, vh = v.videoHeight;
+  let sx = c[0] * vw, sy = c[1] * vh, sw = c[2] * vw, sh = c[3] * vh;            // render: cover the box, centred
+  if (sw / sh > E.popDraw.ar) { const n = sh * E.popDraw.ar; sx += (sw - n) / 2; sw = n; } else { const n = sw / E.popDraw.ar; sy += (sh - n) / 2; sh = n; }
+  ctx.globalCompositeOperation = "copy";
+  ctx.drawImage(v, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(cut, 0, 0, cv.width, cv.height);
 }
 function syncSplit() {                  // the other bands play the same moment as the main one
   const a = $e("#edVid"); if (!a) return;
@@ -3198,7 +3234,7 @@ function paintOverlay(t = nowT()) {
   const capBox = L.cap_op > 0 ? `background:${rgba(L.cap_box || "#000000", L.cap_op)};padding:${0.12 * emOf(L.font) * L.size * k}px ${0.3 * L.size * k}px;border-radius:${(L.cap_round ?? 18) * k}px;` : "";
   cap.style.cssText = `top:${y}%;left:${L.x ?? 50}%;font-family:${fc.family};font-weight:${fc.weight};font-size:${L.size * emOf(L.font) * k}px;color:${L.base};` +
     `font-style:${L.italic ? "italic" : "normal"};text-decoration:${L.underline ? "underline" : "none"};text-underline-offset:.12em;` +
-    `-webkit-text-stroke:${L.outline * 2 * k}px #000;column-gap:${gapPx}px;letter-spacing:${(L.sp || 0) * k}px;${capBox}text-shadow:${CAP_SHADOW * k}px ${CAP_SHADOW * k}px 0 rgba(0,0,0,.5);`;
+    `-webkit-text-stroke:${L.outline * 2 * k}px ${L.cap_line || "#000"};column-gap:${gapPx}px;letter-spacing:${(L.sp || 0) * k}px;${capBox}text-shadow:${CAP_SHADOW * k}px ${CAP_SHADOW * k}px 0 rgba(0,0,0,.5);`;
   const texts = shown.map((w, n) => { w = w.replace(/[.,;:]+$/, "");
     return L.upper ? w.toUpperCase() : n === 0 ? w.replace(/^\p{Ll}/u, c => c.toUpperCase()) : w; });     // normal case: each line starts with a capital
   const kwi = L.kw_font || L.kw_color ? accentIndex(texts) : -1, kfc = L.kw_font ? fontCss(L.kw_font) : null;
@@ -3692,7 +3728,7 @@ dlg.addEventListener("click", async e => {
     const job = jobOf(E.jid), others = (job?.clips || []).filter(x => x.id !== E.cid && x.status === "done");
     if (!others.length) return toast("This is the only clip of this video.");
     if (!await ask("Apply this caption style to every clip?", `The captions of the other ${others.length} clips of this video get this font, size, colours and place. Their hooks, effects and sound stay as they are. They are saved, not made again: press Save and render on each to see it in the video.`, "Apply to all")) return;
-    const CAP = ["font", "size", "base", "active", "upper", "per", "outline", "y"];
+    const CAP = ["font", "size", "base", "active", "upper", "per", "outline", "cap_line", "y"];
     let done = 0;
     for (const x of others) {
       const look = {...(x.look || lookFromStyle(x.style)), ...Object.fromEntries(CAP.map(k => [k, E.look[k]]))};

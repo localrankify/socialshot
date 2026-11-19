@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&family=Anton&family=Montserrat:wght@800&family=Bebas+Neue&family=Bangers&family=Fredoka:wght@700&family=Permanent+Marker&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/ui.css?v=7">
-<link rel="stylesheet" href="/assets/site.css?v=26">
+<link rel="stylesheet" href="/assets/site.css?v=31">
 <script src="/assets/site.js?v=4" defer></script>
 <style>
 [id]{scroll-margin-top:84px}
@@ -175,7 +175,7 @@ h2.t{font-size:clamp(30px,3.8vw,46px);line-height:1.06;letter-spacing:-.04em;fon
 /* features: one row per feature, words on one side and a working piece of the product on the other */
 .frows{display:grid;gap:120px}
 .frows{position:relative}
-.frows::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--line-2) 6%,var(--line-2) 94%,transparent)}
+.frows::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--line-2) 6%,var(--line-2))}
 .frow{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:112px;align-items:center}
 .fdot{position:absolute;left:calc(50% - 16px);top:calc(50% - 16px);z-index:1;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;background:var(--s1);border:1px solid var(--line-2);color:var(--mute);font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;transition:background-color .4s ease,border-color .4s ease,color .4s ease,opacity .6s var(--ease),transform .6s var(--ease)}
 .fdot.in{background:var(--s1)}
@@ -1134,16 +1134,22 @@ h2.t{font-size:clamp(30px,3.4vw,44px)}
   .frow.flip .fdot{order:-2}
   .fcopy h3{font-size:clamp(22px,6vw,28px);line-height:1.15}
 }
-/* the timeline runs on past step 06 into a button to the full list of features */
-.frows-end{position:relative;display:flex;justify-content:center;padding-top:96px;margin-top:-1px}
-.frows-end::before{content:"";position:absolute;left:50%;top:0;height:96px;width:1px;translate:-.5px 0;
-  background:linear-gradient(var(--line-2),var(--accent) 70%,var(--accent))}
-.frows-end .btn{position:relative;gap:8px;border-color:var(--accent-line);background:rgba(139,92,246,.1);color:#fff;
-  box-shadow:0 0 0 6px rgba(139,92,246,.06)}
-.frows-end .btn:hover{background:rgba(139,92,246,.18);border-color:var(--accent)}
+/* the timeline runs on past step 06 as the same line, lit, straight into a pill button whose edge has a light circling it */
+@property --ring{syntax:"<angle>";inherits:false;initial-value:0deg}
+.frows-end{position:relative;display:flex;justify-content:center;padding-top:96px}
+.frows-end::before{content:"";position:absolute;left:50%;top:0;height:96px;width:1px;background:var(--accent)}
+.frows-end .btn{position:relative;isolation:isolate;gap:8px;height:48px;padding:0 22px;border-radius:999px;border:0;background:#141119;color:#fff;
+  box-shadow:0 0 0 6px rgba(139,92,246,.07),0 10px 30px -12px rgba(139,92,246,.6)}
+.frows-end .btn::before{content:"";position:absolute;inset:-1.5px;z-index:-1;border-radius:inherit;padding:1.5px;
+  background:conic-gradient(from var(--ring),rgba(139,92,246,.25) 0deg,rgba(139,92,246,.25) 200deg,#C4B0FF 290deg,#fff 320deg,#8B5CF6 345deg,rgba(139,92,246,.25) 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+  animation:ring 3.6s linear infinite}
+@keyframes ring{to{--ring:360deg}}
+.frows-end .btn:hover{background:#1b1625}
 .frows-end .btn .ti{width:16px;height:16px;transition:translate .2s ease}.frows-end .btn:hover .ti{translate:3px 0}
 .frows-end+.more{margin-top:72px}
 @media (max-width:1000px){.frows-end{padding-top:56px}.frows-end::before{display:none}.frows-end+.more{margin-top:56px}}
+@media (prefers-reduced-motion:reduce){.frows-end .btn::before{animation:none}}
 </style>
 </head>
 <body>
@@ -1152,7 +1158,7 @@ h2.t{font-size:clamp(30px,3.4vw,44px)}
   <nav aria-label="Sections"><a href="#features">Features</a><a href="#how">How it works</a><a href="#styles">Caption styles</a><a href="#compare">Compare</a><a href="#pricing">Pricing</a><a href="/blog">Blog</a><a href="/changelog">Changelog</a></nav>
   <div class="acts"><a class="btn ghost" href="/login" data-auth="in">Sign in</a><a class="btn primary" href="/#get-app" data-auth="up">Get the app</a></div>
   <button class="nav-burger" type="button" aria-label="Open the menu" aria-expanded="false" aria-controls="nav-menu"><i></i><i></i></button>
-  <div class="nav-menu" id="nav-menu" hidden><nav aria-label="Menu"><a href="#features">Features</a><a href="#how">How it works</a><a href="#styles">Caption styles</a><a href="#compare">Compare</a><a href="#pricing">Pricing</a><a href="/blog">Blog</a><a href="/changelog">Changelog</a></nav><a class="btn lg primary nm-cta" href="/#get-app">Get the Windows app<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><small class="nm-note">Free for Windows 10 and 11</small></div>
+  <div class="nav-menu" id="nav-menu" hidden><nav aria-label="Menu"><a href="#features">Features</a><a href="#how">How it works</a><a href="#styles">Caption styles</a><a href="#compare">Compare</a><a href="#pricing">Pricing</a><a href="/features">All features</a><a href="/blog">Blog</a><a href="/changelog">Changelog</a></nav><a class="btn lg primary nm-cta" href="/#get-app">Get the Windows app<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><small class="nm-note">Free for Windows 10 and 11</small></div>
 </div></header>
 
 <main>
@@ -1264,7 +1270,7 @@ h2.t{font-size:clamp(30px,3.4vw,44px)}
     </div>
     </div>
 
-    <div class="frows-end rv"><a class="btn lg outline" href="/changelog">See all 35 features<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a></div>
+    <div class="frows-end rv"><a class="btn lg outline" href="/features">See all 35 features<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a></div>
     <div class="more bento"><div class="bx b1 rv" style="--d:0s"><div class="bx-w"><div class="bx-h"><span>Framing</span><em class="bp ok">Auto</em></div><div class="w-frame"><span class="wf-src"><img src="/brand/podcast-frames/f_3300.jpg" alt="" loading="lazy"><i class="brk" style="left:52%;width:34%"></i></span><span class="wf-go"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></span><span class="wf-out"><img src="/brand/podcast-frames/f_3300.jpg" alt="" loading="lazy"></span></div></div><div class="bx-t"><h3>Framed for vertical</h3><p>Every clip is cut to 9:16 with the speaker kept in frame.</p></div></div><div class="bx b2 rv" style="--d:0.06s"><div class="bx-w"><div class="bx-h"><span>Creators</span><em class="bp ">3 following</em></div><div class="w-rows"><div class="wr"><img src="/brand/avatar-carry.jpg" alt="" loading="lazy"><div><b>CarryisLive</b><small>YouTube Live · recording now</small></div><em class="bp live">Live</em><span class="wn">12 clips</span></div><div class="wr"><img src="/brand/avatar-garyvee.jpg" alt="" loading="lazy"><div><b>GaryVee</b><small>YouTube · new episode Thu</small></div><em class="bp">Following</em><span class="wn">31 clips</span></div><div class="wr"><img src="/brand/avatar-raj.jpg" alt="" loading="lazy"><div><b>Figuring Out</b><small>Podcast · new episode 2 h ago</small></div><em class="bp">Following</em><span class="wn">8 clips</span></div></div></div><div class="bx-t"><h3>Many creators, one account</h3><p>Follow every streamer you clip for and keep their clips apart.</p></div></div><div class="bx b3 rv" style="--d:0s"><div class="bx-w"><div class="bx-h"><span>Hook and title</span><em class="bp vi">Written for you</em></div><div class="w-hook"><span class="wh-clip"><img src="/brand/clip-garyvee.jpg" alt="" loading="lazy"><b>provide value<br>FIRST</b></span><div class="wh-f"><label>Title</label><div class="wh-in">The one habit behind every win<i><svg class="ti" viewBox="0 0 24 24"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg></i></div><label>Hook on screen</label><div class="wh-in">provide value FIRST<i><svg class="ti" viewBox="0 0 24 24"><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg></i></div><small class="wh-n">Written from what was said · 94 score</small></div></div></div><div class="bx-t"><h3>Hooks and titles</h3><p>A short hook on screen and a title ready to paste, for every clip.</p></div></div><div class="bx b4 rv" style="--d:0.06s"><div class="bx-w"><div class="bx-h"><span>Export</span><em class="bp ">ZIP</em></div><div class="w-file"><span class="wfi"><svg class="ti" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M11 5l-1 0"/><path d="M13 7l-1 0"/><path d="M11 9l-1 0"/><path d="M13 11l-1 0"/><path d="M11 13l-1 0"/></svg></span><div><b>ranked-grind-day-12.zip</b><small>8 clips · 214 MB</small></div></div><div class="w-bar"><i style="--p:1"></i></div><div class="w-zip"><span class="wz"><img src="/brand/yt/eQp4cDRghMA.jpg" alt="" loading="lazy"><b>01-the-1v4-clutch.mp4</b><small>0:42</small></span><span class="wz"><img src="/brand/yt/8ol3j7o1U7o.jpg" alt="" loading="lazy"><b>02-chat-loses-it.mp4</b><small>0:31</small></span><span class="wz"><img src="/brand/yt/3oSyJwGLzAw.jpg" alt="" loading="lazy"><b>03-final-boss-rage.mp4</b><small>0:55</small></span></div><div class="w-act"><small>Ready</small><span class="w-btn"><svg class="ti" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>Download</span></div></div><div class="bx-t"><h3>Download all at once</h3><p>Grab one clip, or every clip from a video in a single ZIP.</p></div></div><div class="bx b5 rv" style="--d:0s"><div class="bx-w"><div class="bx-h"><span>Upload</span><em class="bp vi">Clipping</em></div><div class="w-drop"><span class="wfi"><svg class="ti" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/><path d="M4 8l4 0"/><path d="M4 16l4 0"/><path d="M4 12l16 0"/><path d="M16 8l4 0"/><path d="M16 16l4 0"/></svg></span><div><b>irl-tokyo-0412.mp4</b><small>1.2 GB · 2:41:08</small></div><span class="wn">68%</span></div><div class="w-bar"><i style="--p:.68"></i></div><div class="w-done"><span class="wd-ic"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg></span><div><b>podcast-ep-41.mp4</b><small>Uploaded · 11 clips found</small></div></div><small class="w-hint">Drop a recording here, or pick a file</small></div><div class="bx-t"><h3>Your own files</h3><p>Drop in a recording from your computer and it is clipped the same way.</p></div></div><div class="bx b6 rv" style="--d:0.06s"><div class="bx-w"><div class="bx-h"><span>Overview</span><em class="bp vi">Coming soon</em></div><div class="w-br"><div class="wb-top"><i></i><i></i><i></i><span>socialshot.app/app</span></div><div class="wb-body"><div class="wb-k"><small>Clips this week</small><b>210</b><em>+38 today</em></div><div class="wb-chart"><span class="wb-line" style="--y:.5"><b>30 avg</b></span><span class="wb" style="--h:0.489"><i></i><small>Mon</small></span><span class="wb" style="--h:0.667"><i></i><small>Tue</small></span><span class="wb" style="--h:0.578"><i></i><small>Wed</small></span><span class="wb" style="--h:0.911"><i></i><small>Thu</small></span><span class="wb" style="--h:0.778"><i></i><small>Fri</small></span><span class="wb" style="--h:0.400"><i></i><small>Sat</small></span><span class="wb now" style="--h:0.844"><i></i><small>Today</small></span></div></div></div></div><div class="bx-t"><h3>Cloud version, in a few days</h3><p>The same SocialShot in your browser, with nothing to install and no key to set up.</p></div></div></div>
   </div>
 </section>
@@ -1402,7 +1408,7 @@ h2.t{font-size:clamp(30px,3.4vw,44px)}
     <div class="fbrand"><a href="/" aria-label="SocialShot home"><span class="lockup"><img src="/brand/favicon.svg?v=6" alt="" width="32" height="32" loading="lazy" decoding="async"><b>SocialShot</b></span></a>
       <p>AI clipping for Twitch, Kick and YouTube. Captioned vertical clips while the stream is still live.</p>
       <a class="btn primary" href="/#get-app">Get the Windows app<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a></div>
-    <div><h4>Product</h4><ul><li><a href="/#features">Features</a></li><li><a href="/#how">How it works</a></li><li><a href="/#styles">Caption styles</a></li><li><a href="/#compare">Compare</a></li><li><a href="/#pricing">Pricing</a></li><li><a href="/blog">Blog</a></li><li><a href="/changelog">Changelog</a></li></ul></div>
+    <div><h4>Product</h4><ul><li><a href="/#features">Features</a></li><li><a href="/#how">How it works</a></li><li><a href="/#styles">Caption styles</a></li><li><a href="/#compare">Compare</a></li><li><a href="/#pricing">Pricing</a></li><li><a href="/features">All features</a></li><li><a href="/blog">Blog</a></li><li><a href="/changelog">Changelog</a></li></ul></div>
     <div><h4>Use cases</h4><ul><!-- footer-pages:start --><li><a href="/twitch-clip-maker">Twitch clip maker</a></li><li><a href="/kick-clip-maker">Kick clip maker</a></li><li><a href="/youtube-shorts-maker">YouTube Shorts maker</a></li><li><a href="/podcast-clip-maker">Podcast clip maker</a></li><li><a href="/auto-captions">Auto captions</a></li><li><a href="/live-stream-clipper">Live stream clipper</a></li><!-- footer-pages:end --></ul></div>
     <div><h4>Compare</h4><ul><!-- footer-compare:start --><li><a href="/opus-clip-alternative">Opus Clip alternative</a></li><li><a href="/socialshot-vs-opus-clip">SocialShot vs Opus Clip</a></li><li><a href="/socialshot-vs-vizard">SocialShot vs Vizard</a></li><li><a href="/socialshot-vs-streamladder">SocialShot vs StreamLadder</a></li><li><a href="/socialshot-vs-eklipse">SocialShot vs Eklipse</a></li><!-- footer-compare:end --></ul></div>
     

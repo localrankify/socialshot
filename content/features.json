@@ -1,0 +1,217 @@
+{
+ "_how": "Every feature on the /features page, by part of the app. scene picks the app component drawn beside the list. Rebuild with python tools/build_site.py.",
+ "groups": [
+  {
+   "id": "windows",
+   "name": "Windows app",
+   "intro": "SocialShot runs on your own PC, free, with your own AI key.",
+   "scene": "setup",
+   "icon": "windows",
+   "items": [
+    [
+     "Free Windows app",
+     "The whole clipping engine on your own PC, for Windows 10 and 11. Every feature, no subscription."
+    ],
+    [
+     "Setup that checks your PC",
+     "Sign in, it checks your computer and installs what is missing, then sits in the tray while it works."
+    ],
+    [
+     "Bring your own AI key",
+     "OpenAI, Gemini, Claude, Grok, Groq, OpenRouter, or Ollama on your own machine. You pay your provider only for what you use."
+    ],
+    [
+     "Works without a key",
+     "No key yet? Clips are still picked from the loudest and busiest moments of the stream."
+    ],
+    [
+     "Sign in once from the app",
+     "A one-time code links the Windows app to your account in your browser, Google sign-in included."
+    ]
+   ]
+  },
+  {
+   "id": "videos-in",
+   "name": "Getting videos in",
+   "intro": "Links, files, live streams and creators that record themselves.",
+   "scene": "sources",
+   "icon": "link",
+   "items": [
+    [
+     "Paste a link",
+     "A YouTube, Twitch or Kick link is all it takes to start."
+    ],
+    [
+     "Upload big files",
+     "Drop in a recording from your computer. Large files go up in pieces, so a dropped connection does not start over."
+    ],
+    [
+     "Record live streams",
+     "Clips while the stream is still running, or tap to clip the best moment right now."
+    ],
+    [
+     "Creators that record themselves",
+     "Add a creator once: recording starts when they go live, clips when someone says a word you pick, and a limit on clips per hour."
+    ],
+    [
+     "Members-only streams",
+     "Add your browser cookies and streams you can watch can be recorded too."
+    ]
+   ]
+  },
+  {
+   "id": "moments",
+   "name": "Finding the moments",
+   "intro": "Every moment scored from what was said, the voice and the chat.",
+   "scene": "moments",
+   "icon": "spark",
+   "items": [
+    [
+     "Scored from words, voice and chat",
+     "Every moment is scored from what was said, how loud it got and how fast chat moved, and each clip shows why it was picked."
+    ],
+    [
+     "More clips on request",
+     "Liked the first batch? Ask for more from the same video."
+    ],
+    [
+     "Hooks, titles and hashtags",
+     "Each clip gets a hook on screen, a title, a description and hashtags, written from what was said."
+    ]
+   ]
+  },
+  {
+   "id": "clips",
+   "name": "Clips",
+   "intro": "Vertical clips with the speaker in frame, captioned word by word.",
+   "scene": "clips",
+   "icon": "clips",
+   "items": [
+    [
+     "Four shapes",
+     "9:16 for Shorts, Reels and TikTok, plus 4:5, 1:1 and 16:9."
+    ],
+    [
+     "Nine layouts",
+     "Split with the face cam below, picture in picture, trio, face grid, pop-out, centre crop, zoomed in, full frame and post card."
+    ],
+    [
+     "Face cam found for you",
+     "The streamer's camera is found automatically and kept in frame."
+    ],
+    [
+     "38 caption styles",
+     "Word-by-word captions in looks like Editorial, Karaoke, Bounce, Hype, Neon, Glass box and Podcast."
+    ],
+    [
+     "14 fonts",
+     "Poppins, Mazzard, Anton, Bebas Neue, Montserrat, Bangers and more for captions and hooks."
+    ],
+    [
+     "Hindi and Urdu in Roman letters",
+     "Hinglish captions written the way people actually type them."
+    ],
+    [
+     "Re-listen",
+     "Words came out wrong? Re-listen to a clip and get fresh captions."
+    ]
+   ]
+  },
+  {
+   "id": "editor",
+   "name": "Editor",
+   "intro": "Fix, trim and polish a clip without leaving the browser tab.",
+   "scene": "editor",
+   "icon": "edit",
+   "items": [
+    [
+     "One-click AI editor",
+     "Plans music, zooms and sound effects for the whole clip in one go."
+    ],
+    [
+     "Fix captions word by word",
+     "Edit any line, and click a word to jump straight to it in the clip."
+    ],
+    [
+     "Trim and clean up",
+     "Multi-shot trimming, and filler words and long pauses removed for you."
+    ],
+    [
+     "Zooms, looks, intro and outro",
+     "Zoom into the big moments, pick a colour look, add an intro and an outro."
+    ],
+    [
+     "Music and sound effects",
+     "Built-in music and sound effects, with the voice level kept clear."
+    ],
+    [
+     "Made for speed",
+     "Undo and redo, safe zones for each app, templates and keyboard shortcuts."
+    ]
+   ]
+  },
+  {
+   "id": "brand",
+   "name": "Your brand",
+   "intro": "Your logo, colours, fonts and handles on every clip.",
+   "scene": "brand",
+   "icon": "brand",
+   "items": [
+    [
+     "Brand kit",
+     "Your logo, saved caption styles and a watermark with your social handles."
+    ],
+    [
+     "Your music and media",
+     "Keep your own music, pictures and outros in one library."
+    ]
+   ]
+  },
+  {
+   "id": "posting",
+   "name": "Posting",
+   "intro": "Post now or line clips up, with rules you set once.",
+   "scene": "schedule",
+   "icon": "cal",
+   "items": [
+    [
+     "YouTube, Instagram and TikTok",
+     "Connect each account once and post from SocialShot."
+    ],
+    [
+     "Auto-post with your rules",
+     "Post only clips above a score, with a gap between posts and a daily limit."
+    ],
+    [
+     "Schedule",
+     "A calendar and a board of scheduled, posted and failed clips. Drag to plan, in any time zone."
+    ],
+    [
+     "Download one or all",
+     "Download a single clip, or every clip from a video in one ZIP."
+    ]
+   ]
+  },
+  {
+   "id": "account",
+   "name": "Account",
+   "intro": "Alerts where you already are, and the costs in plain view.",
+   "scene": "alerts",
+   "icon": "bell",
+   "items": [
+    [
+     "Alerts on Discord and Telegram",
+     "Get told when clips are ready, with a test button to check it works."
+    ],
+    [
+     "See what AI costs",
+     "An AI usage page shows the tokens behind every video."
+    ],
+    [
+     "Your account, your way",
+     "Google sign-in, email check, password reset, light or dark look, and deleting your account any time."
+    ]
+   ]
+  }
+ ]
+}

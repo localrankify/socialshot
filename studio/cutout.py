@@ -178,18 +178,20 @@ def _run(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, fp
     # the rows that can show, with a short soft edge so the cut line under the head never looks drawn
     keep = max(1, min(h, keep))
     inside = _card_shape(w, h, card) if card else None
-    if card:
+    plain = bool(card and card.get("plain"))
+    out_of_card = None if inside is None or plain else 1.0 - inside   # the card shows its own sharp picture inside
+    if plain:
         keep = h                            # the whole picture; the card's shape decides below the head
     rows = np.zeros((h, 1), np.float32)
     rows[:keep] = 1.0
     fe = max(2, h // 60)
-    if not card:
+    if not plain:
         rows[max(0, keep - fe):keep, 0] = np.linspace(1.0, 0.0, min(fe, keep), dtype=np.float32)
     ft = min(keep, max(2, h // 18))         # the face cam's own top edge often cuts the head: fade it in, no hard line
     rows[:ft, 0] *= np.linspace(0.0, 1.0, ft, dtype=np.float32)
     top = min(h, keep + 2)
     rad = max(3, (w // 90) | 1)
-    lo, span = (0.4, 0.35) if card else (0.3, 0.45)   # on a plain fill a soft edge shows the old background: cut tighter
+    lo, span = (0.4, 0.35) if plain else (0.3, 0.45)   # on a plain fill a soft edge shows the old background: cut tighter
     size, prev, frames = w * h * 3, None, 0
     try:
         head = _Head(w, h)
@@ -207,7 +209,7 @@ def _run(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, fp
             a = _guided(grey, part, rad)
             a = np.clip((a - lo) / span, 0.0, 1.0)                       # a firm edge, still soft over a pixel or two
             a = a * a * (3 - 2 * a) * rows[:top]
-            if card is not None:            # plain: the head may rise anywhere, the body stays inside the card
+            if plain:                       # plain: the head may rise anywhere, the body stays inside the card
                 hw, bw = head.window(img, top, body=True)
                 if hw is not None:
                     a *= np.maximum(hw, bw * inside)
@@ -217,6 +219,8 @@ def _run(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, fp
                 win = head.window(img, top)
                 if win is not None:
                     a *= win
+                if out_of_card is not None:     # only what is outside the card: the head over its top edge and border
+                    a *= out_of_card[:top]
             alpha = np.zeros((h, w), np.uint8)
             alpha[:top] = (a * 255 + 0.5).astype(np.uint8)
             wr.stdin.write(np.dstack([img, alpha]).tobytes() if rgba else alpha.tobytes())
@@ -237,8 +241,9 @@ def matte(src: Path, start: float, dur: float, cam, w: int, h: int, keep: int, o
     """Writes `out`: the person in the face cam part `cam` ([left, top, width, height] of the source) of src from
     start for dur seconds, as a grey video w x h at fps, cropped and scaled exactly like the render's face cam.
     Only the top `keep` rows can show (the part above the card and its rounded top corners); below that it is
-    black, so the card's own picture shows there. With `card` (its "h" and "r": a plain background), the whole
-    person shows instead: the head anywhere, the body only inside the card's shape. True when the matte was made."""
+    black, so the card's own picture shows there, and with `card` ({"h", "r", "b", "plain"}) nothing inside the card's
+    shape either: only what rises out of it. With card["plain"] (a plain background) the whole person shows instead:
+    the head anywhere, the body only inside the card's shape. True when the matte was made."""
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{w}x{h}", "-r", str(fps),
            "-i", "-", "-c:v", "ffv1", str(out)]
     return _run(src, start, dur, cam, w, h, keep, fps, card, cmd) and out.is_file()

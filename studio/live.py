@@ -568,7 +568,8 @@ class Session:
 
     def _add_clip(self, c):
         self.n += 1
-        c.update(id=f"clip{self.n:03d}", style=self.settings["style"], layout=self.settings["layout"],
+        style = self.settings.get("style") or "auto"
+        c.update(id=f"clip{self.n:03d}", style="gamer" if style == "auto" else style, layout=self.settings["layout"],   # Auto: a stream gets the gaming captions
                  status="queued", version=0, made_at=time.time())
         look = jobs.brand_look(self.job.get("user"))
         if look and "look" not in c:
