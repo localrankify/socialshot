@@ -545,34 +545,36 @@ def _ink_for(bg: str) -> tuple:
     return ("#111114", "#55555C") if light else ("#FFFFFF", "#A1A1AA")
 
 
-def _outro_backdrop(o: dict, Wd: int, Hd: int, bg_path):
-    """The card's background: its colour, or the clip's last moment blurred and darkened; then (fx) a purple glow,
-    a soft vignette, fine purple grain, a faint grid that fades out from the middle and a thin inset frame."""
+def _outro_backdrop(o: dict, Wd: int, Hd: int, overlay: bool = False):
+    """The card's background. Plain: its colour. With "blur" the card is a see-through layer instead (overlay=True):
+    it goes over the clip's own last frame, held and blurred in the render (render_clip), so it carries the dark tint
+    that frame gets. Then (fx) a purple glow, a soft vignette, a faint grid that fades out from the middle and a thin
+    inset frame; on a plain card fine purple grain too (over the blurred frame, ffmpeg adds the grain)."""
     import numpy as np
-    from PIL import Image, ImageChops, ImageDraw, ImageFilter
-    img = Image.new("RGB", (Wd, Hd), o["bg"])
-    if o.get("bg_kind") == "blur" and bg_path and Path(bg_path).is_file():
-        try:
-            fr = Image.open(bg_path).convert("RGB")
-            sc = max(Wd / fr.width, Hd / fr.height)
-            fr = fr.resize((max(1, round(fr.width * sc)), max(1, round(fr.height * sc))), Image.LANCZOS)
-            fr = fr.crop(((fr.width - Wd) // 2, (fr.height - Hd) // 2, (fr.width - Wd) // 2 + Wd, (fr.height - Hd) // 2 + Hd))
-            soft = fr.resize((max(1, Wd // 10), max(1, Hd // 10)), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
-            img = Image.blend(soft.resize((Wd, Hd), Image.BICUBIC), Image.new("RGB", (Wd, Hd), (11, 10, 16)), 0.62)
-        except Exception:  # noqa: BLE001 - an unreadable frame: the plain colour
-            pass
-    if not o.get("fx"):
-        return img
+    from PIL import Image, ImageChops, ImageDraw
     u = min(Wd, Hd * 9 / 16) / 1080
-    a = np.asarray(img).astype(np.float32)
     yy, xx = np.mgrid[0:Hd, 0:Wd].astype(np.float32)
     glow = np.clip(1 - np.sqrt((xx - Wd / 2) ** 2 + (yy - Hd * 0.42) ** 2) / (0.8 * Wd), 0, 1) ** 2
-    a = a * (1 - 0.45 * glow[..., None]) + np.array([124, 58, 237], np.float32) * 0.45 * glow[..., None]
-    edge = np.sqrt(((xx - Wd / 2) / Wd) ** 2 + ((yy - Hd / 2) / Hd) ** 2)
-    a *= (1 - 0.5 * np.clip((edge - 0.32) / 0.4, 0, 1))[..., None]
-    grain = np.random.default_rng(7).normal(0, 8.5, (Hd, Wd)).astype(np.float32)
-    a += grain[..., None] * np.array([1.0, 0.82, 1.18], np.float32)        # grain with a purple cast
-    img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).convert("RGBA")
+    vig = np.clip((np.sqrt(((xx - Wd / 2) / Wd) ** 2 + ((yy - Hd / 2) / Hd) ** 2) - 0.32) / 0.4, 0, 1)
+    if overlay:
+        img = Image.new("RGBA", (Wd, Hd), (11, 10, 16, 158))           # the blurred frame, darkened
+        if o.get("fx"):
+            for rgb, al in (((124, 58, 237), 0.45 * glow), ((0, 0, 0), 0.5 * vig)):
+                lay = Image.new("RGBA", (Wd, Hd), rgb + (0,))
+                lay.putalpha(Image.fromarray((al * 255).astype(np.uint8)))
+                img.alpha_composite(lay)
+    else:
+        img = Image.new("RGB", (Wd, Hd), o["bg"])
+        if not o.get("fx"):
+            return img
+        px = np.asarray(img).astype(np.float32)
+        px = px * (1 - 0.45 * glow[..., None]) + np.array([124, 58, 237], np.float32) * 0.45 * glow[..., None]
+        px *= (1 - 0.5 * vig)[..., None]
+        grain = np.random.default_rng(7).normal(0, 8.5, (Hd, Wd)).astype(np.float32)
+        px += grain[..., None] * np.array([1.0, 0.82, 1.18], np.float32)        # grain with a purple cast
+        img = Image.fromarray(np.clip(px, 0, 255).astype(np.uint8)).convert("RGBA")
+    if not o.get("fx"):
+        return img
     lines = Image.new("RGBA", (Wd, Hd), (0, 0, 0, 0))
     ld = ImageDraw.Draw(lines)
     step, cx = max(24, round(108 * u)), Wd // 2
@@ -585,10 +587,12 @@ def _outro_backdrop(o: dict, Wd: int, Hd: int, bg_path):
     m = round(56 * u)
     ImageDraw.Draw(lines).rounded_rectangle((m, m, Wd - m, Hd - m), radius=round(48 * u), outline=(255, 255, 255, 34), width=max(2, round(2 * u)))
     img.alpha_composite(lines)
-    return img.convert("RGB")
+    return img
 
 
-def outro_card(o: dict, pic_path: str, out: Path, bg_path=None):
+def outro_card(o: dict, pic_path: str, out: Path):
+    """The outro card as a picture. With a blurred background it is a see-through PNG laid over the clip's last
+    frame in the render; otherwise a solid picture."""
     from PIL import Image, ImageDraw, ImageFilter, ImageFont
     Wd, Hd = _wh()
     pic = None
@@ -598,8 +602,9 @@ def outro_card(o: dict, pic_path: str, out: Path, bg_path=None):
         except Exception:  # noqa: BLE001
             pic = None
     g = outro_geometry(Wd, Hd, o, pic is not None)
-    img = _outro_backdrop(o, Wd, Hd, bg_path)
-    dark = o.get("bg_kind") == "blur" or o.get("fx")
+    over = o.get("bg_kind") == "blur"
+    img = _outro_backdrop(o, Wd, Hd, overlay=over)
+    dark = over or o.get("fx")
     ink, sub = ("#FFFFFF", "#E4E4E7") if dark else _ink_for(o["bg"])
     if pic is not None:
         ps = g["ps"]
@@ -610,11 +615,16 @@ def outro_card(o: dict, pic_path: str, out: Path, bg_path=None):
         mask = mask.resize(pic.size, Image.LANCZOS)
         alpha = Image.composite(pic.getchannel("A"), Image.new("L", pic.size, 0), mask)
         at = (round((Wd - pic.width) / 2), g["pic_y"] + round((ps - pic.height) / 2))
+        img = img.convert("RGBA")
         if o.get("fx"):                                # a soft shadow under the picture, so it sits on the card
             sh = Image.new("L", (Wd, Hd), 0)
             sh.paste(alpha.point(lambda v: round(v * 0.6)), (at[0], at[1] + round(18 * g["u"])))
-            img.paste(Image.new("RGB", (Wd, Hd), (6, 4, 12)), (0, 0), sh.filter(ImageFilter.GaussianBlur(round(22 * g["u"]))))
-        img.paste(pic.convert("RGB"), at, alpha)
+            shadow = Image.new("RGBA", (Wd, Hd), (6, 4, 12, 0))
+            shadow.putalpha(sh.filter(ImageFilter.GaussianBlur(round(22 * g["u"]))))
+            img.alpha_composite(shadow)
+        face = pic.copy()
+        face.putalpha(alpha)
+        img.alpha_composite(face, at)
     img = img.convert("RGBA")
     d = ImageDraw.Draw(img)
     u = g["u"]
@@ -643,7 +653,7 @@ def outro_card(o: dict, pic_path: str, out: Path, bg_path=None):
                 img.alpha_composite(mk, (x + (dsz - mk.width) // 2, y + (dsz - mk.height) // 2))
             except Exception:  # noqa: BLE001 - a mark that can't be drawn: the empty disc
                 pass
-    img.convert("RGB").save(out, "PNG")
+    (img if over else img.convert("RGB")).save(out, "PNG")
 
 
 # ---------------------------------------------------------------- zoom moments
@@ -2461,16 +2471,9 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             else:
                 pic = (clip.get("logo_path", "") if ot["pic"] == "logo" else str(SOCIALSHOT_MARK) if ot["pic"] == "socialshot"
                        else str(mdir / f"{ot['pic']}.png") if ot["pic"] else "")
-                bgf = None
-                if ot.get("bg_kind") == "blur":        # the clip's last moment, for the blurred background
-                    bgf = work / "outro_bg.jpg"
-                    try:
-                        subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{max(0.0, end - 0.4):.2f}", "-i", str(src),
-                                        "-frames:v", "1", "-q:v", "4", str(bgf)], capture_output=True, timeout=60)
-                    except Exception:  # noqa: BLE001
-                        bgf = None
-                outro_card(ot, pic, work / "outro.png", bgf)
-                outro = {"file": "outro.png", "video": False, "secs": ot["secs"], "main": main}
+                outro_card(ot, pic, work / "outro.png")
+                outro = {"file": "outro.png", "video": False, "secs": ot["secs"], "main": main,
+                         "blur": ot.get("bg_kind") == "blur", "grain": bool(ot.get("fx"))}
         music = None
         mp = Path(clip.get("music_path") or "")
         if look and look["music"]["id"] and mp.is_file():
@@ -2540,7 +2543,20 @@ def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layo
     else:
         fc += f"[{cur}]{post if post else 'null'}[vm]"
     total = end - start if not outro else outro["main"]
-    if outro:                                  # the outro joined after the clip, fading in from the clip's last frame
+    if outro and outro.get("blur"):            # the card over the clip's own last frame, held, blurred and darkened
+        secs, main = outro["secs"], outro["main"]
+        tail = min(0.25, main / 2)
+        sw, sh = max(2, Wd // 16 * 2), max(2, Hd // 16 * 2)     # an eighth of the size, kept even: a cheap, very soft blur
+        extra += still(outro["file"])
+        fc += (f";[vm]format=yuv420p,setsar=1,split[vk][vl];"
+               f"[vl]trim=start={main - tail:.3f},setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={secs + 1:.2f},"
+               f"trim=start={tail:.3f}:duration={secs:.2f},setpts=PTS-STARTPTS,scale={sw}:{sh},gblur=sigma=4,scale={Wd}:{Hd}:flags=bicubic[ob];"
+               f"[{n}:v]format=rgba,trim=duration={secs:.2f},setpts=PTS-STARTPTS,fps={fps},fade=t=in:st=0:d=0.45:alpha=1[oc];"
+               f"[ob][oc]overlay=0:0:shortest=1{',noise=c0s=11' if outro.get('grain') else ''},format=yuv420p,setsar=1[ov];"
+               f"[vk][ov]concat=n=2:v=1:a=0[v]")
+        n += 1
+        total = main + secs
+    elif outro:                                # the outro joined after the clip, fading in from the clip's last frame
         secs = outro["secs"]
         extra += (["-t", f"{secs:.2f}", "-i", outro["file"]] if outro["video"] else still(outro["file"]))
         fc += (f";[{n}:v]trim=duration={secs:.2f},setpts=PTS-STARTPTS,fps={fps},scale={Wd}:{Hd}:force_original_aspect_ratio=decrease,"
