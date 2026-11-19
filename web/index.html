@@ -6143,6 +6143,32 @@ dialog.sd{width:min(940px,calc(100vw - 32px))!important}
 .mk-err .mk-ei svg{width:17px;height:17px}
 .mk-err b{font-size:12.5px;font-weight:600;color:#F4F4F5}
 .mk-err small{font-size:11.5px;color:#8E8E96}
+/* ================= "More clips": the Home options in a window, for one video */
+dialog.mdlg{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:0;border-radius:18px;background:#151517;color:inherit;
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 30px 70px -20px rgba(0,0,0,.8);overflow:hidden}
+dialog.mdlg::backdrop{background:rgba(6,6,8,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.md-in{display:flex;flex-direction:column;max-height:calc(100vh - 48px)}
+.mdlg header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.mdlg header h3{margin:0;font-size:17px;font-weight:600;color:#F4F4F5}
+.mdlg header p{margin:3px 0 0;max-width:640px;font-size:12.5px;color:#8E8E96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.md-body{display:grid!important;gap:14px;padding:16px 20px;overflow-y:auto;scrollbar-width:thin}
+.md-body .o2-sec{margin:0}
+.md-note{display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.08);box-shadow:inset 0 0 0 1px rgba(251,191,36,.2);font-size:12.5px;color:#FCD34D}
+.md-note svg{width:15px;height:15px;flex:none}
+.md-sws{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.mdlg footer{display:flex;align-items:center;gap:8px;padding:14px 20px 16px;border-top:1px solid rgba(255,255,255,.06);background:#131315}
+.md-foot{font-size:12px;color:#8E8E96}
+.mdlg #mdGo{display:inline-flex;align-items:center;gap:7px}.mdlg #mdGo svg{width:15px;height:15px}
+@media (max-width:640px){.md-sws{grid-template-columns:1fr!important}.md-foot{display:none}}
+/* the More clips window: one column, each row the full width */
+.md-body{grid-template-columns:minmax(0,1fr)!important}
+.md-body .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.md-body .o2-lays{grid-template-columns:repeat(9,minmax(0,1fr))!important}
+.md-body .o2-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:720px){.md-body .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))!important}.md-body .o2-lays{grid-template-columns:repeat(5,minmax(0,1fr))!important}.md-body .o2-steps{grid-template-columns:1fr}}
+/* the caption tiles in the More clips window, the same size as in the Home options */
+.md-body .cap-prev{height:42px!important;border-radius:5px}
+.md-body .o2-tile{overflow:hidden}
 </style>
 </head>
 <body>
@@ -7079,6 +7105,55 @@ function drawSchedule() {
   if (typed != null) { const i = $("#schQ"); i.focus(); i.setSelectionRange(typed, typed); }
 }
 
+/* "More clips" on a video: the same choices as the Home options (how many, how long, captions, layout, quality, AI
+   editor, watermark), set to this video's own settings; the new clips are made with what is picked here */
+function moreDialog(j) {
+  const o = j.options || {}, n0 = j.clips.length ? 3 : Math.min(6, o.max_clips || 6);
+  const sw = (id, label, sub, on) => `<div class="o2-sw"><div><b>${label}</b><small>${sub}</small></div><input type="hidden" id="${id}" value="${on ? 1 : 0}">
+      <button type="button" class="o2-switch" role="switch" data-tog="${id}" aria-checked="${!!on}" aria-label="${label}"><i></i></button></div>`;
+  const style = o.style || "auto", lay = o.layout || "blur", q = String(o.quality || 1080);
+  const dlg = document.createElement("dialog");
+  dlg.className = "mdlg"; dlg.id = "moredlg";
+  const left = j.transcribed_to && j.duration ? Math.max(0, Math.round((j.duration - j.transcribed_to) / 60)) : 0;
+  dlg.innerHTML = `<form method="dialog" class="md-in">
+    <header><div><h3>${j.clips.length ? "Make more clips" : "Find clips"}</h3><p>${esc(j.title || j.source?.name || "This video")}</p></div>
+      <button type="button" class="icon-btn" data-md="close" aria-label="Close">${ic("x")}</button></header>
+    <div class="md-body og ox2">
+      ${left ? `<p class="md-note">${ic("clock")}The last ${left} minutes aren't transcribed yet. That's done first, so this takes a little longer.</p>` : ""}
+      <section class="o2-sec"><h5>Clips</h5><div class="o2-steps">
+        ${stepper("m_n", "How many", n0, 1, 10, 1, "")}
+        ${stepper("m_min", "Shortest", o.min_len ?? 15, 5, 120, 5, "s")}
+        ${stepper("m_max", "Longest", o.max_len ?? 60, 10, 180, 5, "s")}</div></section>
+      <section class="o2-sec"><h5>Captions</h5><input type="hidden" id="m_style" value="${esc(style)}">
+        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="m_style" data-v="${esc(k)}" aria-pressed="${k === style}">${capPrev(k)}<span>${esc(v)}</span></button>`).join("")}</div></section>
+      <section class="o2-sec"><h5>Layout</h5><input type="hidden" id="m_layout" value="${esc(lay)}">
+        <div class="o2-lays">${Object.entries(S.status.layouts).map(([k, v]) => `<button type="button" class="o2-tile lay" data-seg="m_layout" data-v="${esc(k)}" aria-pressed="${k === lay}" title="${esc(v)}">${LAY_IC[k] || LAY_IC.blur}<span>${esc(LAYOUT_SHORT[k] || k)}</span></button>`).join("")}</div></section>
+      <section class="o2-sec"><h5>Quality</h5><input type="hidden" id="m_quality" value="${esc(q)}">
+        <div class="o2-seg o2-seg3">${[["720", "720p", "Fast"], ["1080", "1080p", "Sharp"], ["2160", "4K", "Sharpest"]].map(([v, l, sm]) => `<button type="button" data-seg="m_quality" data-v="${v}" aria-pressed="${q === v}">${l}<small>${sm}</small></button>`).join("")}</div></section>
+      <section class="o2-sec o2-sws md-sws">
+        ${sw("m_ai", "AI editor", "Music, zooms and sounds on every clip", o.ai_edit)}
+        ${sw("m_wm", "Source watermark", "“Full video on” + the channel, top corner", o.watermark)}
+      </section>
+    </div>
+    <footer><span class="md-foot">${j.clips.length ? `${j.clips.length} clip${j.clips.length === 1 ? "" : "s"} so far. New ones go next to them.` : "The AI reads the video and clips its best moments."}</span><span class="grow"></span>
+      <button type="button" class="btn" data-md="close">Cancel</button><button type="submit" class="btn primary" id="mdGo">${ic("scissors")}Make clips</button></footer></form>`;
+  document.body.append(dlg);
+  dlg.addEventListener("click", e => { if (e.target.closest("[data-md=close]")) dlg.close(); });
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.addEventListener("submit", async e => {
+    e.preventDefault();
+    const num = id => Number($("#" + id, dlg).value);
+    const go = $("#mdGo", dlg); go.disabled = true;
+    try {
+      const body = {n: num("m_n"), options: {min_len: num("m_min"), max_len: num("m_max"), style: $("#m_style", dlg).value, layout: $("#m_layout", dlg).value,
+        quality: num("m_quality"), ai_edit: $("#m_ai", dlg).value === "1", watermark: $("#m_wm", dlg).value === "1"}};
+      const r = await send(`/api/jobs/${j.id}/more`, body);
+      Object.assign(j, r); setVidFold(j.id, false); dlg.close();
+      toast(`Looking for ${body.n} ${j.clips.length ? "more " : ""}clip${body.n === 1 ? "" : "s"}. They show here when ready.`, "ok"); drawShell(); drawJobs();
+    } catch (er) { toast(er.message, "bad"); go.disabled = false; }
+  });
+  dlg.showModal();
+}
 /* the Schedule dialog: one clip, where it goes, and when (date, time and time zone) */
 function schDialog({job, clip, day, post, hour}) {
   const d = S.sched, tz = schTz();
@@ -9039,15 +9114,7 @@ document.addEventListener("click", async e => {
       render(); toast("Clip deleted", "ok"); return tick();
     }
     if (a === "jfold") { const j = jobOf(d.j); if (j) { setVidFold(j.id, !vidFolded(j)); drawJobs(); } return; }
-    if (a === "jmore") {
-      const j = jobOf(d.j); if (!j) return;
-      try {
-        b.disabled = true;
-        const r = await send(`/api/jobs/${j.id}/more`, j.clips.length ? {n: 3} : {});
-        Object.assign(j, r); setVidFold(j.id, false); toast(j.clips.length ? "Looking for 3 more clips. They show here when ready." : "Finding the best moments. Clips show here when ready.", "ok"); drawShell(); drawJobs();
-      } catch (er) { toast(er.message, "bad"); b.disabled = false; }
-      return;
-    }
+    if (a === "jmore") { const j = jobOf(d.j); if (j) moreDialog(j); return; }
     if (a === "vtoggle") {               // the row opens or closes; its own buttons, links and checkbox do their own thing
       if (e.target.closest("label, input")) return;
       const sec = b.closest("section[data-job]"); if (sec) vToggle(sec, !sec.classList.contains("open")); return;

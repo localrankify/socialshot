@@ -701,10 +701,17 @@ def _overlap(a, b, clips, gap=4.0) -> bool:
     return any(a < c["end"] + gap and b > c["start"] - gap for c in clips)
 
 
-def more_clips(job, n):
+def more_clips(job, n, changes=None):
     """Find `n` more clips in a video (or a live recording) that is already done, next to the ones it has.
-    Reads the saved transcript, so no new transcript is written; the AI picks the best moments it has not used."""
+    Reads the saved transcript (and writes the part not written yet, when the first pass stopped early); the AI picks
+    the best moments it has not used. `changes`: new settings for these clips (length, captions, layout, quality,
+    AI editor, watermark), kept on the video for next time."""
     d = Path(job["dir"])
+    if changes:
+        job["options"] = {**job["options"], **clean_options(changes)}
+        if job["options"]["min_len"] >= job["options"]["max_len"]:
+            job["options"]["max_len"] = job["options"]["min_len"] + 10
+        save(job)
     o = job["options"]
     try:
         words = json.loads((d / "words.json").read_text(encoding="utf-8"))
@@ -723,7 +730,10 @@ def more_clips(job, n):
         db = json.loads((d / "loudness.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         db = None
-    need_audio = (not recording and job["source"].get("type") == "url" and not src_path.is_file())
+    upto = job.get("transcribed_to")
+    end_s = float(o.get("range_end") or dur)
+    rest = upto is not None and not recording and float(upto) < end_s - 5      # a transcript the first pass left short
+    need_audio = (not recording and job["source"].get("type") == "url" and not src_path.is_file()) or rest
     if db is None and from_vod:
         db = [-30.0] * (int(dur) + 2)       # the recording's loudness is gone: the AI goes by the words alone
     if db is None or need_audio:
@@ -742,6 +752,21 @@ def more_clips(job, n):
             f.unlink(missing_ok=True)
         db = [round(float(x), 1) for x in media.loudness_per_second(audio)]
         (d / "loudness.json").write_text(json.dumps(db), encoding="utf-8")
+    if rest and audio is not None:        # the rest of the transcript, a part at a time, kept as it goes
+        x, end = int(float(upto) * 16000), min(len(audio), int(end_s * 16000))
+        step = BLOCK * 16000
+        while x < end:
+            y = min(end, x + step)
+            _set(job, finding=f"Writing the rest of the transcript (minute {round(x / 16000 / 60)} of {round(end / 16000 / 60)})")
+            sh = x / 16000
+            words += [dict(w, s=round(w["s"] + sh, 2), e=round(w["e"] + sh, 2)) for w in transcribe.transcribe(audio[x:y])]
+            words.sort(key=lambda w: w["s"])
+            (d / "words.json").write_text(json.dumps(words), encoding="utf-8")
+            job["transcribed_to"] = round(y / 16000, 2)
+            save(job)
+            x = y
+        job.pop("transcribed_to", None)
+        save(job)
     import numpy as np
     db = np.array(db, dtype=np.float32)
     have = [c for c in job["clips"] if c.get("status") != "error"]
@@ -1077,6 +1102,12 @@ def _run_job(job):
     for bi, (a, b) in enumerate(blocks):
         if bi < done_blocks:
             continue                      # transcribed and checked by the AI before the restart
+        if not yt and len(job["clips"]) >= int(o["max_clips"]):
+            # Every clip asked for is made: the rest of a long video is not transcribed now (for a 10-hour stream
+            # that is most of the wait). "More clips" writes the rest first, when it is wanted.
+            job["transcribed_to"] = round(a / 16000, 2)
+            save(job)
+            break
         shift = a / 16000
         where = f" (minute {round((a - lo) / 16000 / 60)} of {round(span / 60)})" if len(blocks) > 1 else ""
         if yt:

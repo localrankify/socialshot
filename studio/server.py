@@ -1369,7 +1369,7 @@ def job_more(jid: str, body: dict = Body(default={})):
 
     def run():
         try:
-            jobs.more_clips(job, n)
+            jobs.more_clips(job, n, body.get("options") if isinstance(body.get("options"), dict) else None)
         except Exception as e:  # noqa: BLE001
             job.pop("finding", None)
             job["more_error"] = str(e)[:200]
