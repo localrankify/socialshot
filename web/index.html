@@ -5945,6 +5945,63 @@ dialog.sd{width:min(600px,calc(100vw - 32px))!important;max-height:calc(100vh - 
 /* Connected apps: how many accounts each platform has, and how to add one more */
 .appn{margin-left:6px;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.07);font-style:normal;font-size:11px;font-weight:600;color:#C4C4CC;vertical-align:1px}
 .appmore{margin:8px 0 0;font-size:12px;line-height:1.45;color:#8E8E96}
+/* the month fits the page: no scroll box of its own; days are small and only grow when they hold posts.
+   The week keeps its own scroll (its hours run long). */
+.sc-cal3 .sc-gridw{margin:0!important;padding:0 16px 16px;background:transparent!important;box-shadow:none!important;border-radius:0!important;min-height:0}
+.sc-cal3 .sc-gridw.month{max-height:none;overflow-x:auto;overflow-y:hidden}
+.sc-cal3 .sc-gridw.week{max-height:calc(100vh - 300px);overflow:auto;margin:0 16px 16px!important;padding:0;border-radius:12px!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)!important}
+.sc-mg3{gap:6px;grid-auto-rows:auto}
+.sc-mc3{min-height:clamp(54px,calc((100vh - 430px) / 6),88px);padding:7px 7px 6px;border-radius:10px;gap:3px}
+.sc-mc3>b{font-size:12px;line-height:20px}
+.sc-mc3.today>b{min-width:22px;height:22px}
+.sc-mc3 .sc-mchip{height:24px!important}
+/* an empty future day: a faint plus on hover says a clip can be planned here */
+.sc-mc3:not(.out):not(.past):empty::after,.sc-mc3:not(.out):not(.past):has(>b:only-child)::after{content:"+";position:absolute;right:9px;bottom:5px;font-size:15px;line-height:1;color:rgba(255,255,255,0);transition:color .15s ease}
+.sc-mc3:not(.out):not(.past):has(>b:only-child):hover::after{color:rgba(255,255,255,.35)}
+.sc-head3{align-items:center;row-gap:12px;padding:16px 16px 14px}
+.sc-head3 .sc-seg{flex:none}
+@media (max-width:1180px){.sc-legend{display:none}}
+/* ================= Creators: each creator a profile card (banner from their picture, avatar on its edge, live
+   state, numbers, newest clips, channels) in a grid that fills the row */
+.crlist .crgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.crlist .crcard.v3{position:relative;display:flex;flex-direction:column;gap:0;padding:0!important;border:0!important;border-radius:16px!important;background:#161618!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)!important;overflow:hidden;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  transition:box-shadow .18s ease,transform .18s cubic-bezier(.2,.8,.2,1)}
+.crlist .crcard.v3:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 16px 32px -20px rgba(0,0,0,.8)!important}
+.crlist .crcard.v3:active{transform:scale(.99)}
+.crlist .crcard.v3::before,.crlist .crcard.v3::after{display:none!important}
+.cr3-ban{position:relative;display:block;height:78px;overflow:hidden;background:linear-gradient(135deg,#232327,#18181B)}
+.cr3-ban>i{position:absolute;inset:-30px;background-size:cover;background-position:center;filter:blur(22px) saturate(1.3) brightness(.62);transform:scale(1.15)}
+.cr3-ban::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,#161618)}
+.cr3-st{position:absolute;top:10px;right:10px;z-index:1;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;
+  background:rgba(8,8,10,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-size:11.5px;font-weight:600;color:#D4D4D8;white-space:nowrap}
+.cr3-st b{width:6px;height:6px;border-radius:50%;background:#71717A}
+.cr3-st.live{color:#fff}.cr3-st.live b{background:#F43F5E;box-shadow:0 0 0 3px rgba(244,63,94,.25);animation:vc-pulse 1.4s ease-in-out infinite}
+.cr3-st.rec{color:#fff;background:rgba(220,38,38,.75)}.cr3-st.rec b{background:#fff;animation:vc-pulse 1s ease-in-out infinite}
+.cr3-id{position:relative;z-index:1;display:flex;align-items:flex-end;gap:12px;margin-top:-30px;padding:0 16px}
+.cr3-id .avatar{flex:none;width:58px!important;height:58px!important;border-radius:50%;font-size:22px;box-shadow:0 0 0 3px #161618}
+.cr3-id .avatar.ring{box-shadow:0 0 0 3px #161618,0 0 0 5px #F43F5E}
+.cr3-nm{min-width:0;display:grid;gap:2px;padding-bottom:4px}
+.cr3-nm b{font-size:16px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr3-nm small{font-size:12.5px;color:#8E8E96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr3-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:14px 16px 0;border-radius:10px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.cr3-stats>span{display:grid;gap:1px;padding:9px 12px;font-size:11.5px;color:#8E8E96}
+.cr3-stats>span+span{border-left:1px solid rgba(255,255,255,.06)}
+.cr3-stats b{font-size:16px;font-weight:600;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.cr3-stats b.on{color:#4ADE80}
+.cr3-clips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:12px 16px 0;min-height:30px}
+.cr3-clips i{position:relative;aspect-ratio:9/14;border-radius:8px;background-size:cover;background-position:center;background-color:#0E0E10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.cr3-clips i.e{background:rgba(255,255,255,.025)}
+.cr3-clips em{position:absolute;left:4px;bottom:4px;padding:0 4px;border-radius:4px;background:rgba(8,8,10,.75);font-style:normal;font-size:10px;font-weight:600;color:#fff;line-height:15px;font-variant-numeric:tabular-nums}
+.cr3-clips small{grid-column:1/-1;align-self:center;padding:10px 12px;border-radius:10px;border:1px dashed rgba(255,255,255,.1);font-size:12px;color:#8E8E96}
+.cr3-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding:12px 16px 14px}
+.crcard.v3 .crplats{display:flex;gap:6px}
+.crcard.v3 .crplats .logo{width:24px;height:24px;border-radius:7px}
+.crcard.v3 .crplats .logo svg{width:13px;height:13px}
+.crcard.v3 .cropen{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:#A1A1AA;transition:color .15s ease,gap .15s ease}
+.crcard.v3 .cropen svg{width:14px;height:14px}
+.crcard.v3:hover .cropen{color:#fff;gap:6px}
+@media (prefers-reduced-motion:reduce){.cr3-st b{animation:none}}
 </style>
 </head>
 <body>
@@ -6817,7 +6874,7 @@ function drawSchedule() {
         <button class="sc-today3" data-act="schstep" data-d="0">Today</button>
         <div class="sc-arrows"><button data-act="schstep" data-d="-${step}" aria-label="Previous ${view}">${ic("chevl")}</button><button data-act="schstep" data-d="${step}" aria-label="Next ${view}">${ic("chevr")}</button></div>
       </div>
-      <div class="sc-gridw">${grid}</div></section>
+      <div class="sc-gridw ${view}">${grid}</div></section>
       <section class="sc-day3 ${sel < today ? "past" : ""}" data-drop="day:${sel}">
         <div class="sc-dayh3"><h3>${dayLabel(sel, {weekday: "long", day: "numeric", month: "long", year: "numeric"})}</h3>
           <span>${selList.length ? `${selList.length} post${selList.length === 1 ? "" : "s"}` : sel === today ? "Today" : ""}</span></div>
@@ -8120,11 +8177,20 @@ function drawCreators() {
     // the line under the name: their main platform and audience, when we have looked it up
     const pk = plats[0], pr = pk && (c.profiles || {})[pk];
     const who = pk ? [PLAT[pk].name, pr && pr.followers].filter(Boolean).join(" · ") : "No channel yet";
-    return `<button class="crcard v2 ${c.live_job || liveOn(c).length ? "is-live" : ""}" data-act="go" data-v="c:${esc(c.id)}">
-      <span class="crtop">${cav(c)}<span class="crname"><b>${esc(c.name)}</b><small>${esc(who)}</small></span>${statusBadge(c)}</span>
-      <span class="crstats"><span><b>${jobs.length}</b>Videos</span><span><b>${clips}</b>Clips</span><span><b class="${c.auto_watch ? "on" : ""}">${c.auto_watch ? "On" : "Off"}</b>Auto-record</span></span>
-      <span class="crfoot"><span class="crplats">${plats.map(platLogo).join("")}</span><span class="cropen">Open${ic("arrowr")}</span></span>
-      <i class="card-art" aria-hidden="true">${ic(c.live_job ? "rec" : liveOn(c).length ? "radio" : "user")}</i></button>`;
+    // a profile card: their own picture, softly blurred, as the banner; the avatar over its edge; the live state on it;
+    // the numbers; their newest clips as small tiles; and their channels
+    const live = c.live_job || liveOn(c).length, pic = c.profile?.pic && c.profile.channel === c.channel ? avatarUrl(c) : "";
+    const on = liveOn(c)[0], st = c.live_job ? ["rec", "Recording"] : on ? ["live", `Live${on[1].viewers ? " · " + fmtK(on[1].viewers) : ""}`]
+      : !plats.length ? ["", "No channel"] : ["", c.auto_watch ? "Watching" : "Offline"];
+    const recent = jobs.flatMap(j => (j.clips || []).filter(x => x.status === "done").map(x => ({j: j.id, ...x})))
+      .sort((a, b) => (b.made_at || 0) - (a.made_at || 0)).slice(0, 4);
+    return `<button class="crcard v3 ${live ? "is-live" : ""}" data-act="go" data-v="c:${esc(c.id)}" aria-label="Open ${esc(c.name)}">
+      <span class="cr3-ban">${pic ? `<i style="background-image:url('${pic}')"></i>` : ""}<span class="cr3-st ${st[0]}"><b></b>${esc(st[1])}</span></span>
+      <span class="cr3-id">${cav(c)}<span class="cr3-nm"><b>${esc(c.name)}</b><small>${esc(who)}</small></span></span>
+      <span class="cr3-stats"><span><b>${jobs.length}</b>Videos</span><span><b>${clips}</b>Clips</span><span><b class="${c.auto_watch ? "on" : ""}">${c.auto_watch ? "On" : "Off"}</b>Auto-record</span></span>
+      <span class="cr3-clips">${recent.length ? recent.map(x => `<i style="background-image:url('/media/${esc(x.j)}/${esc(x.cover)}?v=${x.version || 0}')"><em>${fmt(x.end - x.start)}</em></i>`).join("")
+        + Array.from({length: 4 - recent.length}, () => `<i class="e"></i>`).join("") : `<small>No clips yet. Open to clip a video or record a stream.</small>`}</span>
+      <span class="cr3-foot"><span class="crplats">${plats.map(platLogo).join("")}</span><span class="cropen">Open${ic("arrowr")}</span></span></button>`;
   };
   // the page: adding a creator at the top, every creator under it (or the usual empty card when there are none)
   const adding = true, n = S.creators.length;
