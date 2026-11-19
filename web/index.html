@@ -5720,6 +5720,67 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .ed .ed-hst.on i{box-shadow:inset 0 0 0 2px var(--accent)}
 .ed .ed-hst.on{color:#F4F4F5}
 .ed .ed-hst>span{padding-left:2px;font-size:11.5px;font-weight:500}
+/* ================= the Videos page: each video a row that opens to show its clips */
+#jobs>section.job.vcard{display:block;padding:0;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:#151517;overflow:hidden;transition:border-color .15s ease}
+#jobs>section.job.vcard:hover{border-color:rgba(255,255,255,.12)}
+#jobs>section.job.vcard.open{border-color:rgba(255,255,255,.1)}
+.vc-head{display:grid;grid-template-columns:18px 104px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px 14px 12px 12px;cursor:pointer;outline:0;transition:background-color .15s ease}
+.vc-head:hover{background:rgba(255,255,255,.018)}
+.vc-head:focus-visible{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--accent) 60%,transparent);border-radius:14px}
+.vc-chev{display:grid;place-items:center;color:#71717A}
+.vc-chev svg{width:16px;height:16px;transform:rotate(-90deg);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.vcard.open .vc-chev svg{transform:none}
+.vc-thumb{position:relative;width:104px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#0E0E10;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.vc-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.vc-thumb .pc-noimg{position:absolute;inset:0;display:grid;place-items:center;color:#52525B}
+.vc-thumb .du{position:absolute;right:4px;bottom:4px;padding:0 5px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff;font-size:10.5px;font-weight:600;line-height:16px;font-variant-numeric:tabular-nums}
+.vc-main{min-width:0}
+.vc-main h3{margin:0;font-size:14px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:5px;font-size:12px;color:#8E8E96}
+.vc-meta span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.vc-meta svg{width:13px;height:13px;opacity:.8}
+.vc-state{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.05);color:#A1A1AA;font-size:12px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+.vc-state.ok{background:rgba(34,197,94,.1);color:#86EFAC}
+.vc-state.work{background:color-mix(in srgb,var(--accent) 14%,transparent);color:color-mix(in srgb,var(--accent) 45%,#fff)}
+.vc-state.bad{background:rgba(239,68,68,.12);color:#FCA5A5}
+.vc-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:vc-pulse 1.4s ease-in-out infinite}
+@keyframes vc-pulse{50%{opacity:.3}}
+.vc-acts{display:flex;align-items:center;gap:4px}
+.vc-acts .vc-open{margin-left:6px}
+.vc-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1)}
+.vcard.open .vc-body{grid-template-rows:1fr}
+.vc-in{min-height:0;overflow:hidden}
+.vc-pad{padding:14px;border-top:1px solid rgba(255,255,255,.05)}
+.vc-pad .pc-forge{min-height:220px}
+.vc-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.vc-strip .pc-clip{gap:0;padding:6px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:rgba(0,0,0,.25)}
+.vc-strip .pc-clip:hover{background:rgba(255,255,255,.05)}
+.vc-strip .pc-clip b{display:block;padding:8px 2px 2px;font-size:12px;font-weight:500;color:#D4D4D8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-all{display:flex;flex-direction:column;justify-content:flex-end;gap:2px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:#18181B;color:#F4F4F5;text-decoration:none;transition:background-color .15s ease}
+.vc-all:hover{background:#1E1E22}
+.vc-peek{display:grid;grid-template-columns:1fr 1fr;gap:4px;flex:1;margin-bottom:8px}
+.vc-peek i{border-radius:6px;background-size:cover;background-position:center;background-color:#0E0E10;min-height:40px}
+.vc-all b{font-size:13px;font-weight:600}
+.vc-all small{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:#8E8E96}
+.vc-all small svg{width:12px;height:12px}
+@media (max-width:1280px){.vc-strip{grid-template-columns:repeat(4,minmax(0,1fr))}.vc-strip>div.pc-t:nth-of-type(n+4){display:none}}
+@media (max-width:760px){
+  .vc-head{grid-template-columns:16px 72px minmax(0,1fr);row-gap:10px}
+  .vc-state{grid-column:2/4;justify-self:start}.vc-acts{grid-column:1/-1;justify-content:flex-end}
+  .vc-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.vc-strip>div.pc-t:nth-of-type(n+2){display:none}
+}
+@media (prefers-reduced-motion:reduce){.vc-body,.vc-chev svg{transition:none}.vc-dot{animation:none}}
+/* expand and collapse every video at once, beside the filters */
+.vexp{display:flex;gap:2px;padding:3px;margin-left:auto;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.vexp button{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:#A1A1AA;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.vexp button:hover{background:rgba(255,255,255,.06);color:#F4F4F5}
+.vexp svg{width:13px;height:13px}
+.vexp button[data-v="0"] svg{transform:rotate(180deg)}
+/* the activity chart: a day with nothing shows a thin mark on the baseline, so all 14 days read as days */
+.chart .b0{fill:rgba(255,255,255,.1)}
+/* an empty post queue: one quiet line, not a big box */
+.q-empty{padding:12px 14px!important;border:1px solid rgba(255,255,255,.06)!important;background:rgba(255,255,255,.02)}
+.q-empty b{font-size:13px!important}.q-empty span{font-size:12px;color:#8E8E96}
 </style>
 </head>
 <body>
@@ -7359,6 +7420,72 @@ function fgDraw(cv, t) {
   }
   g.globalAlpha = 1;
 }
+/* a video on the Videos page as a row that opens: the row says what it is and where it stands; open, its clips.
+   Which rows are open is remembered in this browser. The newest video and anything still working start open. */
+const vOpenMap = () => { if (!S.vopen) { try { S.vopen = JSON.parse(localStorage.getItem("ss_vopen") || "{}"); } catch { S.vopen = {}; } } return S.vopen; };
+const vSaveOpen = () => { try { localStorage.setItem("ss_vopen", JSON.stringify(vOpenMap())); } catch {} };
+function vWorking(j) {
+  return j.status === "queued" || j.status === "running" || !!j.finding || j.clips.some(c => c.status === "queued" || c.status === "rendering");
+}
+function vIsOpen(j, i) { const m = vOpenMap(); return j.id in m ? !!m[j.id] : i === 0 || vWorking(j); }
+function vWhen(j) {
+  const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/.exec(j.id || ""); if (!m) return "";
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]), day = new Date(); day.setHours(0, 0, 0, 0);
+  const t = d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+  return d >= day ? `Today, ${t}` : d >= day - 864e5 ? `Yesterday, ${t}` : d.toLocaleDateString([], {day: "numeric", month: "short"});
+}
+function vCardHtml(j) {
+  const busy = j.status === "queued" || j.status === "running";
+  const who = j.creator ? S.creators.find(c => c.id === j.creator)?.name : "";
+  const ready = j.clips.filter(c => c.status === "done"), total = ready.length;
+  const making = j.clips.filter(c => c.status === "queued" || c.status === "rendering");
+  const name = j.title || j.source?.name || "Untitled video", link = `/app/videos/${encodeURIComponent(j.id)}`;
+  const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="" loading="lazy">`
+    : ready[0] ? `<img src="/media/${esc(j.id)}/${esc(ready[0].cover)}?v=${ready[0].version}" alt="" loading="lazy">`
+    : `<span class="pc-noimg">${ic(j.source?.type === "file" ? "film" : "link")}</span>`;
+  const meta = [who && [ic("user"), who], j.uploader && j.uploader !== who && [ic("radio"), j.uploader], j.duration && [ic("clock"), fmt(j.duration)],
+                j.chat && [ic("chat"), `${j.chat.spikes} chat spike${j.chat.spikes === 1 ? "" : "s"}`], [ic("calendar"), vWhen(j)]]
+    .filter(x => x && x[1]).map(([i, t]) => `<span>${i}${esc(t)}</span>`).join("");
+  const pct = Math.round((j.progress || 0) * 100);
+  const [stCls, stTxt] = j.error ? ["bad", "Didn't finish"] : busy ? ["work", `${j.stage ? esc(j.stage) : "Working"} · ${pct}%`]
+    : j.finding ? ["work", "Finding clips"] : making.length ? ["work", `Making ${making.length} of ${j.clips.length}`]
+    : total ? ["ok", `${total} clip${total === 1 ? "" : "s"} ready`] : ["", "No clips yet"];
+  // open: the clips, a tile each (ready ones, then the ones still being made), and "all clips" when there are more
+  const shown = ready.slice(0, 5);
+  const tiles = shown.map(c => `<div class="pc-t">
+      <button class="pc-clip" data-act="openclip" data-j="${j.id}" data-c="${esc(c.id)}" aria-label="Edit clip: ${esc(c.title || c.hook || "clip")}">
+        <span class="pc-img"><img src="/media/${j.id}/${esc(c.cover)}?v=${c.version}" alt="" loading="lazy"><span class="du">${fmt(c.end - c.start)}</span><i class="pc-play">${ic("play")}</i></span>
+        <b>${esc(c.title || c.hook || "Untitled clip")}</b></button></div>`).join("")
+    + (total ? making.slice(0, Math.max(0, 5 - shown.length)).map(c => `<div class="pc-t">
+      <div class="pc-clip pc-wait" role="status"><span class="pc-img"><i class="jp-spin"></i><small>${c.status === "rendering" ? "Making" : "In line"}</small></span>
+        <b>${esc(c.title || c.hook || "New clip")}</b></div></div>`).join("") : "")
+    + (total > 3 ? `<a class="vc-all" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project to see all ${total} clips">
+        <span class="vc-peek">${ready.slice(0, 4).map(c => `<i style="background-image:url('/media/${j.id}/${esc(c.cover)}?v=${c.version}')"></i>`).join("")}</span>
+        <b>All ${total} clips</b><small>Open project ${ic("arrowr")}</small></a>` : "");
+  const body = busy ? forgeHtml(j)
+    : j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + name + " | " + j.error)}">Report this</button></div>`
+    : total ? `<div class="vc-strip">${tiles}</div>`
+    : j.finding || making.length ? forgeHtml(j, j.finding || `Making ${making.length} clip${making.length === 1 ? "" : "s"}`,
+        j.clips.length ? `${total} of ${j.clips.length} clips ready` : "Reading the video for its best moments")
+    : `<div class="pc-find"><b>No clips from this video yet</b><span>${j.kind === "live" ? "The AI reads the whole recording and clips its best moments." : "The AI can read it again and clip its best moments."}</span>
+        ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}${moreBtn(j)}</div>`;
+  return `<div class="vc-head" data-act="vtoggle" data-j="${j.id}" role="button" tabindex="0" aria-expanded="false" aria-label="Show or hide the clips of ${esc(name)}">
+      <span class="vc-chev" aria-hidden="true">${ic("caret")}</span>
+      <span class="vc-thumb">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</span>
+      <div class="vc-main"><h3 title="${esc(name)}">${esc(name)}</h3><div class="vc-meta">${meta}</div></div>
+      <span class="vc-state ${stCls}">${stCls === "work" ? `<i class="vc-dot"></i>` : ""}${stTxt}</span>
+      <div class="vc-acts">${busy ? "" : `
+        ${total ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${j.id}" title="Download all clips as a zip" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
+        <button class="btn sm icon ghost" data-act="deljob" data-j="${j.id}" title="Delete" aria-label="Delete this video and its clips">${ic("trash")}</button>
+        <label class="selck" title="Select"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
+        <a class="btn sm vc-open" href="${link}" data-act="openproj" data-j="${j.id}">Open${ic("arrowr")}</a></div>
+    </div>
+    <div class="vc-body"><div class="vc-in"><div class="vc-pad">${body}</div></div></div>`;
+}
+function vToggle(sec, open) {
+  sec.classList.toggle("open", open); sec.querySelector(".vc-head")?.setAttribute("aria-expanded", String(open));
+  vOpenMap()[sec.dataset.job] = open; vSaveOpen();
+}
 /* a video as a project card on the Videos page: its details and a peek at the first clips.
    The card opens the project page, which has every clip; a clip in the peek opens straight in the editor. */
 function projHtml(j) {
@@ -7473,6 +7600,7 @@ function drawVBar() {          // drawn once per visit, so typing in the search 
   const bar = $("#vbar"); if (!bar) return;
   S.vfilter = S.vfilter || "all";
   bar.innerHTML = `<div class="vtools"><div class="vfilters" role="tablist">${VFILTERS.map(([k, l]) => `<button role="tab" data-vf="${k}" aria-selected="${S.vfilter === k}">${l}<span class="n" data-vn="${k}"></span></button>`).join("")}</div>
+      <div class="vexp" role="group" aria-label="Show or hide clips"><button type="button" data-act="vall" data-v="1" title="Open every video">${ic("caret")}Expand all</button><button type="button" data-act="vall" data-v="0" title="Close every video">${ic("caret")}Collapse all</button></div>
       <label class="vsearch">${ic("search")}<input id="vq" placeholder="Search your videos" value="${esc(S.vq || "")}" aria-label="Search your videos"><span class="vkbd" aria-label="Shortcut Ctrl plus K"><kbd>Ctrl</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg><kbd>K</kbd></span></label></div>`;
   bar.addEventListener("click", e => { const b = e.target.closest("[data-vf]"); if (!b) return;
     S.vfilter = b.dataset.vf; $$("[data-vf]", bar).forEach(x => x.setAttribute("aria-selected", String(x === b))); drawJobs(); });
@@ -7552,9 +7680,11 @@ function drawJobs() {
   list.forEach((j, i) => {
     let el = $(`section[data-job="${j.id}"]`, root);
     if (!el) { el = document.createElement("section"); el.dataset.job = j.id; }
-    el.className = cards && j.status !== "live" ? "job pcard" : "job";
+    const open = cards && j.status !== "live" && vIsOpen(j, i);
+    el.className = cards && j.status !== "live" ? `job vcard${open ? " open" : ""}` : "job";
     if (root.children[i] !== el) root.insertBefore(el, root.children[i] || null);
-    put(el, cards ? projHtml(j) : jobHtml(j, !!proj));
+    put(el, cards ? (j.status === "live" ? liveHtml(j) : vCardHtml(j)) : jobHtml(j, !!proj));
+    if (cards) el.querySelector(".vc-head")?.setAttribute("aria-expanded", String(open));
   });
 }
 
@@ -7688,8 +7818,10 @@ function barChart(daily) {
   daily.forEach((d, i) => {
     const cx = pl + i * cw + cw / 2, lab = new Date(d.day + "T12:00").toLocaleDateString([], {day:"numeric", month:"short"});
     g += `<g><title>${lab}: ${d.clips} clips made, ${d.posted} posted${d.views ? ", " + d.views.toLocaleString() + " views" : ""}</title>
-      <rect class="b1" x="${cx - bw - 1}" y="${y(d.clips)}" width="${bw}" height="${Math.max(0, ch * d.clips / top)}" rx="3"/>
-      <rect class="b2" x="${cx + 1}" y="${y(d.posted)}" width="${bw}" height="${Math.max(0, ch * d.posted / top)}" rx="3"/>
+      ${d.clips ? `<rect class="b1" x="${cx - bw - 1}" y="${y(d.clips)}" width="${bw}" height="${ch * d.clips / top}" rx="3"/>`
+        : `<rect class="b0" x="${cx - bw - 1}" y="${y(0) - 2}" width="${bw}" height="2" rx="1"/>`}
+      ${d.posted ? `<rect class="b2" x="${cx + 1}" y="${y(d.posted)}" width="${bw}" height="${ch * d.posted / top}" rx="3"/>`
+        : `<rect class="b0" x="${cx + 1}" y="${y(0) - 2}" width="${bw}" height="2" rx="1"/>`}
       <rect x="${pl + i * cw}" y="${pt}" width="${cw}" height="${ch}" fill="transparent"/></g>`;
     if (i % 2 === (n - 1) % 2) g += `<text x="${cx}" y="${H - 8}" text-anchor="middle">${i === n - 1 ? "Today" : lab}</text>`;
   });
@@ -8263,6 +8395,10 @@ document.addEventListener("change", async e => {
   saveCreator(true);
 });
 
+document.addEventListener("keydown", e => {
+  const hd = e.target.closest?.(".vc-head"); if (!hd || e.target !== hd || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault(); const sec = hd.closest("section[data-job]"); if (sec) vToggle(sec, !sec.classList.contains("open"));
+});
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act, d = b.dataset;
@@ -8417,6 +8553,11 @@ document.addEventListener("click", async e => {
       } catch (er) { toast(er.message, "bad"); b.disabled = false; }
       return;
     }
+    if (a === "vtoggle") {               // the row opens or closes; its own buttons, links and checkbox do their own thing
+      if (e.target.closest("label, input")) return;
+      const sec = b.closest("section[data-job]"); if (sec) vToggle(sec, !sec.classList.contains("open")); return;
+    }
+    if (a === "vall") { $$("#jobs>section.vcard").forEach(sec => vToggle(sec, d.v === "1")); return; }
     if (a === "dlall") return zipDownload((jobOf(d.j)?.clips || []).filter(c => c.status === "done").map(c => d.j + "." + c.id));
     if (a === "seldl") return zipDownload(selClips());
     if (a === "selclear") { sel().clear(); return render(); }
