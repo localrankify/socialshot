@@ -25,12 +25,22 @@ LOGO = config.ROOT / "web" / "brand" / "logo-email.png"   # PNG: email apps don'
 LOGO_CID = "peakcut-logo"
 
 
-def _html(title: str, intro: str, button: str, link: str, outro: str, logo_src: str = "cid:" + LOGO_CID) -> str:
+def _html(title: str, intro: str, button: str, link: str, outro: str, logo_src: str = "cid:" + LOGO_CID,
+          steps: tuple = (), why: str = "") -> str:
     """The branded email: logo, a white card with the message and one big button, and a quiet footer.
     Tables and inline styles only, because that is what every email app renders the same way."""
     e = html.escape
     site = config.PUBLIC_URL
     font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+    guide = "".join(
+        f'<tr><td style="padding:0 0 14px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>'
+        f'<td valign="top" style="width:26px;padding-top:1px"><div style="width:22px;height:22px;border-radius:11px;background:#F4EEEA;'
+        f'font-family:{font};font-size:12px;line-height:22px;font-weight:700;color:#A9480A;text-align:center">{k}</div></td>'
+        f'<td style="padding-left:10px;font-family:{font};font-size:15px;line-height:1.55;color:#3A2A20">{e(s)}</td></tr></table></td></tr>'
+        for k, s in enumerate(steps, 1))
+    guide = (f'<tr><td style="padding-bottom:10px;font-family:{font};font-size:13px;font-weight:700;letter-spacing:.02em;color:#2A1A12">'
+             f'How to install</td></tr>{guide}') if steps else ""
+    why = why or "You're getting this because of your SocialShot account. We only email you about your account."
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light only"><title>{e(title)}</title></head>
@@ -48,12 +58,13 @@ def _html(title: str, intro: str, button: str, link: str, outro: str, logo_src: 
           <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;background:#FF8B33">
             <a href="{e(link)}" style="display:inline-block;padding:14px 28px;font-family:{font};font-size:16px;font-weight:700;color:#2A1A12;text-decoration:none;border-radius:12px">{e(button)}</a>
           </td></tr></table></td></tr>
+        {guide}
         <tr><td style="font-family:{font};font-size:14px;line-height:1.6;color:#7A6A60;padding-bottom:22px">{e(outro)}</td></tr>
         <tr><td style="border-top:1px solid #EFE8E3;padding-top:18px;font-family:{font};font-size:12px;line-height:1.6;color:#9C8A7E">
           Button not working? Copy this link into your browser:<br><a href="{e(link)}" style="color:#A9480A;word-break:break-all">{e(link)}</a></td></tr>
       </table></td></tr>
     <tr><td align="center" style="padding:24px 10px 0;font-family:{font};font-size:12px;line-height:1.7;color:#9C8A7E">
-      You're getting this because of your SocialShot account. We only email you about your account.<br>
+      {e(why)}<br>
       <a href="{e(site)}" style="color:#7A6A60;text-decoration:underline">SocialShot</a> &nbsp;·&nbsp;
       <a href="{e(site)}/privacy" style="color:#7A6A60;text-decoration:underline">Privacy</a> &nbsp;·&nbsp;
       <a href="{e(site)}/terms" style="color:#7A6A60;text-decoration:underline">Terms</a></td></tr>
@@ -68,7 +79,8 @@ def preview(title="Confirm your email", intro="Thanks for joining SocialShot. Co
     return _html(title, intro, button, link or config.PUBLIC_URL + "/auth/verify?t=example", outro, logo_src=data)
 
 
-def send(to: str, subject: str, title: str, intro: str, button: str, link: str, outro: str) -> bool:
+def send(to: str, subject: str, title: str, intro: str, button: str, link: str, outro: str,
+         steps: tuple = (), why: str = "") -> bool:
     """Send in the background. Returns False when no mail service is set up (the link goes to the log)."""
     if not ready():
         if config.HTTPS:      # a real site: a sign-in link must never sit in a log file
@@ -82,8 +94,9 @@ def send(to: str, subject: str, title: str, intro: str, button: str, link: str, 
     msg["To"] = to
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid(domain=addr.split("@")[-1] if "@" in addr else None)
-    msg.set_content(f"{title}\n\n{intro}\n\n{button}: {link}\n\n{outro}\n")
-    msg.add_alternative(_html(title, intro, button, link, outro), subtype="html")
+    plain_steps = "".join(f"{k}. {s}\n" for k, s in enumerate(steps, 1))
+    msg.set_content(f"{title}\n\n{intro}\n\n{button}: {link}\n\n" + (f"How to install\n{plain_steps}\n" if steps else "") + f"{outro}\n")
+    msg.add_alternative(_html(title, intro, button, link, outro, steps=steps, why=why), subtype="html")
     if LOGO.is_file():   # the logo travels inside the email, so it shows without loading anything from the web
         msg.get_payload()[1].add_related(LOGO.read_bytes(), maintype="image", subtype="png", cid=f"<{LOGO_CID}>",
                                          filename="socialshot.png", disposition="inline")

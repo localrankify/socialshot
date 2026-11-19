@@ -1328,8 +1328,9 @@ LAYOUTS = {"blur": "Full frame + blurred fill", "zoom": "Zoomed in + blurred fil
            "split": "Split: the stream on top, the face cam below", "card": "Post card: the clip inside a social post",
            "pip": "Picture in picture: one part fills the frame, the face cam in a small box in a corner",
            "trio": "Trio: three parts of the picture stacked, for podcasts with three people",
-           "grid": "Face grid: two to four people, each in a cell of their own, and stretches that show one of them"}
-PARTS = ("split", "pip", "trio", "grid")      # the layouts made of parts of the picture (the split boxes), not one framed shot
+           "grid": "Face grid: two to four people, each in a cell of their own, and stretches that show one of them",
+           "pop": "Pop-out: the face cam in a card, the streamer cut out so their head rises over its top edge"}
+PARTS = ("split", "pip", "trio", "grid", "pop")      # the layouts made of parts of the picture (the split boxes), not one framed shot
 # The split layout cuts two parts out of the source: the gameplay (or whatever is on stream) and the streamer's face
 # cam, and stacks them. Each part is [left, top, width, height] as fractions of the source picture. Most streamers
 # keep their face cam in the bottom-right corner, so that's where it starts; the editor can move both.
@@ -1345,8 +1346,17 @@ SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], 
                  # height the top row takes (%, the line dragged in the editor), and the stretches of the clip that
                  # show something else: {"a", "b"} in source seconds like zooms, "v": "all" or the one person shown
                  # full screen, "share": that stretch's own line (None: the clip's)
-                 "faces": [[0.0, 0.0, 0.5, 1.0], [0.5, 0.0, 0.5, 1.0]], "grid_share": 50, "scenes": []}
+                 "faces": [[0.0, 0.0, 0.5, 1.0], [0.5, 0.0, 0.5, 1.0]], "grid_share": 50, "scenes": [],
+                 # pop-out: the face cam card's shape (rounded rectangle in the face cam's shape, circle, or square),
+                 # its width (% of the frame), its middle once dragged (% of the frame; None: the usual spot), its
+                 # corners (% of its width), its edge (width at 1080 wide; "solid" in c1, or a "gradient" from c1 to
+                 # c2), how much of the face cam picture rises above the card (% of it), and what is behind the
+                 # person inside the card: the face cam's own background ("cam") or a "plain" fill in pop_fill
+                 "pop_shape": "rounded", "pop_size": 70, "pop_x": None, "pop_y": None, "pop_radius": 8, "pop_border": 8,
+                 "pop_edge": "solid", "pop_c1": "#FFFFFF", "pop_c2": "#FF8A1F", "pop_out": 22,
+                 "pop_bg": "cam", "pop_fill": "#FFFFFF"}
 GRID_MAX = 4
+POP_AT = (50.0, 57.0)          # where the pop-out card's middle sits until it is dragged (% of the frame)
 
 
 def _region(v, default):
@@ -1380,6 +1390,14 @@ def clean_split(v) -> dict:
         except (TypeError, ValueError):
             return None
     col = str(v.get("pip_color") or "#FFFFFF")
+
+    def hexc(k, d):
+        c = str(v.get(k) or "")
+        return c.upper() if re.fullmatch(r"#[0-9A-Fa-f]{6}", c) else d
+
+    def num(k, lo, hi):
+        n = pct(k, lo, hi)
+        return int(SPLIT_DEFAULT[k] if n is None else n)
     return {"game": _region(v.get("game"), SPLIT_DEFAULT["game"]), "cam": _region(v.get("cam"), SPLIT_DEFAULT["cam"]),
             "cam_at": "top" if v.get("cam_at") == "top" else "bottom", "share": share,
             "pip_at": v.get("pip_at") if v.get("pip_at") in ("tl", "tr", "bl", "br") else "br", "pip_size": size,
@@ -1390,7 +1408,14 @@ def clean_split(v) -> dict:
             "pip_color": col.upper() if re.fullmatch(r"#[0-9A-Fa-f]{6}", col) else "#FFFFFF",
             "trio": [_region(r, d) for r, d in zip(trio, SPLIT_DEFAULT["trio"])],
             "faces": faces, "grid_share": int(pct("grid_share", 20, 80) if pct("grid_share", 20, 80) is not None else 50),
-            "scenes": clean_scenes(v.get("scenes"), len(faces))}
+            "scenes": clean_scenes(v.get("scenes"), len(faces)),
+            "pop_size": num("pop_size", 40, 90), "pop_x": pct("pop_x", 0, 100), "pop_y": pct("pop_y", 0, 100),
+            "pop_radius": num("pop_radius", 0, 30), "pop_border": num("pop_border", 0, 20),
+            "pop_c1": hexc("pop_c1", SPLIT_DEFAULT["pop_c1"]), "pop_c2": hexc("pop_c2", SPLIT_DEFAULT["pop_c2"]),
+            "pop_out": num("pop_out", 0, 45),
+            "pop_shape": v.get("pop_shape") if v.get("pop_shape") in ("rounded", "circle", "square") else "rounded",
+            "pop_edge": "gradient" if v.get("pop_edge") == "gradient" else "solid",
+            "pop_bg": "plain" if v.get("pop_bg") == "plain" else "cam", "pop_fill": hexc("pop_fill", SPLIT_DEFAULT["pop_fill"])}
 
 
 def _even_faces(n):
@@ -1501,6 +1526,53 @@ def pip_geometry(W, H, split, src_w, src_h) -> dict:
     return {"x": x, "y": y, "w": pw, "h": ph, "b": b, "r": r, "color": sp.get("pip_color", "#FFFFFF")}
 
 
+def pop_geometry(W, H, split, src_w, src_h) -> dict:
+    """The pop-out card in pixels of the frame. The face cam part fills a picture w x t; the card shows its lower
+    h rows at (x, y), and the cut-out person is laid over the whole picture from y - pop, so whatever of them is in
+    the top `pop` rows rises above the card. A rounded card has the face cam's shape; a circle or a square card is
+    as tall as it is wide. b: the edge, r: the corners, color to c2: the edge's colours, fill: the plain background
+    (None: the face cam's own)."""
+    sp = split or SPLIT_DEFAULT
+    pw = int(round(W * sp.get("pop_size", 70) / 100 / 2)) * 2
+    cam, shape, out = sp["cam"], sp.get("pop_shape", "rounded"), sp.get("pop_out", 22)
+    if shape in ("circle", "square"):
+        h = pw
+        t = int(round(h / max(0.5, 1 - out / 100) / 2)) * 2
+        pop = t - h
+    else:
+        ar = (cam[3] * (src_h or 9)) / max(1e-6, cam[2] * (src_w or 16))
+        t = int(round(pw * max(0.8, min(1.6, ar)) / 2)) * 2
+        pop = int(round(t * out / 100 / 2)) * 2
+        h = t - pop
+    b = int(round(sp.get("pop_border", 8) * W / 1080))
+    cx = sp["pop_x"] if sp.get("pop_x") is not None else POP_AT[0]
+    cy = sp["pop_y"] if sp.get("pop_y") is not None else POP_AT[1]
+    x, y = round(W * cx / 100 - pw / 2), round(H * cy / 100 - h / 2)
+    x, y = max(b, min(W - pw - b, x)), max(pop, b, min(H - h - b, y))  # the card, its edge and the head all on the frame
+    r = pw // 2 if shape == "circle" else round(pw * sp.get("pop_radius", 8) / 100)
+    c1 = sp.get("pop_c1") or "#FFFFFF"
+    c2 = (sp.get("pop_c2") or c1) if sp.get("pop_edge") == "gradient" else c1
+    fill = (sp.get("pop_fill") or "#FFFFFF") if sp.get("pop_bg") == "plain" else None
+    return {"x": x, "y": y, "w": pw, "h": h, "t": t, "pop": pop, "b": b, "r": r, "color": c1, "c2": c2, "fill": fill}
+
+
+def pop_ring(g: dict, out: Path):
+    """The pop-out card's edge: a rounded rectangle a little bigger than the card, in one colour or a gradient from
+    left to right (the card covers its middle)."""
+    from PIL import Image, ImageDraw
+    b, w, h = g["b"], g["w"] + 2 * g["b"], g["h"] + 2 * g["b"]
+    a, c = (tuple(int(k[i:i + 2], 16) for i in (1, 3, 5)) for k in (g["color"], g["c2"]))
+    row = Image.new("RGB", (256, 1))
+    for i in range(256):
+        row.putpixel((i, 0), tuple(round(a[j] + (c[j] - a[j]) * i / 255) for j in range(3)))
+    paint = row.resize((w * 2, h * 2), Image.BILINEAR).convert("RGBA")
+    shape = Image.new("L", (w * 2, h * 2), 0)
+    if b:
+        ImageDraw.Draw(shape).rounded_rectangle((0, 0, w * 2 - 1, h * 2 - 1), radius=(g["r"] + b) * 2 if g["r"] else 0, fill=255)
+    paint.putalpha(shape)
+    paint.resize((w, h), Image.LANCZOS).save(out, "PNG")
+
+
 def _trio_heights(H):
     t = int(round(H / 3 / 2)) * 2
     return t, t, H - 2 * t
@@ -1578,6 +1650,10 @@ def geometry(src_w, src_h, layout, split=None):
     if layout == "trio":                 # the hook just above the first seam, the captions on the second
         a, b, _ = _trio_heights(H)
         return layout, H, a - round(H * 0.045), a + b
+    if layout == "pop":                  # the hook up top; the captions under the card, or on its lower part if no room
+        g = pop_geometry(W, H, split, src_w, src_h)
+        below = g["y"] + g["h"] + g["b"] + round(H * 0.055)
+        return layout, H, round(H * 300 / 1920), below if below < H * 0.88 else g["y"] + g["h"] - round(H * 0.07)
     if layout == "pip":                  # like Solo; the captions move up when the small box is at the bottom
         sp = split or SPLIT_DEFAULT
         return layout, H, round(H * 300 / 1920), round(H * (1380 if sp.get("pip_at", "br")[0] == "t" else 1180) / 1920)
@@ -1869,7 +1945,7 @@ def _stroke(layout, fg_h, st, split=None) -> str:
         if iw >= W:                          # the video is as wide as the frame: lines above and below it
             return f"drawbox=x=0:y={max(0, y - b)}:w={W}:h={b}:color={c}:t=fill,drawbox=x=0:y={min(H - b, y + fg_h)}:w={W}:h={b}:color={c}:t=fill"
         return f"drawbox=x={x - b}:y={y - b}:w={iw + 2 * b}:h={fg_h + 2 * b}:color={c}:t={b}"
-    if layout in ("crop", "pip"):
+    if layout in ("crop", "pip", "pop"):
         return f"drawbox=x=0:y=0:w={W}:h={H}:color={c}:t={b}"
     if layout == "split":
         sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
@@ -1934,7 +2010,7 @@ def _filter_in(layout, fg_h, sel="", split=None):
         order = "[g][c]" if sp["cam_at"] == "bottom" else "[c][g]"
         return (f"[0:v]fps={config.OUT_FPS},{sel}split=2[a][b];" + part(sp["game"], gh, "g", "a") + part(sp["cam"], ch, "c", "b")
                 + f"{order}vstack=inputs=2,setsar=1[v0];")
-    if layout in ("pip", "trio"):
+    if layout in ("pip", "trio", "pop"):
         sp = split or getattr(_frame, "split", None) or SPLIT_DEFAULT
         fps = config.OUT_FPS
 
@@ -1948,6 +2024,28 @@ def _filter_in(layout, fg_h, sel="", split=None):
                     + fill(sp["trio"][1], W, hs[1], "b", "t1") + fill(sp["trio"][2], W, hs[2], "c", "t2")
                     + "[t0][t1][t2]vstack=inputs=3,setsar=1[v0];")
         g, inp = _frame.pip_geo, getattr(_frame, "inputs", None) or {}
+        if layout == "pop":
+            # the stream fills the frame; the face cam fills a w x t picture; the card shows its lower part, rounded,
+            # on its edge; then the cut-out person over the whole picture, so their head rises over the card's top
+            g = _frame.pop_geo
+            w, t, h, pop = g["w"], g["t"], g["h"], g["pop"]
+            cut = "matte" in inp
+            plain = cut and g.get("fill")      # plain: the card is one colour and the whole person stands on it
+            if plain:
+                card = (fill(sp["cam"], w, t, "b", "pt") + f"color=c=0x{g['fill'][1:]}:s={w}x{h}:r={fps},format=yuva420p[pq];")
+            else:
+                card = ((fill(sp["cam"], w, t, "b", "pt][pk", ",setsar=1,split=2") if cut else fill(sp["cam"], w, t, "b", "pk"))
+                        + f"[pk]crop={w}:{h}:0:{pop},format=yuva420p[pq];")
+            f = (f"[0:v]fps={fps},{sel}split=2[a][b];" + fill(sp["game"], W, H, "a", "pg") + card
+                 + f"[{inp['round']}:v]format=gray,scale={w}:{h}[pm];"
+                 + f"[pq][pm]alphamerge=shortest=1[pc];"
+                 + f"[{inp['ring']}:v]fps={fps},format=rgba[pr];[pg][pr]overlay={g['x'] - g['b']}:{g['y'] - g['b']}:shortest=1[pg2];"
+                 + f"[pg2][pc]overlay={g['x']}:{g['y']}:shortest=1")
+            if not cut:                       # no cut-out could be made: the card alone
+                return f + ",setsar=1[v0];"
+            return (f + "[pg3];[pt]format=yuva420p[po];"
+                    + f"[{inp['matte']}:v]fps={fps},{sel}format=gray,scale={w}:{t}[pmm];[po][pmm]alphamerge=shortest=1[pp];"
+                    + f"[pg3][pp]overlay={g['x']}:{g['y'] - pop}:shortest=1,setsar=1[v0];")
         return (f"[0:v]fps={fps},{sel}split=2[a][b];" + fill(sp["game"], W, H, "a", "pg")
                 + fill(sp["cam"], g["w"], g["h"], "b", "pq", ",setsar=1,format=yuva420p")
                 + f"[{inp['round']}:v]format=gray,scale={g['w']}:{g['h']}[pm];[pq][pm]alphamerge=shortest=1[pc];"
@@ -2011,7 +2109,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
     finally:
         _frame.wh, _frame.split, _frame.region, _frame.card_geo, _frame.pip_geo = (W, H), None, None, None, None
         _frame.pad, _frame.bg, _frame.inputs, _frame.hook_emoji, _frame.card_blur = 0, None, None, [], False
-        _frame.stroke, _frame.vround, _frame.vring_b, _frame.grid_segs = None, 0, 0, None
+        _frame.stroke, _frame.vround, _frame.vring_b, _frame.grid_segs, _frame.pop_geo = None, 0, 0, None, None
 
 
 def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
@@ -2025,6 +2123,7 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
         split = avoid_cam(split, src_w, src_h, W, H)   # stream part still the whole picture: keep the face cam out of it
     _frame.split = split                       # the split layout's two parts, for the picture step below
     _frame.pip_geo = pip_geometry(W, H, split, src_w, src_h) if clip.get("layout") == "pip" else None
+    _frame.pop_geo = pop_geometry(W, H, split, src_w, src_h) if clip.get("layout") == "pop" else None
     region = look["frame"] if look and clip.get("layout") not in PARTS else None
     _frame.region = region
     fw, fh = (src_w * region[2], src_h * region[3]) if region else (src_w, src_h)   # the shape of what is shown
@@ -2111,6 +2210,16 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             round_mask(g["w"], g["h"], g["r"], work / "round.png")     # radius 0: square
             pip_ring(g, work / "ring.png")
             stills = ["round", "ring"]
+        elif layout == "pop":
+            g = _frame.pop_geo
+            round_mask(g["w"], g["h"], g["r"], work / "round.png")
+            pop_ring(g, work / "ring.png")
+            stills = ["round", "ring"]
+            if g["pop"] + g["r"] > 0 or g["fill"]:     # the person cut out of the face cam, frame by frame (a video)
+                from . import cutout
+                if cutout.matte(src, start, end - start, split["cam"], g["w"], g["t"], g["pop"] + max(g["r"], g["b"]),
+                                work / "matte.mkv", config.OUT_FPS, card=g if g["fill"] else None):
+                    stills.append("matte")
         _frame.inputs = {k: i + 1 for i, k in enumerate(stills)}
         main = out_end - start                       # the clip's length once cuts are out
         mdir = Path(clip.get("media_dir") or "")
@@ -2199,7 +2308,7 @@ def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layo
     still = lambda f: ["-loop", "1", "-framerate", str(fps), "-i", f]   # noqa: E731 - a picture held as video
     # extra inputs, in order: the layout's stills (card, gradient, rounded-corner shape), the placed pictures, the
     # brand badge, the outro, then the music. `n` is the next input's number.
-    extra = [x for k in stills for x in still(f"{k}.png")]
+    extra = [x for k in stills for x in (["-i", "matte.mkv"] if k == "matte" else still(f"{k}.png"))]
     n = 1 + len(stills)
     fc = _filter(layout, fg_h, sel)
     cur = "v0"

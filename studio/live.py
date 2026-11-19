@@ -55,8 +55,14 @@ def resolve(url: str) -> dict:
     if media.is_youtube(url) and media.youtube_paused():
         raise NotLive(media.YT_BLOCKED)
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+        except Exception as e:  # noqa: BLE001 - a members-only stream: once more with the person's own sign-in
+            if not (media.cookie_file() and media.MEMBERS_ONLY.search(str(e))):
+                raise
+            with yt_dlp.YoutubeDL({**opts, "cookiefile": media.cookie_file()}) as ydl:
+                info = ydl.extract_info(url, download=False)
     except Exception as e:  # noqa: BLE001
         if media.note_refusal(url, e):
             raise NotLive(media.YT_BLOCKED) from e
@@ -945,7 +951,7 @@ def start_session(creator: dict, url=None) -> dict:
     url = normalize(url or creator.get("channel") or "")
     if not re.match(r"^https?://[^/]+\.[^/]+/", url + "/"):
         raise ValueError("Add this creator's channel link first.")
-    if active_for(creator["id"]):
+    if creator.get("id") and active_for(creator["id"]):
         raise ValueError("This creator is already being recorded.")
     if not media.site_allowed(url):
         raise ValueError("Channel links must be from YouTube, Twitch or Kick.")
@@ -966,6 +972,24 @@ def start_session(creator: dict, url=None) -> dict:
     jobs.save(job)
     Session(job, creator).start()
     return job
+
+
+def start_quick(url: str, style=None, layout=None) -> dict:
+    """Record a live stream from its link alone: no creator needed. It uses the usual creator settings; the clips are
+    kept as a video of its own on the Videos page."""
+    url = normalize(url or "")
+    if not re.match(r"^https?://[^/]+\.[^/]+/", url + "/"):
+        raise ValueError("Paste the channel or stream link, like twitch.tv/name, kick.com/name or youtube.com/@name.")
+    if any((s.job.get("source") or {}).get("url") == url for s in active_mine()):
+        raise ValueError("This stream is already being recorded.")
+    from . import creators
+    name = (re.sub(r"/(live|videos|streams)/?$", "", url).rstrip("/").split("/")[-1] or "Live stream").lstrip("@")
+    settings = dict(creators.DEFAULTS, name=name, channel=url, id=None)
+    if style:
+        settings["style"] = style
+    if layout:
+        settings["layout"] = layout
+    return start_session(settings, url)
 
 
 def _watch_user(uid):

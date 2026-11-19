@@ -143,6 +143,9 @@ SMTP_HOST = env("PEAKCUT_SMTP_HOST", "")
 SMTP_PORT = int(env("PEAKCUT_SMTP_PORT", "587"))
 SMTP_USER = env("PEAKCUT_SMTP_USER", "")
 MAIL_FROM = env("PEAKCUT_MAIL_FROM", "")
+# Pre-launch: the address of the Windows installer (a GitHub release asset, a bucket, ...). The waitlist email's
+# button and /download/windows send people there. Empty: /download/windows goes back to the home page.
+WINDOWS_DOWNLOAD = env("PEAKCUT_WINDOWS_DOWNLOAD", "").strip()
 CONTACT_EMAIL = env("PEAKCUT_CONTACT_EMAIL", "")
 LEGAL_NAME = env("PEAKCUT_LEGAL_NAME", "")            # the business that runs SocialShot, for the legal pages
 LEGAL_COUNTRY = env("PEAKCUT_LEGAL_COUNTRY", "")      # whose law applies, for the terms

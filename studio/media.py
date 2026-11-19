@@ -21,6 +21,9 @@ YT_PAUSE = 600
 _yt_refused_until = 0.0
 YT_BLOCKED = ("YouTube isn't letting SocialShot download videos right now. Upload the video file instead, or use a "
               "Twitch or Kick link. YouTube links will be tried again in a few minutes.")
+# a video or stream only members or subscribers can watch: the one case the person's own sign-in is used for
+MEMBERS_ONLY = re.compile(r"members.?only|join this channel|available to this channel'?s members|subscriber.?only|"
+                          r"subscribers.?only|only available to .*subscribers|requires? (a )?subscription", re.I)
 _BOT_CHECK = re.compile(r"not a bot|confirm you.?re not|sign in to confirm(?! your age)", re.I)
 
 
@@ -95,10 +98,34 @@ class _Quiet:
     def error(self, m): pass
 
 
+def cookie_file():
+    """The signed-in user's own cookies.txt (exported from their browser), used so the downloader sees what their
+    account can see: members-only streams they subscribe to, age-checked videos. None when there is none."""
+    from . import ctx
+    try:
+        f = config.user_dir(ctx.uid()) / "cookies.txt"
+    except Exception:  # noqa: BLE001 - no user here
+        return None
+    return str(f) if f.is_file() else None
+
+
 def _ydl(opts):
     import yt_dlp
+
+    class _YDL(yt_dlp.YoutubeDL):
+        """Everything is fetched without signing in. Only when a video or stream turns out to be members-only, and the
+        person added their own sign-in, is it tried once more with it."""
+        def extract_info(self, *a, **k):
+            try:
+                return super().extract_info(*a, **k)
+            except Exception as e:  # noqa: BLE001
+                c = cookie_file()
+                if not c or self.params.get("cookiefile") or not MEMBERS_ONLY.search(str(e)):
+                    raise
+                with yt_dlp.YoutubeDL({**self.params, "cookiefile": c}) as signed:
+                    return signed.extract_info(*a, **k)
     # a channel or playlist link is answered as "a list" straight away, never walked video by video
-    return yt_dlp.YoutubeDL({"noplaylist": True, "quiet": True, "no_warnings": True, "logger": _Quiet(),
+    return _YDL({"noplaylist": True, "quiet": True, "no_warnings": True, "logger": _Quiet(),
                              "extract_flat": "in_playlist", "playlistend": 1, "socket_timeout": 20,
                              "concurrent_fragment_downloads": 4, **opts})
 
@@ -121,7 +148,8 @@ def info(url: str) -> dict:
         i = ydl.extract_info(url, download=False)
     return {"title": i.get("title") or "", "uploader": i.get("uploader") or i.get("channel") or "",
             "duration": float(i.get("duration") or 0), "is_live": bool(i.get("is_live")),
-            "thumbnail": i.get("thumbnail") or "", "kind": i.get("_type") or "video"}
+            "thumbnail": i.get("thumbnail") or "", "kind": i.get("_type") or "video",
+            "views": int(i.get("view_count") or 0), "date": str(i.get("upload_date") or "")}
 
 
 def youtube_words(url: str):
@@ -273,7 +301,7 @@ def preview(url: str) -> dict:
         except Exception:
             thumb = ""
     out = {"title": i["title"][:200], "uploader": i["uploader"][:120], "duration": i["duration"],
-           "is_live": i["is_live"], "thumb": thumb}
+           "is_live": i["is_live"], "thumb": thumb, "views": i.get("views", 0), "date": i.get("date", "")}
     if len(_PREVIEWS) > 300:
         _PREVIEWS.pop(next(iter(_PREVIEWS)))
     _PREVIEWS[url] = out

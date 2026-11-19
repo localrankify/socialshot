@@ -278,6 +278,23 @@ def cancel(pid):
     _mirror(p)
 
 
+def delete(pid):
+    """Takes a post off the schedule and the list for good. A waiting one is never posted; one already posted stays
+    on the platform (only SocialShot's record of it goes)."""
+    with _lock:
+        p = next((p for p in _mine() if p["id"] == pid), None)
+        if not p:
+            raise ValueError("That post is already gone.")
+        if p["status"] == "posting":
+            raise ValueError("It's being posted right now. Try again in a moment.")
+        _posts.remove(p)
+        _save()
+    job = jobs.get(p["job"])
+    clip = next((c for c in job["clips"] if c["id"] == p["clip"]), None) if job else None
+    if clip is not None and isinstance(clip.get("posts"), dict) and clip["posts"].pop(pid, None) is not None:
+        jobs.save(job)
+
+
 def retry(pid):
     with _lock:
         p = next((p for p in _mine() if p["id"] == pid), None)

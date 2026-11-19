@@ -48,3 +48,20 @@
     w.addEventListener("pointerleave", () => band.classList.remove("lit"));
   });
 })();
+
+// the menu on phones and tablets: opens under the top bar, closes on a link, a tap outside or Escape
+(() => {
+  const btn = document.querySelector(".nav-burger"), menu = document.getElementById("nav-menu");
+  if (!btn || !menu) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Close the menu" : "Open the menu");
+    if (open) { menu.hidden = false; requestAnimationFrame(() => menu.classList.add("open")); }
+    else { menu.classList.remove("open"); setTimeout(() => { if (btn.getAttribute("aria-expanded") === "false") menu.hidden = true; }, 200); }
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  menu.addEventListener("click", e => { if (e.target.closest("a")) set(false); });
+  addEventListener("keydown", e => { if (e.key === "Escape" && btn.getAttribute("aria-expanded") === "true") { set(false); btn.focus(); } });
+  addEventListener("pointerdown", e => { if (btn.getAttribute("aria-expanded") === "true" && !e.target.closest(".nav-in")) set(false); });
+  matchMedia("(min-width:1001px)").addEventListener("change", e => { if (e.matches) set(false); });
+})();

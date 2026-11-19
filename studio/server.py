@@ -38,7 +38,7 @@ def _quiet(fn):
 
 app = FastAPI(title="SocialShot", docs_url=None, redoc_url=None, openapi_url=None)
 WEB = config.ROOT / "web"
-OPEN = ("/api/auth/", "/pub/", "/api/public", "/auth/google/", "/auth/desktop", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
+OPEN = ("/api/auth/", "/pub/", "/api/public", "/download/", "/auth/google/", "/auth/desktop", "/auth/verify", "/brand/", "/assets/", "/healthz", "/favicon.ico", "/robots.txt", "/sitemap.xml")
 PAGES = {"/": "landing.html", "/login": "auth.html", "/signup": "auth.html", "/reset": "reset.html",
          "/privacy": "legal.html", "/terms": "legal.html", "/acceptable-use": "legal.html"}
 VIDEO_TYPES = {".mp4", ".mov", ".mkv", ".webm", ".m4v", ".ts", ".flv"}
@@ -442,6 +442,54 @@ def favicon():
 def public_config():
     from . import mailer
     return {"google": auth.google_ready(), "mail": mailer.ready(), "verify_email": config.VERIFY_EMAIL}
+
+
+# ================================================================ pre-launch: the Windows app, by email
+WINDOWS_GUIDE = (
+    "Download the installer with the button above. It is a single file, SocialShot-Setup.exe.",
+    "Open it. If Windows shows a blue \"Windows protected your PC\" box, choose More info, then Run anyway. "
+    "New apps see this until enough people have installed them.",
+    "Sign in with Google or your email when SocialShot opens.",
+    "Open Settings, then AI, pick your provider (OpenAI, Gemini, Claude and more) and paste your key. "
+    "Your provider bills your own account for what you use.",
+    "Paste a stream or video link, or add a creator, and press Make clips.",
+)
+
+
+@app.post("/api/public/waitlist")
+def waitlist_join(request: Request, body: dict = Body(...)):
+    """Someone asked for the Windows app: keep their address and email them the download and a short guide."""
+    email = str(body.get("email", "")).strip().lower()[:254]
+    if not auth.EMAIL_RE.match(email):
+        raise HTTPException(400, "That email doesn't look right. Check it and try again.")
+    try:
+        auth.throttle("waitlist:" + _ip(request), 6, 3600)
+        auth.throttle("waitlist-to:" + email, 3, 3600)      # never flood one inbox
+    except auth.AuthError as e:
+        raise HTTPException(429, str(e))
+    from . import mailer
+    now = time.time()
+    w = db.waitlist
+    with db.engine.begin() as c:
+        row = c.execute(sa.select(w).where(w.c.email == email)).first()
+        if row:
+            c.execute(w.update().where(w.c.email == email).values(sent_at=now, sends=w.c.sends + 1))
+        else:
+            c.execute(w.insert().values(email=email, platform="windows", created_at=now, sent_at=now, sends=1))
+    sent = mailer.send(
+        email, "Your SocialShot for Windows download", "SocialShot for Windows is ready",
+        "SocialShot for Windows is free. Here is your download, and five short steps to your first clips. A cloud version is coming in a few days; we'll tell you when it opens.",
+        "Download for Windows", config.PUBLIC_URL + "/download/windows",
+        "Works on Windows 10 and 11. Reply to this email if anything goes wrong and we'll help.",
+        steps=WINDOWS_GUIDE,
+        why="You're getting this because you asked for the SocialShot Windows app. We won't email you about anything else.")
+    return {"ok": True, "sent": sent}
+
+
+@app.get("/download/windows")
+def download_windows():
+    """The waitlist email's button: the installer when it is set, otherwise back to the page that offers it."""
+    return RedirectResponse(config.WINDOWS_DOWNLOAD or "/#get-app", 302)
 
 
 def _signed_in(request: Request, user, first: bool, redirect=None):
@@ -1166,7 +1214,58 @@ def clip_source(jid: str, cid: str):
     return FileResponse(f, media_type="video/mp4", headers={"Cache-Control": "private, max-age=3600"})
 
 
+_popcut_locks: dict = {}
+
+
+@app.get("/api/jobs/{jid}/clips/{cid}/popcut")
+def clip_popcut(jid: str, cid: str, a: float, b: float, cam: str, t: int, keep: int, ch: int = 0, cr: int = 0, cb: int = 0):
+    """The pop-out layout's cut-out person for the editor's live preview, made by the same cut-out as the finished
+    clip: a small see-through WebM, 256 pixels wide and t tall (the face cam picture), from a to b (clip seconds).
+    keep: the rows that may show above and at the top of the card; ch, cr, cb: a plain card's height, corners and
+    edge (ch 0: the face cam's own background). Kept in the clip's folder, so the same settings are made once."""
+    job, clip = _clip_or_404(jid, cid)
+    try:
+        box = [float(v) for v in cam.split(",")]
+        if len(box) != 4:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(400, "That face cam box isn't valid.")
+    box = render._region(box, render.SPLIT_DEFAULT["cam"])
+    w, t = 256, max(128, min(640, int(t) // 2 * 2))
+    keep, ch, cr, cb = max(1, min(t, int(keep))), max(0, min(t, int(ch))), max(0, min(128, int(cr))), max(0, min(40, int(cb)))
+    lo, hi = clip["start"] - 30, clip["end"] + 30
+    a, b = max(lo, min(hi, float(a))), max(lo, min(hi, float(b)))
+    if not b - a >= 0.5 or b - a > 200:
+        raise HTTPException(400, "That part of the clip isn't valid.")
+    home = Path(job["dir"]).resolve()
+    if clip.get("src"):
+        f = home / "clips" / Path(str(clip["src"]).replace("\\", "/")).name
+        f = f.with_suffix(".mp4") if f.suffix.lower() == ".ts" and f.with_suffix(".mp4").is_file() else f
+    else:
+        f = Path(job.get("source_path") or "").resolve()
+    if not f.is_file() or home not in f.resolve().parents:
+        raise HTTPException(404, "The original video for this clip is no longer here.")
+    key = hashlib.sha1(json.dumps([str(f), box, t, keep, ch, cr, cb, round(a, 2), round(b, 2), 3]).encode()).hexdigest()[:16]
+    d = home / "popcut"
+    out = d / f"{cid}-{key}.webm"
+    with _popcut_locks.setdefault(key, threading.Lock()):
+        if not out.is_file():
+            _throttle("popcut:" + ctx.uid(), 40, 600)
+            from . import cutout
+            d.mkdir(exist_ok=True)
+            off = clip.get("src_offset", 0.0)
+            card = {"h": ch, "r": cr, "b": cb} if ch else None
+            if not cutout.preview(f, max(0.0, a - off), b - a, box, w, t, keep, out, 12, card):
+                raise HTTPException(503, "The cut-out preview couldn't be made.")
+            for old in sorted(d.glob(f"{cid}-*.webm"), key=lambda p: p.stat().st_mtime)[:-6]:
+                old.unlink(missing_ok=True)       # a few per clip are kept: going back to a setting is instant
+    return FileResponse(out, media_type="video/webm", headers={"Cache-Control": "private, max-age=3600"})
+
+
 EXPORT_Q = {"web": (28, "3M"), "medium": (24, "6M"), "high": (20, "12M"), "ultra": (17, "20M")}   # quality -> (CRF, top bitrate)
+# export sizes: height -> (width, CRF, top bitrate). 2K and 4K are scaled up from the rendered clip with a sharp filter.
+EXPORT_RES = {"720": (720, 1280, 21, "8M"), "1080": (1080, 1920, 19, "14M"), "1440": (1440, 2560, 18, "24M"), "2160": (2160, 3840, 18, "40M")}
+_exports: dict = {}          # token -> {"user", "pct", "done", "error", "file", "name", "fmt", "at"}
 
 
 @app.post("/api/jobs/{jid}/clips/{cid}/facecam")
@@ -1284,43 +1383,97 @@ def clip_face(jid: str, cid: str, body: dict = Body(default={})):
     return {"x": p[0], "y": p[1]} if p else {"x": None, "y": None}
 
 
-@app.get("/api/jobs/{jid}/clips/{cid}/export")
-def clip_export(jid: str, cid: str, fmt: str = "mp4", fps: int = 30, q: str = "high", speed: float = 1.0):
-    """The saved clip made again with export settings: MP4 or GIF, frame rate, quality, and playback speed.
-    Made from the rendered clip, so captions, hook and brand are already in it."""
+def _export_cmd(src: Path, out: Path, fmt: str, fps: int, q: str, speed: float) -> list:
+    vf = [f"setpts=PTS/{speed}"] if speed != 1 else []
+    if fmt == "gif":                     # a light GIF: at most 15 fps, 480 px wide, the first 20 seconds
+        vf += [f"fps={min(fps, 15)}", "scale=480:-2:flags=lanczos", "split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer"]
+        return ["ffmpeg", "-y", "-v", "error", "-progress", "pipe:1", "-nostats", "-t", str(round(20 * speed, 2)), "-i", str(src),
+                "-filter_complex", ",".join(vf), "-an", str(out)]
+    if q in EXPORT_RES:
+        w, h, crf, top = EXPORT_RES[q]
+        vf.append(f"scale={w}:{h}:flags=lanczos")
+    else:                                # the older quality names
+        crf, top = EXPORT_Q.get(q, EXPORT_Q["high"])
+    vf.append(f"fps={fps}")
+    af = [f"atempo={speed}"] if speed != 1 else []
+    return ["ffmpeg", "-y", "-v", "error", "-progress", "pipe:1", "-nostats", "-i", str(src), "-vf", ",".join(vf), *(["-af", ",".join(af)] if af else []),
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-maxrate", top, "-bufsize", top, "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
+
+
+def _export_run(tok: str, cmd: list, secs: float):
+    """Runs the export and keeps how far along it is (0 to 100), read from ffmpeg's progress lines."""
+    e = _exports[tok]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=media.NO_WINDOW)
+        for line in proc.stdout:
+            if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+                try:
+                    t = int(line.split("=", 1)[1]) / 1e6
+                    e["pct"] = max(e["pct"], min(99, int(t / max(0.1, secs) * 100)))
+                except ValueError:
+                    pass
+        err = proc.stderr.read()
+        proc.wait(timeout=900)
+        if proc.returncode != 0 or not Path(e["file"]).is_file():
+            raise RuntimeError(err[-200:] or "ffmpeg stopped")
+        e.update(pct=100, done=True)
+    except Exception as ex:  # noqa: BLE001
+        Path(e["file"]).unlink(missing_ok=True)
+        e.update(error="The export didn't work: " + str(ex)[-200:], done=True)
+
+
+@app.post("/api/jobs/{jid}/clips/{cid}/export")
+def clip_export_start(jid: str, cid: str, body: dict = Body(default={})):
+    """Starts making the saved clip again with export settings (MP4 or GIF, size, frame rate, speed). Returns a
+    token: /api/exports/{token} says how far along it is, /api/exports/{token}/file gives the finished file."""
     _throttle("export:" + ctx.uid(), 20, 600)
     job, clip = _clip_or_404(jid, cid)
     src = Path(job["dir"]) / "clips" / (clip.get("file") or "")
     if clip.get("status") != "done" or not src.is_file():
         raise HTTPException(400, "Save and render the clip first, then export it.")
-    fmt = "gif" if fmt == "gif" else "mp4"
-    fps = fps if fps in (24, 30, 60) else 30
-    q = q if q in EXPORT_Q else "high"
-    speed = speed if speed in (1.0, 1.25, 1.5, 2.0) else 1.0
-    out = config.TMP_DIR / f"export-{secrets.token_hex(6)}.{fmt}"
-    vf = [f"setpts=PTS/{speed}"] if speed != 1 else []
-    if fmt == "gif":                     # a light GIF: at most 15 fps, 480 px wide, the first 20 seconds
-        vf += [f"fps={min(fps, 15)}", "scale=480:-2:flags=lanczos", "split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer"]
-        cmd = ["ffmpeg", "-y", "-v", "error", "-t", str(round(20 * speed, 2)), "-i", str(src), "-filter_complex", ",".join(vf), "-an", str(out)]
-    else:
-        crf, top = EXPORT_Q[q]
-        vf.append(f"fps={fps}")
-        af = [f"atempo={speed}"] if speed != 1 else []
-        cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vf", ",".join(vf), *(["-af", ",".join(af)] if af else []),
-               "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-maxrate", top, "-bufsize", top, "-pix_fmt", "yuv420p",
-               "-c:a", "aac", "-b:a", "192k" if q == "ultra" else "160k", "-movflags", "+faststart", str(out)]
+    fmt = "gif" if body.get("fmt") == "gif" else "mp4"
+    fps = int(body.get("fps") or 60) if int(body.get("fps") or 60) in (24, 30, 60) else 60
+    q = str(body.get("q") or "1080")
+    q = q if q in EXPORT_RES or q in EXPORT_Q else "1080"
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=600, creationflags=media.NO_WINDOW)
-    except subprocess.TimeoutExpired:
-        out.unlink(missing_ok=True)
-        raise HTTPException(500, "The export took too long. Try a lighter quality.")
-    if p.returncode != 0 or not out.is_file():
-        out.unlink(missing_ok=True)
-        raise HTTPException(500, "The export didn't work: " + (p.stderr or "")[-200:])
-    from starlette.background import BackgroundTask
+        speed = float(body.get("speed") or 1)
+    except (TypeError, ValueError):
+        speed = 1.0
+    speed = speed if speed in (1.0, 1.25, 1.5, 2.0) else 1.0
+    now = time.time()
+    for k in [k for k, v in _exports.items() if now - v["at"] > 3600]:     # forget old exports (and their files)
+        Path(_exports.pop(k)["file"]).unlink(missing_ok=True)
+    tok = secrets.token_hex(8)
+    out = config.TMP_DIR / f"export-{tok}.{fmt}"
+    secs = (min(20.0, (clip["end"] - clip["start"]) / speed) if fmt == "gif" else (clip["end"] - clip["start"]) / speed)
     name = re.sub(r"[^\w\- ]+", "", clip.get("title") or clip.get("hook") or "clip").strip()[:60] or "clip"
-    return FileResponse(out, filename=f"{name}.{fmt}", media_type="image/gif" if fmt == "gif" else "video/mp4",
-                        headers={"Cache-Control": "private, no-store"}, background=BackgroundTask(lambda: out.unlink(missing_ok=True)))
+    _exports[tok] = {"user": ctx.uid(), "pct": 0, "done": False, "error": None, "file": str(out), "name": f"{name}.{fmt}", "fmt": fmt, "at": now}
+    threading.Thread(target=_export_run, args=(tok, _export_cmd(src, out, fmt, fps, q, speed), secs), daemon=True).start()
+    return {"token": tok}
+
+
+def _export_of(tok: str) -> dict:
+    e = _exports.get(tok)
+    if not e or e["user"] != ctx.uid():
+        raise HTTPException(404)
+    return e
+
+
+@app.get("/api/exports/{tok}")
+def export_progress(tok: str):
+    e = _export_of(tok)
+    return {"pct": e["pct"], "done": e["done"], "error": e["error"], "name": e["name"]}
+
+
+@app.get("/api/exports/{tok}/file")
+def export_file(tok: str):
+    e = _export_of(tok)
+    if not e["done"] or e["error"] or not Path(e["file"]).is_file():
+        raise HTTPException(404)
+    # inline: the page reads it and saves it itself (a download header makes some browsers grab it as a download)
+    return FileResponse(e["file"], filename=e["name"], content_disposition_type="inline", media_type="image/gif" if e["fmt"] == "gif" else "video/mp4",
+                        headers={"Cache-Control": "private, no-store"})
 
 
 @app.get("/api/jobs/{jid}/clips/{cid}/captions")
@@ -1716,6 +1869,86 @@ def my_photo(request: Request):
     return FileResponse(got[0], media_type=got[1], headers={"Cache-Control": "private, max-age=86400"})
 
 
+# ---- the profile picture: a photo from the person's computer, or a ready-made avatar (DiceBear, CC0 styles).
+# Avatars are fetched here on the server with random seeds, so nothing about the person is sent anywhere.
+AVATAR_STYLES = ("notionists", "lorelei", "thumbs", "glass", "shapes", "rings")
+_AV_SEED = re.compile(r"^[a-z0-9]{1,24}$")
+
+
+def _photo_save(uid, data: bytes):
+    """Any picture -> a 256 px square PNG kept as the person's profile photo."""
+    import io
+    from PIL import Image, ImageOps
+    try:
+        im = Image.open(io.BytesIO(data))
+        im = ImageOps.exif_transpose(im).convert("RGBA")
+    except Exception:  # noqa: BLE001
+        raise HTTPException(400, "That file isn't a picture we can read. Try a JPG or PNG.")
+    w, h = im.size
+    side = min(w, h)
+    im = im.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2)).resize((256, 256), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "PNG", optimize=True)
+    (config.user_dir(uid) / "photo.img").write_bytes(buf.getvalue())
+    auth._photos.pop(uid, None)
+    return {"photo": auth._photo_stamp(uid)}
+
+
+def _avatar_png(style: str, seed: str) -> bytes:
+    if style not in AVATAR_STYLES or not _AV_SEED.match(seed):
+        raise HTTPException(404)
+    d = config.DATA_DIR / "avatars"
+    f = d / f"{style}-{seed}.png"
+    if f.is_file():
+        return f.read_bytes()
+    import httpx
+    try:
+        r = httpx.get(f"https://api.dicebear.com/9.x/{style}/png", params={"seed": seed, "size": 256}, timeout=12)
+    except Exception:  # noqa: BLE001
+        raise HTTPException(502, "The avatar service didn't answer. Try again.")
+    if r.status_code != 200 or not r.content.startswith(b"\x89PNG") or len(r.content) > 600_000:
+        raise HTTPException(502, "The avatar service didn't answer. Try again.")
+    d.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(r.content)
+    return r.content
+
+
+@app.get("/api/avatars/{style}/{seed}.png")
+def avatar_preview(style: str, seed: str, request: Request):
+    auth.throttle(f"avatar:{_me(request).id if _me(request) else 'anon'}", 120, 60)
+    from fastapi.responses import Response
+    return Response(_avatar_png(style, seed), media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.post("/api/me/photo")
+async def my_photo_upload(request: Request, file: UploadFile = File(...)):
+    u = _me(request)
+    if not u:
+        raise HTTPException(401)
+    data = await file.read(8_000_001)
+    if len(data) > 8_000_000:
+        raise HTTPException(400, "That picture is over 8 MB. Pick a smaller one.")
+    return _photo_save(u.id, data)
+
+
+@app.post("/api/me/photo/avatar")
+def my_photo_avatar(request: Request, body: dict = Body(...)):
+    u = _me(request)
+    if not u:
+        raise HTTPException(401)
+    return _photo_save(u.id, _avatar_png(str(body.get("style", "")), str(body.get("seed", ""))))
+
+
+@app.delete("/api/me/photo")
+def my_photo_delete(request: Request):
+    u = _me(request)
+    if not u:
+        raise HTTPException(401)
+    (config.user_dir(u.id) / "photo.img").unlink(missing_ok=True)
+    auth._photos.pop(u.id, None)
+    return {"photo": 0}
+
+
 @app.get("/api/channel-preview")
 def channel_preview(request: Request, url: str = ""):
     url = url.strip()[:300]
@@ -1827,6 +2060,49 @@ def go_live(cid: str, body: dict = Body(default={})):
         return jobs.public(live.start_session(c, url))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/api/live")
+def go_live_link(body: dict = Body(default={})):
+    """Record a live stream straight from its link, without adding a creator first."""
+    _need_verified()
+    try:
+        return jobs.public(live.start_quick(str((body or {}).get("url") or ""), (body or {}).get("style"), (body or {}).get("layout")))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# the person's own browser cookies (cookies.txt), so recordings and downloads see what their account can see
+@app.get("/api/me/cookies")
+def my_cookies(request: Request):
+    f = config.user_dir(_me(request).id) / "cookies.txt" if _me(request) else None
+    return {"saved": bool(f and f.is_file()), "at": int(f.stat().st_mtime) if f and f.is_file() else 0}
+
+
+@app.post("/api/me/cookies")
+async def my_cookies_put(request: Request, file: UploadFile = File(...)):
+    u = _me(request)
+    if not u:
+        raise HTTPException(401)
+    data = await file.read(2_000_001)
+    text = data.decode("utf-8", "replace")
+    if len(data) > 2_000_000 or not ("# Netscape HTTP Cookie File" in text[:200] or "\t" in text):
+        raise HTTPException(400, "That isn't a cookies.txt file. Export it with a browser extension like \"Get cookies.txt LOCALLY\".")
+    keep = [ln for ln in text.splitlines() if ln.startswith("#") or re.search(r"(youtube\.com|google\.com|twitch\.tv|kick\.com)\t", ln)]
+    if not any(not ln.startswith("#") and ln.strip() for ln in keep):
+        raise HTTPException(400, "No YouTube, Twitch or Kick sign-in found in that file. Sign in there in your browser, then export again.")
+    f = config.user_dir(u.id) / "cookies.txt"
+    f.write_text("# Netscape HTTP Cookie File\n" + "\n".join(ln for ln in keep if not ln.startswith("# Netscape")) + "\n", encoding="utf-8")
+    return {"saved": True, "at": int(f.stat().st_mtime)}
+
+
+@app.delete("/api/me/cookies")
+def my_cookies_del(request: Request):
+    u = _me(request)
+    if not u:
+        raise HTTPException(401)
+    (config.user_dir(u.id) / "cookies.txt").unlink(missing_ok=True)
+    return {"saved": False}
 
 
 @app.post("/api/live/{jid}/stop")
@@ -2071,11 +2347,12 @@ def move_post(pid: str, body: dict = Body(...)):
 @app.post("/api/posts/{pid}/{action}")
 def post_action(pid: str, action: str):
     try:
-        {"cancel": posting.cancel, "retry": posting.retry}[action](pid)
+        {"cancel": posting.cancel, "retry": posting.retry, "delete": posting.delete}[action](pid)
     except KeyError:
         raise HTTPException(404)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    ctx.bump()
     return {"ok": True}
 
 

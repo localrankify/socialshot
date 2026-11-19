@@ -6,10 +6,10 @@
 
 @font-face{font-family:"Geomini";src:url("/brand/Geomini.woff2") format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 @font-face{font-family:"Apfel Grotezk";src:url("/brand/ApfelGrotezk-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Regular.otf") format("opentype");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Medium.otf") format("opentype");font-weight:500;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-SemiBold.otf") format("opentype");font-weight:600;font-style:normal;font-display:swap}
-@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Bold.otf") format("opentype");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Medium.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-SemiBold.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Mazzard H";src:url("/brand/MazzardH-Bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
 
 :root{
   --s0:#0C0C0E;--s1:#141416;--s2:#1C1C1F;--s3:#26262A;--s4:#303035;

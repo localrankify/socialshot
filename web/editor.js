@@ -201,9 +201,31 @@ function paintMeter(v) {
 const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at: "bottom", share: 50, pip_at: "br", pip_size: 36,
   pip_x: null, pip_y: null, pip_shape: "rounded", pip_radius: 10, pip_border: 6, pip_color: "#FFFFFF",
   trio: [[0, 0, 0.3333, 1], [0.3333, 0, 0.3333, 1], [0.6667, 0, 0.3333, 1]],
-  faces: [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]], grid_share: 50, scenes: []};
+  faces: [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]], grid_share: 50, scenes: [],
+  pop_shape: "rounded", pop_size: 70, pop_x: null, pop_y: null, pop_radius: 8, pop_border: 8, pop_edge: "solid", pop_c1: "#FFFFFF",
+  pop_c2: "#FF8A1F", pop_out: 22, pop_bg: "cam", pop_fill: "#FFFFFF"};
 // the layouts made of parts of the picture (the split boxes), not one framed shot (render.PARTS)
-const PARTS = ["split", "pip", "trio", "grid"];
+const PARTS = ["split", "pip", "trio", "grid", "pop"];
+const POP_AT = [50, 57];               // the pop-out card's middle until it is dragged (render.POP_AT)
+const POP_KEYS = ["pop_shape", "pop_size", "pop_x", "pop_y", "pop_radius", "pop_border", "pop_edge", "pop_c1", "pop_c2", "pop_out", "pop_bg", "pop_fill"];
+/* the pop-out card in frame pixels (render.pop_geometry): the face cam fills a w x t picture, the card shows its lower
+   h rows at (x, y), and the cut-out person over the whole picture rises `pop` pixels above the card */
+function popGeo(sp = splitOf()) {
+  const W = OUT_W, H = OUT_H, pw = Math.round(W * (sp.pop_size || 70) / 100 / 2) * 2, c = sp.cam, shape = sp.pop_shape || "rounded", out = sp.pop_out ?? 22;
+  let t, pop, h;
+  if (shape === "circle" || shape === "square") { h = pw; t = Math.round(h / Math.max(0.5, 1 - out / 100) / 2) * 2; pop = t - h; }   // as tall as wide
+  else {
+    const ar = (c[3] * (E.sh || 9)) / Math.max(1e-6, c[2] * (E.sw || 16));
+    t = Math.round(pw * Math.max(0.8, Math.min(1.6, ar)) / 2) * 2; pop = Math.round(t * out / 100 / 2) * 2; h = t - pop;
+  }
+  const b = Math.round((sp.pop_border ?? 8) * W / 1080);
+  const cx = sp.pop_x ?? POP_AT[0], cy = sp.pop_y ?? POP_AT[1];
+  let x = Math.round(W * cx / 100 - pw / 2), y = Math.round(H * cy / 100 - h / 2);
+  x = Math.max(b, Math.min(W - pw - b, x)); y = Math.max(pop, b, Math.min(H - h - b, y));
+  const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_edge === "gradient" ? sp.pop_c2 || c1 : c1;
+  const r = shape === "circle" ? pw / 2 : Math.round(pw * (sp.pop_radius ?? 8) / 100);
+  return {x, y, w: pw, h, t, pop, b, r, c1, c2, fill: sp.pop_bg === "plain" ? sp.pop_fill || "#FFFFFF" : null};
+}
 const isParts = l => PARTS.includes(l);
 // picture in picture's small box, in frame pixels (render.pip_geometry)
 function pipGeo(sp = splitOf()) {
@@ -346,6 +368,10 @@ function geo(layout, sw, sh) {
   if (layout === "trio") { const t = trioH(); return {layout, fg: H, hook: t[0] - Math.round(H * 0.045), cap: t[0] + t[1]}; }
   if (layout === "grid") { const th = gridCells(2, rawSplit().grid_share || 50)[0][3]; return {layout, fg: H, hook: th - Math.round(H * 0.045), cap: th}; }
   if (layout === "pip") return {layout, fg: H, hook: r(300), cap: r((splitOf().pip_at || "br")[0] === "t" ? 1380 : 1180)};
+  if (layout === "pop") {               // render.geometry: the captions under the card, or on its lower part if no room
+    const q = popGeo(), below = q.y + q.h + q.b + Math.round(H * 0.055);
+    return {layout, fg: H, hook: r(300), cap: below < H * 0.88 ? below : q.y + q.h - Math.round(H * 0.07)};
+  }
   const fr = frameRegion();
   if (fr) { sw *= fr[2]; sh *= fr[3]; }          // only the chosen part of the picture is shown
   if (layout === "card") { const cc = cardOf(), cg = cardGeo(W, H, sw || 16, sh || 9, cardText(cc), cc.back !== "none", cc.scale, cc.dx, cc.dy, cc.pad); return {layout, fg: cg.vh, hook: cg.vy, cap: cg.cap, card: cg}; }
@@ -600,6 +626,7 @@ function draw() {
         <button class="ed-ib" data-ed="tour" title="What's new in the editor" aria-label="What's new in the editor">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 17v.01M12 13.5a1.5 1.5 0 0 1 1-1.5a2.6 2.6 0 1 0-3-4"/>')}</button>
         <span class="ed-undo"><button class="ed-ib ed-tip" id="edUndo" data-ed="undo" aria-label="Undo" data-tip="Undo (Ctrl Z)" disabled>${svg('<path d="M9 14l-4-4l4-4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/>')}</button>
           <button class="ed-ib ed-tip" id="edRedo" data-ed="redo" aria-label="Redo" data-tip="Redo (Ctrl Shift Z)" disabled>${svg('<path d="M15 14l4-4l-4-4"/><path d="M19 10H8a4 4 0 1 0 0 8h1"/>')}</button>
+          <button class="ed-ib ed-tip ed-safebtn" data-ed="safe" aria-pressed="${!!E.safe}" aria-label="Safe zones" data-tip="Safe zones: where the app's buttons and text cover the video">${svg('<rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M8 6.5h8v9H8z" stroke-dasharray="2 1.6"/>')}</button>
           <button class="ed-ib ed-tip" data-ed="keys" aria-label="Keyboard shortcuts" data-tip="Keyboard shortcuts (?)">${svg('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>')}</button></span>
       </div>
       <div class="ed-views ed-hviews" id="edViews" role="group" aria-label="What the preview shows"></div>
@@ -805,6 +832,7 @@ function drawPanel() {
       ["crop", "Solo", "One part of the video fills the screen"], ["split", "Face cam split", "The stream on top, the streamer's face cam below"],
       ["pip", "Picture in picture", "One part fills the screen, the face cam in a small box in a corner"], ["trio", "Trio", "Three parts stacked, for three people"],
       ["grid", "Face grid", "Two to four people, each in a cell. Scenes show one person for a stretch"],
+      ["pop", "Pop-out", "The face cam in a card over the stream, the streamer cut out so their head rises over its top"],
       ["card", "Post card", "The clip inside a social post, with your name"]];
     const lic = k => ({blur: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 9h10M7 15h10"/>', zoom: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 7h10M7 17h10"/>',
       crop: '<rect x="7" y="3" width="10" height="18" rx="2" fill="currentColor" fill-opacity=".25"/>', split: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 12h10"/><circle cx="12" cy="16.5" r="1.8"/>'})[k];
@@ -816,6 +844,7 @@ function drawPanel() {
       : k === "pip" ? `<i class="lp-bg" style="${crop(sp.game)};filter:none"></i><i class="lp-pip ${sp.pip_at || "br"}" style="${crop(cam)}"></i>`
       : k === "trio" ? sp.trio.map(r => `<i class="lp-part t" style="${crop(r)}"></i>`).join("")
       : k === "grid" ? gridMini(sp, crop)
+      : k === "pop" ? popMini(sp, crop)
       : k === "card" ? miniCard(bg, cardOf().theme)
       : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${k}" style="${bg}"></i>`;
     const cd = cardOf();
@@ -823,8 +852,8 @@ function drawPanel() {
       <div class="ed-row ed-layacts"><button class="ed-btn" data-ed="tpl">${svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>')}Templates</button>
         <button class="ed-btn" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Frame the video</button></div>
       <div class="ed-lays2">${LAYS.map(([k, l, s]) => `<button data-ed="layout" data-v="${k}" aria-pressed="${E.layout === k}" title="${esc(s)}">
-        <span class="lp-ph ${k} ${k === "split" && sp.cam_at === "top" ? "camtop" : ""}">${mini(k)}${E.layout === k ? `<span class="ed-pck">${ic("check")}</span>` : ""}</span>
-        <b>${l}</b></button>`).join("")}</div>
+        <span class="lp-ph ${k === "pop" ? "popout" : k} ${k === "split" && sp.cam_at === "top" ? "camtop" : ""}">${mini(k)}${E.layout === k ? `<span class="ed-pck">${ic("check")}</span>` : ""}</span>
+        <b>${({split: "Face cam", pip: "PiP", zoom: "Zoomed", card: "Post card", grid: "Face grid", pop: "Pop-out"})[k] || l}</b></button>`).join("")}</div>
       <p class="ed-laynote">${esc((LAYS.find(x => x[0] === E.layout) || LAYS[0])[2])}</p>
       ${split ? `<div class="ed-card"><b>Face cam and stream</b>
         <p class="ed-help">Drag the boxes onto the stream and onto the face cam. Drag the corner to resize.</p>
@@ -832,7 +861,12 @@ function drawPanel() {
           <div class="ed-rg game" data-rg="game"><span>Stream</span><i class="rz"></i></div>
           <div class="ed-rg cam" data-rg="cam"><span>Face cam</span><i class="rz"></i></div></div>
         <div class="ed-f">Face cam goes<div class="ed-seg">${[["bottom", "Below"], ["top", "Above"]].map(([v, l]) => `<button data-ed="splitpos" data-v="${v}" aria-pressed="${sp.cam_at === v}">${l}</button>`).join("")}</div></div>
-        ${slider("Stream part", "split_share", 30, 70, 5, sp.share, sp.share + "%")}
+        <div class="ed-f">Heights <small class="ed-help" style="margin:0">or drag the handle on the line in the video</small></div>
+        <div class="ed-seg">${[[40, "Face bigger"], [50, "Half and half"], [60, "Stream bigger"]].map(([v, l]) => `<button data-ed="splitshare" data-v="${v}" aria-pressed="${sp.share === v}">${l}</button>`).join("")}</div>
+        ${slider("Stream", "split_share", 30, 70, 1, sp.share, sp.share + "%")}
+        <div class="ed-f">Line between them</div>
+        <div class="ed-seg">${[[0, "None"], [4, "Thin"], [8, "Medium"], [14, "Bold"]].map(([v, l]) => `<button data-ed="splitline" data-v="${v}" aria-pressed="${(E.look.stroke || 0) === v}">${l}</button>`).join("")}</div>
+        ${E.look.stroke ? `<div class="ed-swrow">${STROKE_COLS.map(c => `<button class="ed-dot" data-ed="strokecol" data-v="${c}" style="--c:${c}" aria-pressed="${(E.look.stroke_color || "#FFFFFF").toUpperCase() === c}" aria-label="Line colour ${c}"></button>`).join("")}</div>` : ""}
         <button class="ed-link" data-ed="splitreset">Back to the usual spots</button></div>` : ""}
       ${E.layout === "pip" ? pipCard(sp) : ""}
       ${E.layout === "trio" ? `<div class="ed-card"><b>Three parts</b>
@@ -840,6 +874,7 @@ function drawPanel() {
         <div class="ed-row"><button class="ed-btn" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Place the three parts</button>
           <button class="ed-btn ghost" data-ed="trioreset">Back to thirds</button></div></div>` : ""}
       ${E.layout === "grid" ? gridCard(sp) : ""}
+      ${E.layout === "pop" ? popCard(sp) : ""}
       ${E.layout === "blur" || E.layout === "zoom" ? bgCard() : ""}
       ${strokeCard()}
       ${E.layout === "card" ? cardPanel(cd) : ""}`;
@@ -997,12 +1032,13 @@ function drawStage() {
         <video class="ed-fvid" id="edVid" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto"></video>
         ${g.layout === "grid" ? sp.faces.map((_, i) => `<div class="ed-rg f${i}" data-rg="f${i}"><span>${personName(i)}</span><i class="rz"></i></div>`).join("")
           : g.layout === "trio" ? ["Top", "Middle", "Bottom"].map((l, i) => `<div class="ed-rg t${i}" data-rg="t${i}"><span>${l}</span><i class="rz"></i></div>`).join("")
-          : g.layout === "pip" ? `<div class="ed-rg game" data-rg="game"><span>Full screen</span><i class="rz"></i></div>
-          <div class="ed-rg cam" data-rg="cam"><span>Small box</span><i class="rz"></i></div>`
+          : g.layout === "pip" || g.layout === "pop" ? `<div class="ed-rg game" data-rg="game"><span>Full screen</span><i class="rz"></i></div>
+          <div class="ed-rg cam" data-rg="cam"><span>${g.layout === "pop" ? "Face cam card" : "Small box"}</span><i class="rz"></i></div>`
           : split ? `<div class="ed-rg game" data-rg="game"><span>${sp.cam_at === "top" ? "Bottom" : "Top"} part</span><i class="rz"></i></div>
           <div class="ed-rg cam" data-rg="cam"><span>${sp.cam_at === "top" ? "Top" : "Bottom"} part</span><i class="rz"></i></div>`
           : `<div class="ed-rg frame" data-rg="frame"><span>${esc(frameLbl)}</span><i class="rz"></i></div>`}</div>
       <p class="ed-fhelp">${{trio: "Drag each box onto one person. Drag a corner to resize.", grid: "Drag each box onto one person. Drag a corner to resize.", pip: "Drag the boxes: one fills the screen, the other goes in the small box.",
+        pop: "Drag the boxes: one fills the screen, the other goes in the card. Leave room above the head: the top part rises over the card.",
         split: "Drag the boxes onto the stream and onto the face cam. Drag a corner to resize."}[g.layout] || "Drag the box to choose what shows. Drag its corner to zoom in or out."}</p></div>
       <div class="ed-fdock" role="toolbar" aria-label="Frame tools">
         <div class="ed-fgrid" role="radiogroup" aria-label="Layout">${FRAME_LAYS.map(([k, l, v]) => {
@@ -1014,17 +1050,22 @@ function drawStage() {
           `<button data-ed="pipat" data-v="${v}" aria-pressed="${sp.pip_x == null && (sp.pip_at || "br") === v}" aria-label="${l}" title="Small box: ${l.toLowerCase()}"></button>`).join("")}</span><span>Corner</span></div>` : ""}
         ${g.layout === "grid" ? `<div class="ed-fpeople" role="radiogroup" aria-label="People"><span>${[2, 3, 4].map(n => `<button role="radio" data-ed="gridn" data-v="${n}" aria-checked="${sp.faces.length === n}" title="${n} people">${n}</button>`).join("")}</span><small>People</small></div>` : ""}
         <button class="ed-tf" data-ed="framereset" title="Put the boxes back where they started">${svg('<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/>')}<span>Reset</span></button>
-        <button class="ed-tf" data-ed="tab" data-t="layout" title="${{pip: "Face box settings: shape, size, corners, border", trio: "Settings for the three parts", grid: "Grid settings: people, rows and scenes", split: "Settings for the two parts"}[g.layout] || "Layout settings"}">${svg('<path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>')}<span>Settings</span></button></div></div>`
+        <button class="ed-tf" data-ed="tab" data-t="layout" title="${{pip: "Face box settings: shape, size, corners, border", pop: "Card settings: size, corners, border, how far the head pops out", trio: "Settings for the three parts", grid: "Grid settings: people, rows and scenes", split: "Settings for the two parts"}[g.layout] || "Layout settings"}">${svg('<path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>')}<span>Settings</span></button></div></div>`
     : `<div class="ed-phone" id="edPhone" style="--aw:${OUT_W};--ah:${OUT_H}">
       ${E.view === "live" ? `${g.layout === "pip" ? band("edBandG", "edVid", false) + `<div class="ed-band ed-pipb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
+        : g.layout === "pop" ? band("edBandG", "edVid", false) + `<i class="ed-popring" id="edPopRing" aria-hidden="true"></i>`
+          + `<i class="ed-popfill" id="edPopFill" aria-hidden="true"></i><div class="ed-band ed-pipb ed-popb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
+          + `<div class="ed-band ed-popo" id="edBandO" title="Drag to move the card"><video class="ed-bv" id="edVid3" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
+          + `<video class="ed-popcut" id="edPopCut" playsinline preload="auto" muted aria-hidden="true"></video>`
         : g.layout === "trio" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) + band("edBandT", "edVid3", true)
         : g.layout === "grid" ? GRID_V.slice(0, sp.faces.length).map(([b, v], i) => band(b, v, i > 0).replace('class="ed-band"', 'class="ed-band ed-gcell"')).join("")
           + `<button class="ed-gseam" id="edGseam" aria-label="Drag to resize the rows" title="Drag to resize the rows"><i></i></button>`
         : split
         ? (sp.cam_at === "bottom" ? band("edBandG", "edVid", false) + band("edBandC", "edVid2", true) : band("edBandC", "edVid2", true) + band("edBandG", "edVid", false))
+          + `<button class="ed-gseam ed-sseam" id="edSseam" aria-label="Drag to change how much the stream and the face cam take" title="Drag to set the stream and face cam heights"><i></i></button>`
         : `${g.layout === "card" ? `<div class="ed-post" id="edPost"></div>` : `<img class="ed-bg ${g.layout === "crop" ? "none" : ""}" src="/media/${E.jid}/${esc(c.cover || "")}?v=${c.version}" alt="">`}
         <div class="ed-band ed-fgb" id="edFgBox"><video class="ed-bv" id="edVid" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto"></video></div>`}
-        <div class="ed-zgrain" id="edZgrain" hidden></div><span class="ed-zbadge" id="edZbadge" hidden></span><div class="ed-pics" id="edPics"></div><i class="ed-zdot" id="edZdot" hidden></i><div class="ed-outro" id="edOutro" hidden></div>
+        ${E.safe ? safeHtml() : ""}<div class="ed-zgrain" id="edZgrain" hidden></div><span class="ed-zbadge" id="edZbadge" hidden></span><div class="ed-pics" id="edPics"></div><i class="ed-zdot" id="edZdot" hidden></i><div class="ed-outro" id="edOutro" hidden></div>
         <button class="ed-hook" id="edHookBox" data-ed="tab" data-t="text" title="Edit the hook"></button>
         <button class="ed-brand" id="edBrand" data-ed="tab" data-t="brand" title="Edit your brand" hidden></button>
         <div class="ed-cap" id="edCap" title="Drag to move the captions · double-click to change how they look"></div><div class="ed-fade" id="edFade"></div>
@@ -1075,6 +1116,7 @@ function drawStage() {
       : `<div class="ed-making">The original footage for this clip isn't here any more. Use “Saved”.</div>`);
   });
   if (E.view === "frame") placeRegions();
+  placeSafePick();
   E.fgKey = "";
   v.addEventListener("click", togglePlay);
   v.addEventListener("seeked", () => paintOverlay());      // also when animation frames are paused (a background tab)
@@ -1142,11 +1184,12 @@ function follow(t) {             // when zoomed in, keep the playhead in sight w
 }
 /* ---------- export settings: the saved clip made again as MP4 or GIF, at a frame rate, quality and speed.
    A preset per platform picks good settings in one click. The server does the work (/api/.../export). */
-const EX_PRESETS = [["reels", "Instagram Reels", "instagram", {fmt: "mp4", fps: 30, q: "high", speed: 1}],
-  ["shorts", "YouTube Shorts", "youtube", {fmt: "mp4", fps: 30, q: "ultra", speed: 1}],
-  ["tiktok", "TikTok", "tiktok", {fmt: "mp4", fps: 30, q: "high", speed: 1}],
-  ["x", "X", "x", {fmt: "mp4", fps: 30, q: "medium", speed: 1}]];
-const EX_MBPS = {web: 1.0, medium: 1.5, high: 2.1, ultra: 3.2};       // about what each quality comes to (measured), for the estimate
+const EX_PRESETS = [["reels", "Instagram Reels", "instagram", {fmt: "mp4", fps: 60, q: "1080", speed: 1}],
+  ["shorts", "YouTube Shorts", "youtube", {fmt: "mp4", fps: 60, q: "1080", speed: 1}],
+  ["tiktok", "TikTok", "tiktok", {fmt: "mp4", fps: 60, q: "1080", speed: 1}],
+  ["x", "X", "x", {fmt: "mp4", fps: 30, q: "720", speed: 1}]];
+const EX_RES = [["720", "720p"], ["1080", "1080p"], ["1440", "2K"], ["2160", "4K"]];
+const EX_MBPS = {"720": 2.4, "1080": 4.5, "1440": 8, "2160": 14, web: 1.0, medium: 1.5, high: 2.1, ultra: 3.2};   // about what each comes to, for the estimate
 function exSizeMB() {
   const x = E.ex, secs = keptLen() / x.speed;
   if (x.fmt === "gif") return Math.max(0.5, Math.min(secs, 20) * 0.55 * Math.min(x.fps, 15) / 15);
@@ -1165,7 +1208,7 @@ function drawEx() {
     <div class="ed-ex-row"><div class="ed-ex-grp"><span>Format</span>${seg("fmt", [["mp4", "MP4"], ["gif", "GIF"]])}</div>
       <div class="ed-ex-grp"><span>Frame rate</span>${seg("fps", [[24, "24"], [30, "30"], [60, "60 fps"]])}</div></div>
     ${x.fmt === "gif" ? `<p class="ed-ex-note">GIFs have no sound, are 480 px wide and keep the first 20 seconds.</p>`
-      : `<div class="ed-ex-grp"><span>Quality</span>${seg("q", [["web", "Web"], ["medium", "Medium"], ["high", "High"], ["ultra", "Ultra"]])}</div>`}
+      : `<div class="ed-ex-grp"><span>Quality</span>${seg("q", EX_RES)}</div>`}
     <div class="ed-ex-grp"><span>Speed</span>${seg("speed", [[1, "Normal"], [1.25, "1.25×"], [1.5, "1.5×"], [2, "2×"]])}</div>
     ${ready && !c?.unrendered && !dirty() ? "" : `<p class="ed-ex-note">Your latest edits aren't in the video yet. Export renders them first, so you get exactly what the preview shows.</p>`}
     <button class="ed-ex-go pfx" data-ed="exgo" ${!E.exBusy && c?.status !== "rendering" && c?.status !== "queued" ? "" : "disabled"}><i class="pf-fill"></i><span class="pf-l">Confirm and export</span>${ic("arrowr")}</button>
@@ -1191,45 +1234,66 @@ async function exGo() {
       await renderNow();
       if (btn) { clearInterval(btn._pf); btn._pf = 0; }          // the same button carries on with the export
     }
-    if (btn) { btn.disabled = true; pfStart(btn, "Exporting", x.fmt === "gif" ? 8 : Math.max(5, keptLen() * 0.25 / x.speed)); }
-    const q = new URLSearchParams({fmt: x.fmt, fps: x.fps, q: x.q, speed: x.speed});
-    const r = await fetch(`/api/jobs/${E.jid}/clips/${E.cid}/export?${q}`);
-    if (!r.ok) { let m = "The export didn't work."; try { m = (await r.json()).detail || m; } catch {} throw new Error(m); }
+    if (btn) { btn.disabled = true; btn.classList.add("going"); rollLabel(btn, "Exporting 0%"); btn.style.setProperty("--p", "0%"); }
+    const {token} = await send(`/api/jobs/${E.jid}/clips/${E.cid}/export`, {fmt: x.fmt, fps: x.fps, q: x.q, speed: x.speed});
+    let st = {pct: 0, done: false};
+    while (!st.done) {                  // how far along it is, straight from the server, every half second
+      await new Promise(r => setTimeout(r, 450));
+      st = await api(`/api/exports/${token}`);
+      if (btn) { btn.style.setProperty("--p", st.pct + "%"); const l = btn.querySelector(".pf-l"); if (l) l.textContent = `Exporting ${st.pct}%`; }
+      E.exPct = st.pct;
+    }
+    if (st.error) throw new Error(st.error);
+    const r = await fetch(`/api/exports/${token}/file`);
+    if (!r.ok) throw new Error("The export didn't work.");
     const blob = await r.blob();
     const name = (c.title || c.hook || "clip").replace(/[^\w\- ]+/g, "").trim().slice(0, 60) + "." + x.fmt;
     exDoneClear();
     // the finished file stays in the page while the window is open: it plays below, and can be saved again
     E.exDone = {url: URL.createObjectURL(blob), name, size: blob.size, fmt: x.fmt, fps: x.fmt === "gif" ? Math.min(x.fps, 15) : x.fps,
       q: x.q, speed: x.speed, secs: x.fmt === "gif" ? Math.min(20, keptLen() / x.speed) : keptLen() / x.speed};
-    exSave();
     ok = true;
   } catch (er) { toast(er.message, "bad"); }
-  if (btn) pfStop(btn, ok ? "Downloaded" : "Confirm and export", "Confirm and export");
+  if (btn) pfStop(btn, ok ? "Done 100%" : "Confirm and export", "Confirm and export");
   // finished: the full button and "Downloaded" stay a moment, then the window shows the finished file; a failure keeps the settings
   setTimeout(() => { E.exBusy = false; drawEx(); }, ok ? 900 : 300);
 }
-function exSave() {                     // the browser's download of the finished file
+async function exSave() {               // save the finished file: choose the folder where the browser can ask, else a download
   const d = E.exDone; if (!d) return;
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await window.showSaveFilePicker({suggestedName: d.name, types: [{description: d.fmt === "gif" ? "GIF" : "MP4 video",
+        accept: d.fmt === "gif" ? {"image/gif": [".gif"]} : {"video/mp4": [".mp4"]}}]});
+      const w = await h.createWritable(); await w.write(await (await fetch(d.url)).blob()); await w.close();
+      d.saved = h.name; drawEx(); return toast(`Saved as ${h.name}`, "ok");
+    } catch (er) { if (er.name === "AbortError") return; }
+  }
   const a = document.createElement("a"); a.href = d.url; a.download = d.name;
-  document.body.append(a); a.click(); a.remove();
+  document.body.append(a); a.click(); a.remove(); d.saved = d.name; drawEx();
 }
 function exDoneClear() { if (E.exDone) { URL.revokeObjectURL(E.exDone.url); E.exDone = null; } }
 // the finished export: the file playing, what it is, and what to do next
 function exDoneHtml() {
-  const d = E.exDone, gif = d.fmt === "gif", [w, h] = gif ? [480, Math.round(480 * OUT_H / OUT_W)] : [OUT_W, OUT_H];
-  const mb = d.size / 1e6, Q = {web: "Web", medium: "Medium", high: "High", ultra: "Ultra"};
-  return `<header><h3>Your export is ready</h3><button class="ed-ib" data-ed="exclose" aria-label="Close">${ic("x")}</button></header>
+  const d = E.exDone, gif = d.fmt === "gif";
+  let [w, h] = gif ? [480, Math.round(480 * OUT_H / OUT_W)] : [OUT_W, OUT_H];
+  const mb = d.size / 1e6, Q = {web: "Web", medium: "Medium", high: "High", ultra: "Ultra", "720": "720p", "1080": "1080p", "1440": "2K", "2160": "4K"};
+  const R = {"720": [720, 1280], "1440": [1440, 2560], "2160": [2160, 3840]};
+  if (!gif && R[d.q]) [w, h] = R[d.q];
+  const res = gif ? "GIF" : ({"720": "720p", "1080": "1080p", "1440": "2K", "2160": "4K"}[d.q] || `${w}×${h}`);
+  const tile = (l, v) => `<div class="ed-xt"><small>${l}</small><b>${v}</b></div>`;
+  return `<header class="ed-xhead"><span class="ed-xok">${ic("check")}</span><div><h3>Your video is ready</h3>
+      <p>${res} · ${d.fps} fps · ${gif ? "GIF" : "MP4"} · ${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB</p></div>
+      <button class="ed-ib" data-ed="exclose" aria-label="Close">${ic("x")}</button></header>
     <div class="ed-exdone">
       <div class="ed-expv" style="aspect-ratio:${w}/${h}">${gif ? `<img src="${d.url}" alt="The exported GIF">`
         : `<video src="${d.url}" controls autoplay muted loop playsinline></video>`}</div>
       <div class="ed-exinfo">
-        <p class="ed-exok">${ic("check")}Saved to your downloads</p>
-        <b title="${esc(d.name)}">${esc(d.name)}</b>
-        <dl><dt>Format</dt><dd>${gif ? "GIF, no sound" : "MP4"}</dd><dt>Size</dt><dd>${w} × ${h}</dd>
-          <dt>Frame rate</dt><dd>${d.fps} fps</dd>${gif ? "" : `<dt>Quality</dt><dd>${Q[d.q] || d.q}</dd>`}
-          <dt>Length</dt><dd>${ts(d.secs)}${d.speed !== 1 ? ` · ${d.speed}× speed` : ""}</dd><dt>File</dt><dd>${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB</dd></dl>
-        <div class="ed-exacts"><button class="ed-btn" data-ed="exagain">${ic("down")}Download again</button>
-          <button class="ed-btn ghost" data-ed="exnew">Export another way</button></div>
+        <b class="ed-xname" title="${esc(d.name)}">${esc(d.name)}</b>
+        <div class="ed-xtiles">${tile("Resolution", `${w}×${h}`)}${tile("Frame rate", `${d.fps} fps`)}${tile("Quality", Q[d.q] || (gif ? "GIF" : d.q))}
+          ${tile("Length", ts(d.secs) + (d.speed !== 1 ? ` · ${d.speed}×` : ""))}${tile("Format", gif ? "GIF" : "MP4")}${tile("File size", `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`)}</div>
+        ${d.saved ? `<p class="ed-xsaved">${ic("check")}Saved as ${esc(d.saved)}</p>` : ""}
+        <button class="ed-xsave" data-ed="exagain">${ic("down")}${d.saved ? "Save another copy" : "Save to folder…"}</button>
+        <button class="ed-xmore" data-ed="exnew">Export another way</button>
       </div></div>`;
 }
 /* ---------- a border on the video (Layout), drawn the way render._stroke draws it: around the video box
@@ -1243,7 +1307,7 @@ function paintStroke() {
   if (el && el.dataset.k === key) return;
   if (!el) { el = document.createElement("div"); el.id = "edStroke"; el.className = "ed-stroke"; el.setAttribute("aria-hidden", "true"); ph.append(el); }
   el.dataset.k = key;
-  ph.classList.toggle("sq", !!w && (L === "crop" || L === "pip") && E.view === "live");   // the video is square: so is its border
+  ph.classList.toggle("sq", !!w && (L === "crop" || L === "pip" || L === "pop") && E.view === "live");   // the video is square: so is its border
   if (!w || L === "card" || E.view !== "live") { el.innerHTML = ""; return; }
   const k = ph.clientWidth / OUT_W, b = Math.max(2, Math.round(w * OUT_W / 1080 / 2) * 2) * k;
   const line = y => `<i style="left:0;right:0;top:${y * k - b / 2}px;height:${b}px;background:${col}"></i>`;
@@ -1255,7 +1319,7 @@ function paintStroke() {
     const vline = (y0, y1) => `<i style="left:${hw * k - b / 2}px;width:${b}px;top:${y0 * k}px;height:${(y1 - y0) * k}px;background:${col}"></i>`;
     el.innerHTML = line(th) + (n === 3 ? vline(th, OUT_H) : n >= 4 ? vline(0, OUT_H) : ""); return;
   }
-  if (L === "crop" || L === "pip") { el.innerHTML = `<i style="inset:0;box-shadow:inset 0 0 0 ${b}px ${col}"></i>`; return; }
+  if (L === "crop" || L === "pip" || L === "pop") { el.innerHTML = `<i style="inset:0;box-shadow:inset 0 0 0 ${b}px ${col}"></i>`; return; }
   const box = $e("#edFgBox"); if (!box) { el.innerHTML = ""; return; }
   const r = box.getBoundingClientRect(), P = ph.getBoundingClientRect(), rad = parseFloat(box.style.borderRadius) || 0;
   el.innerHTML = r.width >= P.width - 1 ? line((r.top - P.top) / k - b / k / 2) + line((r.bottom - P.top) / k + b / k / 2)
@@ -1264,7 +1328,7 @@ function paintStroke() {
 function strokeCard() {
   if (E.layout === "card") return "";
   const w = E.look.stroke || 0, col = E.look.stroke_color || "#FFFFFF";
-  const where = {blur: "Around the video", zoom: "Around the video", crop: "Along the edge of the frame", pip: "Along the edge of the frame",
+  const where = {blur: "Around the video", zoom: "Around the video", crop: "Along the edge of the frame", pip: "Along the edge of the frame", pop: "Along the edge of the frame",
     split: "On the line between the two parts", trio: "On the lines between the parts", grid: "On the lines between the people"}[E.layout] || "";
   return `<div class="ed-card ed-strokeset"><div class="ed-h"><b>Border</b><small class="ed-pipnote">${where}</small></div>
     <label class="ed-sl" style="--p:${pctOf(w, 0, 24)}"><input type="range" min="0" max="24" step="1" value="${w}" data-stroke aria-label="Border width"><span class="ed-sl-l">Width</span><output>${w || "None"}</output></label>
@@ -1679,6 +1743,64 @@ function emojiPicker() {
 }
 const hookCase = (t, how) => how === "upper" ? t.toUpperCase() : how === "lower" ? t.toLowerCase()
   : how === "title" ? t.split(" ").map(w => /^\p{L}/u.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join(" ") : t;
+/* ---------- safe zones: where each app's own buttons, names and captions sit on top of a short. Only shown in the
+   preview, never in the video, so text and faces can be kept clear of them. */
+// Each app's safe area on a 9:16 frame, in %: [name, top, right, bottom, left, right beside the buttons, where the buttons
+// start]. The upper part runs almost to the right edge; from the buttons down, their column on the right is kept clear
+// (Instagram's own Reels guide: 12% top, 15% bottom, the like/comment/share column the lower half's right 18%).
+const SAFE_ZONES = {instagram: ["Instagram Reels", 12, 4, 15, 3.5, 18, 50], tiktok: ["TikTok", 8.5, 4, 20, 4, 15, 42],
+  youtube: ["YouTube Shorts", 8, 4, 20, 4, 16, 45]};
+const safePick = () => { try { const v = localStorage.getItem("ed_safe"); return SAFE_ZONES[v] ? v : "instagram"; } catch { return "instagram"; } };
+// the AI editor's last step: the hook and the captions moved inside the safe area of the app chosen (Instagram by default),
+// kept from covering each other, and lines too wide for their part of the safe area made to fit. Works for every layout.
+function aiSafe() {
+  const k = SAFE_ZONES[E.safe] ? E.safe : safePick(), [name, t, r, b, l, rr, rf] = SAFE_ZONES[k];
+  const L = E.look, g = geo(E.layout, E.sw, E.sh), ph = $e("#edPhone"), P = ph && ph.getBoundingClientRect();
+  const meas = (sel, fb) => { const el = $e(sel), q = el && !el.hidden && el.textContent.trim() ? el.getBoundingClientRect() : null;
+    return q && q.height > 2 && P ? [q.width / P.width * 100, q.height / P.height * 100] : fb; };
+  const [hw, hh] = meas("#edHookBox", [80, (L.hook_size || 88) * 1.6 / OUT_H * 100]);
+  const [cw, ch] = meas("#edCap", [80, (L.size || 96) * 1.4 / OUT_H * 100]);
+  const top = t + 1, bot = 100 - b - 1;
+  const fit = (y, h) => Math.max(top + h / 2, Math.min(bot - h / 2, y));
+  const moved = new Set(), r1 = v => Math.round(v * 10) / 10;
+  let hy = L.hook !== false ? (L.hook_y ?? g.hook / OUT_H * 100) : null;
+  if (hy != null) { const n = fit(hy, hh); if (Math.abs(n - hy) > 0.4) { L.hook_y = r1(n); hy = n; moved.add("hook"); } }
+  const cy = L.y ?? g.cap / OUT_H * 100;
+  let ny = fit(cy, ch);
+  if (hy != null && Math.abs(ny - hy) < (hh + ch) / 2 + 1) {           // on top of the hook: just under it, or above if no room
+    const under = hy + (hh + ch) / 2 + 2;
+    ny = under + ch / 2 <= bot ? under : fit(hy - (hh + ch) / 2 - 2, ch);
+  }
+  if (Math.abs(ny - cy) > 0.4) { L.y = r1(ny); moved.add("captions"); }
+  // how wide the safe area is at a height: narrower beside the app's buttons
+  const span = (y, h) => { const right = y + h / 2 > rf ? 100 - rr : 100 - r; return [l, right]; };
+  const fitW = (key, y, h, w, sizeKey, base, min, xKey) => {
+    const [lo, hi] = span(y, h), room = hi - lo - 3, mid = r1((lo + hi) / 2);
+    if (w > room) { L[sizeKey] = Math.max(min, Math.floor((L[sizeKey] || base) * room / w)); moved.add(key); }
+    if (Math.min(w, room) > room * 0.7 && Math.abs((L[xKey] ?? 50) - mid) > 0.5) { L[xKey] = mid; moved.add(key); }
+  };
+  fitW("captions", L.y ?? cy, ch, cw, "size", 96, 48, "x");
+  if (hy != null && L.hook_banner !== "full") fitW("hook", hy, hh, hw, "hook_size", 88, 50, "hook_x");
+  return {name, moved: [...moved]};
+}
+// the safe zones drawn on the preview (only there, never in the video): the covered parts striped, the safe area outlined
+function safeHtml() {
+  const k = SAFE_ZONES[E.safe] ? E.safe : "instagram", [, t, r, b, l, rr, rf] = SAFE_ZONES[k];
+  const path = `M${l} ${t}H${100 - r}V${rf}H${100 - rr}V${100 - b}H${l}Z`;
+  return `<div class="ed-safe" id="edSafe" style="--st:${t}%;--sr:${r}%;--sb:${b}%;--sl:${l}%;--srr:${rr}%;--srf:${rf}%" aria-hidden="true">
+    <i class="sz t"></i><i class="sz b"></i><i class="sz l"></i><i class="sz r"></i><i class="sz rr"></i>
+    <svg class="ed-safeline" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${path}"/></svg><em class="ed-safetag">Safe area</em>
+    <span class="ed-saferail"><i></i><i></i><i></i><i></i></span>
+    <span class="ed-safecap"><b></b><i></i><i class="s"></i></span></div>`;
+}
+// the app picker sits above the video, not on it
+function placeSafePick() {
+  $e("#edSafePick")?.remove();
+  const st = $e("#edStage"); if (!st || !E.safe || E.view !== "live") return;
+  const k = SAFE_ZONES[E.safe] ? E.safe : "instagram";
+  st.insertAdjacentHTML("beforeend", `<div class="ed-safepick" id="edSafePick" role="radiogroup" aria-label="Safe zones for">${Object.entries(SAFE_ZONES).map(([key, [name]]) =>
+    `<button role="radio" data-ed="safeset" data-v="${key}" aria-checked="${key === k}">${name.split(" ")[0]}</button>`).join("")}</div>`);
+}
 /* ---------- AI edit at work: a team of small cursors, each in its own colour and each working in its own part of
    the editor (captions on the caption row and the captions on the video, music on the music row, the layout in the
    Layout panel...). A guide walks the side panel through Captions, Layout, Effects and Audio so the panel work shows.
@@ -1699,7 +1821,8 @@ const AI_HANDS = [
   {l: "Transcript", c: "#93C5FD", zone: ["#edTxBody"], item: "#edTxBody"},
   {l: "Pacing", c: "#FDBA74", zone: [".ed-lane.caps", ".ed-ruler"]},
   {l: "Brand", c: "#CBD5E1", tab: "brand", zone: ["#edPhone"]},
-  {l: "Review", c: "#FFFFFF", zone: ["#edPhone", "#edTxBody", ".ed-lane.film"]}];
+  {l: "Review", c: "#FFFFFF", zone: ["#edPhone", "#edTxBody", ".ed-lane.film"]},
+  {l: "Safe zones", c: "#F87171", zone: ["#edSafe .ed-safeline", "#edHookBox", "#edCap", "#edSafePick"], item: "#edSafe .ed-safetag"}];
 const AI_TABS = ["style", "layout", "fx", "audio"];
 const aiWait = ms => new Promise(r => setTimeout(r, ms));
 function aiPoint(el, wide) {
@@ -1800,6 +1923,56 @@ function aiHands() {
       }));
       await aiWait(1300); leave();
     }};
+}
+/* ---------- AI edit, live: a log over the transcript side that says what the AI is doing as it does it, line by line,
+   each with the colour of the part it works on (the same colours as the cursors and the timeline rows) */
+const AI_TAGS = {read: ["Reading", "#93C5FD"], plan: ["Planning", "#E879F9"], music: ["Music", "#22C55E"], zoom: ["Zoom", "#F59E0B"],
+  sound: ["Sound", "#38BDF8"], cut: ["Cut", "#A3E635"], safe: ["Safe zone", "#F87171"], done: ["Done", "#FFFFFF"]};
+const aiLog = {
+  el: null, t0: 0,
+  open() {
+    this.close(true);
+    const box = $e("#edTxCard"), dlg = $("#clipdlg"); if (!box || !dlg) return;
+    const r = box.getBoundingClientRect();
+    const el = document.createElement("div");
+    el.className = "ed-ailog"; el.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+    el.innerHTML = `<header><i class="jp-spin"></i><b>AI edit</b><span>working on this clip</span><button class="ed-ib sm" data-ed="ailogclose" aria-label="Close">${ic("x")}</button></header>
+      <ol class="ed-ailines"></ol><div class="ed-aibar"><i></i></div>`;
+    dlg.append(el); this.el = el; this.t0 = performance.now();
+    requestAnimationFrame(() => el.classList.add("in"));
+  },
+  add(kind, text, pct) {
+    if (!this.el) return;
+    const [tag, c] = AI_TAGS[kind] || AI_TAGS.plan, t = (performance.now() - this.t0) / 1000;
+    const li = document.createElement("li");
+    li.style.setProperty("--c", c);
+    li.innerHTML = `<time>${String(Math.floor(t / 60)).padStart(2, "0")}:${(t % 60).toFixed(1).padStart(4, "0")}</time><em>${tag}</em><span>${esc(text)}</span>`;
+    const ol = this.el.querySelector(".ed-ailines"); ol.append(li); ol.scrollTop = ol.scrollHeight;
+    if (pct != null) this.el.querySelector(".ed-aibar i").style.width = Math.min(100, pct) + "%";
+  },
+  done(text) {
+    if (!this.el) return;
+    this.add("done", text, 100);
+    this.el.classList.add("finished");
+    this.el.querySelector("header span").textContent = "finished";
+    this.el.querySelector("header .jp-spin")?.replaceWith(Object.assign(document.createElement("i"), {className: "ed-aiok", innerHTML: ic("check")}));
+    clearTimeout(this.tm); this.tm = setTimeout(() => this.close(), 7000);
+  },
+  close(now) {
+    const el = this.el; this.el = null; clearTimeout(this.tm); if (!el) return;
+    if (now) return el.remove();
+    el.classList.remove("in"); setTimeout(() => el.remove(), 250);
+  }};
+// while the AI thinks: what it is looking at, a line every so often (real facts about this clip)
+async function aiThinking(until) {
+  const ws = inClip().map(([w]) => w), steps = [
+    ["read", `Reading ${ws.length} words of the transcript`], ["read", `Listening to ${ts(keptLen())} of sound for loud moments`],
+    ["plan", "Finding the punchline and the reactions"], ["plan", "Choosing a music bed for the mood"],
+    ["plan", "Looking for the face, to aim the zooms"], ["plan", "Planning sound effects on the beats"], ["plan", "Checking the pacing"]];
+  for (let i = 0; !until(); i++) {
+    if (i < steps.length) aiLog.add(steps[i][0], steps[i][1], 8 + i * 6);
+    await aiWait(i < steps.length ? 650 : 400);
+  }
 }
 // the clean-up an editor does by hand: dead air off the start and the end, filler words and long pauses cut out
 function aiTidy() {
@@ -2258,6 +2431,44 @@ function pipCard(sp) {
       <label class="ed-pipcp" style="--c:${col}" title="Any colour"><input type="color" value="${col.toLowerCase()}" data-pipcol aria-label="Any border colour"></label></div></div>` : ""}
     <button class="ed-btn ed-pipframe" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Choose what fills the screen and the box</button></div>`;
 }
+/* the pop-out card's settings: its size, place, corners, edge (one colour or a gradient) and how far the head rises */
+const POP_EDGES = [["Sunset", "#FF3EA5", "#FF8A1F"], ["Gold", "#FACC15", "#F97316"], ["Ocean", "#22D3EE", "#3B82F6"], ["Lime", "#A3E635", "#16A34A"],
+  ["White", "#FFFFFF", ""], ["Black", "#0A0A0A", ""]];
+const popMini = (sp, crop) => { const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_edge === "gradient" ? sp.pop_c2 || c1 : c1, plain = sp.pop_bg === "plain";
+  return `<i class="lp-bg" style="${crop(sp.game)};filter:none"></i><i class="lp-pop ${sp.pop_shape || "rounded"}" style="--c1:${c1};--c2:${c2}">` +
+    `<i class="${plain ? "plain" : ""}" style="${crop(sp.cam)}${plain ? `;background-color:${sp.pop_fill || "#FFFFFF"}` : ""}"></i></i>`; };
+const POP_SOLIDS = ["#FFFFFF", "#0A0A0A", "#EA580C", "#FACC15", "#22C55E", "#3B82F6", "#EC4899"];
+const POP_FILLS = [["White", "#FFFFFF"], ["Paper", "#F4F1EA"], ["Grey", "#E4E4E7"], ["Sky", "#DBEAFE"], ["Blush", "#FCE7F3"], ["Black", "#0A0A0A"]];
+const POP_SHAPES = [["circle", "Circle", '<circle cx="12" cy="13.5" r="7"/><circle cx="12" cy="7.2" r="2.6" fill="currentColor" stroke="none"/>'],
+  ["rounded", "Rectangle", '<rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="12" cy="7.6" r="2.6" fill="currentColor" stroke="none"/>'],
+  ["square", "Square", '<rect x="5.5" y="7.5" width="13" height="13" rx="1.5"/><circle cx="12" cy="7.4" r="2.6" fill="currentColor" stroke="none"/>']];
+function popCard(sp) {
+  const shape = sp.pop_shape || "rounded", b = sp.pop_border ?? 8, out = sp.pop_out ?? 22, grad = sp.pop_edge === "gradient";
+  const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_c2 || "#FF8A1F", plain = sp.pop_bg === "plain", fill = sp.pop_fill || "#FFFFFF";
+  const spot = sp.pop_x == null ? "c" : sp.pop_x === 50 && [40, 70].includes(sp.pop_y) ? String(sp.pop_y) : "";
+  const seg = (k, opts, cur) => `<div class="ed-seg">${opts.map(([v, l]) => `<button data-ed="popset" data-k="${k}" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join("")}</div>`;
+  const dot = (k, c, on, label = c) => `<button data-ed="popset" data-k="${k}" data-v="${c}" style="--c:${c}" aria-pressed="${on}" aria-label="${label}" title="${label}"></button>`;
+  const pick = (k, c, label) => `<label class="ed-pipcp" style="--c:${c}" title="${label}"><input type="color" value="${c.toLowerCase()}" data-popc="${k}" aria-label="${label}"></label>`;
+  return `<div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Pop-out card</b><small class="ed-pipnote">Drag it on the video to move it, its corner to resize</small></div>
+    <div class="ed-pipshapes" role="radiogroup" aria-label="Shape">${POP_SHAPES.map(([v, l, d]) => `<button role="radio" data-ed="popset" data-k="pop_shape" data-v="${v}" aria-checked="${shape === v}">${svg(d)}<span>${l}</span></button>`).join("")}</div>
+    <div class="ed-piprow"><span class="ed-pipl">Place</span><div class="ed-seg">${[["40", "Higher"], ["c", "Middle"], ["70", "Lower"]].map(([v, l]) =>
+      `<button data-ed="popat" data-v="${v}" aria-pressed="${spot === v}">${l}</button>`).join("")}</div></div>
+    ${slider("Size", "pop_size", 40, 90, 1, sp.pop_size || 70, (sp.pop_size || 70) + "%")}
+    ${slider("Head pops out", "pop_out", 0, 45, 1, out, out ? out + "%" : "None")}
+    ${shape !== "circle" ? slider("Corners", "pop_radius", 0, 30, 1, sp.pop_radius ?? 8, sp.pop_radius ?? 8) : ""}</div>
+  <div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Card border</b></div>
+    ${slider("Width", "pop_border", 0, 20, 1, b, b || "None")}
+    ${b ? `${seg("pop_edge", [["solid", "Solid"], ["gradient", "Gradient"]], grad ? "gradient" : "solid")}
+      ${grad ? `<div class="ed-piprow"><span class="ed-pipl">Presets</span><div class="ed-pipcols">${POP_EDGES.filter(e => e[2]).map(([l, a, z]) =>
+        `<button data-ed="popset" data-k="grad" data-a="${a}" data-b="${z}" title="${l}" aria-label="${l}" aria-pressed="${c1 === a && c2 === z}" style="--c:linear-gradient(90deg,${a},${z})"></button>`).join("")}</div></div>
+        <div class="ed-piprow"><span class="ed-pipl">From and to</span><div class="ed-pipcols ed-popft">${pick("pop_c1", c1, "Left colour")}<i aria-hidden="true" style="--c1:${c1};--c2:${c2}"></i>${pick("pop_c2", c2, "Right colour")}</div></div>`
+      : `<div class="ed-piprow"><span class="ed-pipl">Colour</span><div class="ed-pipcols">${POP_SOLIDS.map(c => dot("pop_c1", c, c1 === c)).join("")}${pick("pop_c1", c1, "Any colour")}</div></div>`}` : ""}</div>
+  <div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Behind the person</b><small class="ed-pipnote">${plain ? "Only the streamer shows, on a plain colour" : "The face cam as it is, room and all"}</small></div>
+    ${seg("pop_bg", [["cam", "Face cam"], ["plain", "Plain"]], plain ? "plain" : "cam")}
+    ${plain ? `<div class="ed-piprow"><span class="ed-pipl">Colour</span><div class="ed-pipcols">${POP_FILLS.map(([l, c]) => dot("pop_fill", c, fill === c, l)).join("")}${pick("pop_fill", fill, "Any colour")}</div></div>` : ""}
+    <p class="ed-help">The preview shows the real cut-out a few seconds after a change, the same one the finished clip uses. Leave room above the head in the face cam box.</p>
+    <button class="ed-btn ed-pipframe" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Choose the stream and the face cam</button></div>`;
+}
 /* the Post card's settings, in groups: the style (big tiles, like picking a template), the account on it, the post's
    words, what is behind the card, and its size and place */
 const SUN_IC = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
@@ -2299,10 +2510,12 @@ function cardPanel(cd) {
       <p class="ed-help">Or drag the card on the video, and its corner to resize it.</p></div>`;
 }
 // the Frame view's layout grid: Duo is the split with a person in each half
-const FRAME_LAYS = [["crop", "Solo"], ["split", "Split"], ["pip", "PiP"], ["trio", "Trio"], ["grid", "Grid"], ["split", "Duo", "duo"], ["blur", "Centered"], ["zoom", "Zoomed"], ["card", "Post card"]];
+const FRAME_LAYS = [["crop", "Solo"], ["split", "Split"], ["pip", "PiP"], ["pop", "Pop-out"], ["trio", "Trio"], ["grid", "Grid"], ["split", "Duo", "duo"], ["blur", "Centered"], ["zoom", "Zoomed"], ["card", "Post card"]];
+LAY_IC.pop = '<rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="currentColor" fill-opacity=".22"/><rect x="8" y="11" width="8" height="7.5" rx="1.6"/><circle cx="12" cy="10" r="2.2" fill="currentColor" stroke="none"/><path d="M8.8 18.5c.5-2.4 1.7-3.4 3.2-3.4s2.7 1 3.2 3.4" fill="currentColor" stroke="none"/>';
 LAY_IC.duo = PH + '<path d="M6 12h12"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="16.8" r="1.5"/>';
 LAY_IC.grid = PH + '<path d="M6 11h12M12 11v10.5"/><circle cx="12" cy="6.8" r="1.3"/><circle cx="9" cy="16" r="1.2"/><circle cx="15" cy="16" r="1.2"/>';
 const LAY_TIP = {crop: "One part of the video fills the screen", split: "Two parts stacked: the stream, the face cam", pip: "One part fills the screen, the face cam in a small box",
+  pop: "The face cam in a card, the streamer's head rising over its top",
   trio: "Three parts stacked: three people", grid: "Two to four people, each in a cell of their own", duo: "Two people: the left half on top, the right half below", blur: "The whole video on a blurred copy",
   zoom: "Closer in, blurred above and below", card: "The clip inside a social post"};
 /* ---------- templates: a layout, a shape and a caption look chosen together in one click. The clip's own words,
@@ -2346,6 +2559,7 @@ const TPLS = [
   {k: "camtop", cat: "streams", name: "Face cam on top", sub: "The streamer first, the game below", layout: "split", cam_at: "top", style: "studio"},
   {k: "solo", cat: "streams", name: "Solo full screen", sub: "One part of the stream fills the phone", layout: "crop", style: "hype"},
   {k: "pipcam", cat: "streams", name: "Face cam corner", sub: "The game full screen, the streamer in a small box", layout: "pip", style: "boldpop"},
+  {k: "popcam", cat: "streams", name: "Pop-out face cam", sub: "The streamer cut out, their head rising over a card", layout: "pop", style: "boldpop"},
   {k: "xlight", cat: "posts", name: "X post, light", sub: "The clip inside a post, white card", layout: "card", theme: "light", caps: {...POST_CAPS, base: "#0F1419"}},
   {k: "xdark", cat: "posts", name: "X post, dark", sub: "The clip inside a post, black card", layout: "card", theme: "dark", caps: {...POST_CAPS, base: "#E7E9EA"}},
   {k: "linkedin", cat: "posts", name: "LinkedIn post", sub: "A professional post with your headline", layout: "card", theme: "linkedin", caps: {...POST_CAPS, base: "#191919", active: "#0A66C2"}},
@@ -2379,6 +2593,7 @@ function miniTpl(t) {
     : t.layout === "pip" ? `<i class="lp-bg" style="${crop(ts.game)};filter:none"></i><i class="lp-pip ${ts.pip_at || "br"}" style="${crop(ts.cam)}"></i>`
     : t.layout === "trio" ? ts.trio.map(r => `<i class="lp-part t" style="${crop(r)}"></i>`).join("")
     : t.layout === "grid" ? gridMini(ts, crop)
+    : t.layout === "pop" ? popMini(ts, crop)
     : t.layout === "card" ? miniCard(bg, t.theme) : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${t.layout}" style="${bg}"></i>`;
   const [w, h] = ASPECTS[t.aspect || "9:16"], x = t.extra || {}, k = t.hook;
   // the template's own look on the preview: its colour, its border and its hook banner with sample words
@@ -2390,7 +2605,7 @@ function miniTpl(t) {
       `font-size:${(k.hook_size * 0.064).toFixed(1)}px;border-radius:${wide ? 0 : Math.min(6, k.hook_round / 4)}px">${esc(up ? (t.tag || "Your hook").toUpperCase() : t.tag || "Your hook")}</b>`;
   })() : "";
   const ring = x.stroke ? `<i class="lp-ring" style="box-shadow:inset 0 0 0 ${Math.max(1.5, x.stroke / 4)}px ${x.stroke_color || "#fff"}"></i>` : "";
-  return `<span class="lp-ph ${t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}${fx ? `;filter:${fx}` : ""}">${inner}${ring}${hk}</span>`;
+  return `<span class="lp-ph ${t.layout === "pop" ? "popout" : t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}${fx ? `;filter:${fx}` : ""}">${inner}${ring}${hk}</span>`;
 }
 function drawTpl() {
   if (!E.tplOpen) return $e("#edTpl")?.remove();
@@ -2422,7 +2637,7 @@ function applyTpl(k) {
   if (t.layout === "card") E.look.card = {...cardOf(), theme: t.theme};
   E.layout = t.layout; E.tplOn = k; E.lookTouched = true; E.tplOpen = false;
   setFrame(); drawTpl(); E.tab = "layout"; drawPanel(); drawStage();
-  if (t.layout === "split" || t.layout === "pip" && !t.split) findFacecam();
+  if (t.layout === "split" || (t.layout === "pip" || t.layout === "pop") && !t.split) findFacecam();
   after("pt"); toast(`${t.name} applied`, "ok");
 }
 /* ---------- the split layout in the preview: two bands, each showing one part of the same video.
@@ -2442,6 +2657,36 @@ function placeSplit() {
       C.style.cssText = `left:${q.x * k}px;top:${q.y * k}px;width:${q.w * k}px;height:${q.h * k}px;border-radius:${q.r * k}px;box-shadow:0 0 0 ${q.b * k}px ${q.b ? q.color : "transparent"}`;
       if (!C.querySelector(".ed-pipz")) C.insertAdjacentHTML("beforeend", `<i class="ed-pipz" title="Drag to resize"></i>`);
       fit(C, $e("#edVid2"), sp.cam, q.w * k, q.h * k);
+    }
+    return;
+  }
+  if (E.layout === "pop") {
+    const G = $e("#edBandG"), C = $e("#edBandC"), O = $e("#edBandO"), R = $e("#edPopRing"), F = $e("#edPopFill"), q = popGeo(sp);
+    // until the real cut-out has loaded, the head is shown roughly: a soft oval whose middle sits just inside the
+    // card's top edge and that fades out before the top of the face cam picture, so no straight edge ever shows
+    const lip = Math.min(Math.max(q.r, q.b), q.w * 0.08) * k, hb = q.pop * k + lip;
+    const hx = Math.min(q.w * 0.22, q.w * 0.3) * k, hy = Math.min(Math.max(q.pop * 1.25, q.w * 0.22) * k, hb * 0.9);
+    const cut = popCut(q, sp, k);         // the real cut-out, from the same cut-out as the finished clip
+    if (G) { G.style.height = H + "px"; fit(G, $e("#edVid"), sp.game, W, H); }
+    if (R) R.style.cssText = `left:${(q.x - q.b) * k}px;top:${(q.y - q.b) * k}px;width:${(q.w + 2 * q.b) * k}px;height:${(q.h + 2 * q.b) * k}px;` +
+      `border-radius:${q.r ? (q.r + q.b) * k : 0}px;background:${!q.b ? "transparent" : q.c1 === q.c2 ? q.c1 : `linear-gradient(90deg,${q.c1},${q.c2})`}`;
+    if (F) F.style.cssText = q.fill ? `left:${q.x * k}px;top:${q.y * k}px;width:${q.w * k}px;height:${q.h * k}px;border-radius:${q.r * k}px;background:${q.fill}` : "display:none";
+    if (C) {                            // the card: the lower part of the face cam picture, so the video sits pop px higher
+      // plain: only the person (roughly: the head and the body below it) on the fill; the clip cuts them out exactly
+      const m = q.fill && !cut ? `radial-gradient(${hx.toFixed(1)}px ${hy.toFixed(1)}px at 50% ${lip.toFixed(1)}px,#000 80%,transparent 100%),` +
+        `radial-gradient(${(q.w * 0.47 * k).toFixed(1)}px ${(q.h * 0.62 * k).toFixed(1)}px at 50% 100%,#000 84%,transparent 100%)` : "none";
+      C.style.cssText = `left:${q.x * k}px;top:${q.y * k}px;width:${q.w * k}px;height:${q.h * k}px;border-radius:${q.r * k}px;-webkit-mask-image:${m};mask-image:${m}${q.fill ? ";background:transparent" : ""}`;
+      if (!C.querySelector(".ed-pipz")) C.insertAdjacentHTML("beforeend", `<i class="ed-pipz" title="Drag to resize"></i>`);
+      fit(C, $e("#edVid2"), sp.cam, q.w * k, q.t * k);
+      $e("#edVid2").style.top = parseFloat($e("#edVid2").style.top) - q.pop * k + "px";
+      $e("#edVid2").style.visibility = cut && q.fill ? "hidden" : "";    // plain: the fill, and the cut-out person on it
+    }
+    if (O) {                            // above the card: the head, shown roughly (the clip cuts the person out exactly)
+      const sh = q.pop + Math.max(q.r, q.b);
+      O.hidden = !q.pop;
+      O.style.cssText = `left:${q.x * k}px;top:${(q.y - q.pop) * k}px;width:${q.w * k}px;height:${sh * k}px;` +
+        `--hx:${hx.toFixed(1)}px;--hy:${hy.toFixed(1)}px;--hb:${hb.toFixed(1)}px${cut ? ";opacity:0" : ""}`;
+      fit(O, $e("#edVid3"), sp.cam, q.w * k, q.t * k);
     }
     return;
   }
@@ -2472,9 +2717,42 @@ function placeSplit() {
     v.style.cssText = `width:${E.sw * s}px;height:${E.sh * s}px;left:${-r[0] * E.sw * s - (rw * s - W) / 2}px;top:${-r[1] * E.sh * s - (rh * s - bh) / 2}px`;
   };
   set("edBandG", "edVid", sp.game, g.fg); set("edBandC", "edVid2", sp.cam, g.ch);
+  const sm = $e("#edSseam");
+  if (sm) sm.style.top = H * (sp.cam_at === "bottom" ? g.fg : OUT_H - g.fg) / OUT_H + "px";
+}
+/* the pop-out's real cut-out for the preview: asked of the server (the same cut-out as the finished clip, kept there
+   per setting) a moment after the settings stop changing, and shown once it has loaded. Size and place don't change
+   it, so dragging the card never asks for a new one. True when it is showing. */
+function popCut(q, sp, k) {
+  const cut = $e("#edPopCut"); if (!cut) return false;
+  if (!q.pop && !q.fill) { cut.style.display = "none"; return false; }
+  const s = 256 / q.w, a = Math.max(0, E.start - 0.5);
+  const p = new URLSearchParams({a: a.toFixed(2), b: (E.end + 0.5).toFixed(2), cam: sp.cam.map(v => (+v).toFixed(4)).join(","),
+    t: Math.max(128, Math.min(640, Math.round(q.t * s / 2) * 2)), keep: Math.round((q.pop + Math.max(q.r, q.b)) * s)});
+  if (q.fill) { p.set("ch", Math.round(q.h * s)); p.set("cr", Math.round(q.r * s)); p.set("cb", Math.round(q.b * s)); }
+  const url = `/api/jobs/${E.jid}/clips/${E.cid}/popcut?${p}`;
+  if (cut.dataset.want !== url) {
+    cut.dataset.want = url; clearTimeout(E.popCutT);
+    E.popCutT = setTimeout(() => {
+      if (!cut.isConnected || cut.dataset.want !== url) return;
+      cut.dataset.src = url; cut.dataset.a = a;
+      cut.onloadeddata = () => { if (cut.dataset.src === url) { cut.dataset.ok = url; placeSplit(); syncSplit(); } };
+      cut.src = url;
+    }, cut.dataset.ok ? 900 : 250);
+  }
+  const on = cut.dataset.ok === url;
+  cut.style.cssText = `left:${q.x * k}px;top:${(q.y - q.pop) * k}px;width:${q.w * k}px;height:${q.t * k}px;display:${on ? "block" : "none"}`;
+  return on;
 }
 function syncSplit() {                  // the other bands play the same moment as the main one
   const a = $e("#edVid"); if (!a) return;
+  const pc = $e("#edPopCut");
+  if (pc && pc.dataset.ok && pc.readyState >= 1) {     // the cut-out loop starts at its own second: clip time minus its start
+    const want = a.currentTime + (E.off || 0) - (+pc.dataset.a || 0);
+    if (want >= 0 && Math.abs(pc.currentTime - want) > 0.12) pc.currentTime = want;
+    pc.playbackRate = a.playbackRate;
+    if (a.paused && !pc.paused) pc.pause(); else if (!a.paused && pc.paused) pc.play().catch(() => {});
+  }
   for (const id of ["#edVid2", "#edVid3", "#edVid4"]) {
     const b = $e(id); if (!b || b.readyState < 1) continue;
     if (Math.abs(b.currentTime - a.currentTime) > 0.15) b.currentTime = a.currentTime;
@@ -2482,6 +2760,31 @@ function syncSplit() {                  // the other bands play the same moment 
     if (a.paused && !b.paused) b.pause(); else if (!a.paused && b.paused) b.play().catch(() => {});
   }
 }
+/* the face cam split's line: dragging its handle sets how much of the frame the stream takes (the face cam gets the rest) */
+let ssDrag = null;
+dlg_on("pointerdown", e => {
+  const h = e.target.closest("#edSseam"); if (!h || E.layout !== "split") return;
+  e.preventDefault(); e.stopPropagation();
+  ssDrag = {ph: $e("#edPhone").getBoundingClientRect(), moved: false};
+  h.setPointerCapture?.(e.pointerId); h.classList.add("drag");
+  const sp = rawSplit(); h.dataset.v = `Stream ${sp.share}% · Face ${100 - sp.share}%`;
+});
+dlg_on("pointermove", e => {
+  const d = ssDrag; if (!d) return;
+  d.moved = true;
+  const y = Math.round((e.clientY - d.ph.top) / d.ph.height * 100), sp = rawSplit();
+  const v = Math.max(30, Math.min(70, sp.cam_at === "bottom" ? y : 100 - y));
+  E.look.split = {...sp, share: v};
+  const h = $e("#edSseam"); if (h) h.dataset.v = `Stream ${v}% · Face ${100 - v}%`;
+  E.lastKey = ""; E.zKey = ""; paintOverlay(); paintStroke?.();
+});
+dlg_on("pointerup", () => {
+  const d = ssDrag; ssDrag = null; if (!d) return;
+  $e("#edSseam")?.classList.remove("drag");
+  if (!d.moved) return;
+  E.justMoved = Date.now(); E.lookTouched = true; if (E.tab === "layout") drawPanel(); after("");
+});
+$("#clipdlg").addEventListener("click", e => { if (e.target.closest("#edSseam")) { e.stopPropagation(); e.preventDefault(); } }, true);
 /* the face grid's line between the rows: its handle on the preview moves it, like the slider in the Layout panel. While
    the playhead is in a scene that shows everyone, that scene gets its own line; elsewhere the clip's line moves. */
 let gsDrag = null;
@@ -2579,13 +2882,14 @@ function gridCard(sp) {
 /* picture in picture: drag the small box anywhere on the video, or its corner to resize it. Stored as its middle
    (% of the frame) and its width (% of the frame), the numbers render.pip_geometry uses. */
 let pipDrag = null;
+const dragKeys = () => E.layout === "pop" ? {s: "pop_size", x: "pop_x", y: "pop_y", lo: 40, hi: 90, geo: popGeo} : {s: "pip_size", x: "pip_x", y: "pip_y", lo: 22, hi: 50, geo: pipGeo};
 dlg_on("pointerdown", e => {
-  if (E.layout !== "pip" || E.view !== "live") return;
-  const box = e.target.closest("#edBandC"); if (!box) return;
+  if ((E.layout !== "pip" && E.layout !== "pop") || E.view !== "live") return;
+  const box = e.target.closest("#edBandC, #edBandO"); if (!box) return;
   e.preventDefault(); e.stopPropagation();
-  const ph = $e("#edPhone").getBoundingClientRect(), q = pipGeo();
-  pipDrag = {rz: !!e.target.closest(".ed-pipz"), sx: e.clientX, sy: e.clientY, pw: ph.width, ph: ph.height,
-    cx: (q.x + q.w / 2) / OUT_W * 100, cy: (q.y + q.h / 2) / OUT_H * 100, s0: splitOf().pip_size || 36, moved: false};
+  const K = dragKeys(), ph = $e("#edPhone").getBoundingClientRect(), q = K.geo();
+  pipDrag = {rz: !!e.target.closest(".ed-pipz"), sx: e.clientX, sy: e.clientY, pw: ph.width, ph: ph.height, K,
+    cx: (q.x + q.w / 2) / OUT_W * 100, cy: (q.y + q.h / 2) / OUT_H * 100, s0: splitOf()[K.s] || SPLIT_DEFAULT[K.s], moved: false};
   box.setPointerCapture?.(e.pointerId);
 });
 dlg_on("pointermove", e => {
@@ -2593,19 +2897,19 @@ dlg_on("pointermove", e => {
   const mx = e.clientX - d.sx, my = e.clientY - d.sy;
   if (!d.moved && Math.hypot(mx, my) < 3) return;
   d.moved = true;
-  const sp = rawSplit();
-  if (d.rz) E.look.split = {...sp, pip_size: Math.round(Math.max(22, Math.min(50, d.s0 + mx / d.pw * 100 * 2))), pip_x: d.cx, pip_y: d.cy};
-  else E.look.split = {...sp, pip_x: Math.round((d.cx + mx / d.pw * 100) * 10) / 10, pip_y: Math.round((d.cy + my / d.ph * 100) * 10) / 10};
-  placeSplit();
+  const sp = rawSplit(), K = d.K;
+  if (d.rz) E.look.split = {...sp, [K.s]: Math.round(Math.max(K.lo, Math.min(K.hi, d.s0 + mx / d.pw * 100 * 2))), [K.x]: d.cx, [K.y]: d.cy};
+  else E.look.split = {...sp, [K.x]: Math.round((d.cx + mx / d.pw * 100) * 10) / 10, [K.y]: Math.round((d.cy + my / d.ph * 100) * 10) / 10};
+  placeSplit(); if (E.layout === "pop") { E.lastKey = ""; paintOverlay(); }
 });
 dlg_on("pointerup", () => {
   const d = pipDrag; pipDrag = null; if (!d || !d.moved) return;
-  const q = pipGeo();          // keep what was shown: the middle of the box as it sits, inside the frame
-  E.look.split = {...rawSplit(), pip_x: Math.round((q.x + q.w / 2) / OUT_W * 1000) / 10, pip_y: Math.round((q.y + q.h / 2) / OUT_H * 1000) / 10};
+  const K = d.K, q = K.geo();   // keep what was shown: the middle of the box as it sits, inside the frame
+  E.look.split = {...rawSplit(), [K.x]: Math.round((q.x + q.w / 2) / OUT_W * 1000) / 10, [K.y]: Math.round((q.y + q.h / 2) / OUT_H * 1000) / 10};
   E.justMoved = Date.now(); E.lookTouched = true; if (E.tab === "layout") drawPanel(); after("");
 });
 $("#clipdlg").addEventListener("click", e => {      // the click that ends a drag doesn't also play or pause
-  if (E.justMoved && Date.now() - E.justMoved < 350 && e.target.closest("#edBandC")) { e.stopPropagation(); e.preventDefault(); }
+  if (E.justMoved && Date.now() - E.justMoved < 350 && e.target.closest("#edBandC, #edBandO")) { e.stopPropagation(); e.preventDefault(); }
 }, true);
 /* the Layout tool's picker: a frame of the video with two boxes, Stream and Face cam, to move and resize */
 /* A clean still of the footage for the caption style tiles: a hidden copy of the video jumps a third of the way into
@@ -3270,6 +3574,9 @@ const KEYS = [["Space", "Play or pause"], ["Ctrl Z", "Undo"], ["Ctrl Shift Z", "
   ["Ctrl Enter", "Render the clip"], ["I", "Start the clip here"], ["O", "End the clip here"], ["← →", "Back or forward 1 second"],
   ["Shift ← →", "Back or forward 5 seconds"], [", .", "One frame back or forward"], ["Home End", "Go to the clip's start or end"],
   ["M", "Sound on or off"], ["Z", "Add a zoom here"], ["F", "Full screen"], ["T", "Templates"], ["?", "This list"], ["Esc", "Close a window"]];
+// the same shortcuts in groups, for the window
+const KEY_GROUPS = [["Playback", ["Space", "← →", "Shift ← →", ", .", "Home End", "M"]], ["Trim and edit", ["I", "O", "Z", "Ctrl Z", "Ctrl Shift Z"]],
+  ["Save and render", ["Ctrl S", "Ctrl Enter"]], ["View", ["F", "T", "?", "Esc"]]];
 function drawKeys() {
   if (!E.keysOpen) return $e("#edKeys")?.remove();
   if ($e("#edKeys")) return;
@@ -3277,7 +3584,9 @@ function drawKeys() {
   el.id = "edKeys"; el.className = "ed-tplw";
   el.innerHTML = `<div class="ed-tplbox ed-keysbox" role="dialog" aria-label="Keyboard shortcuts"><header><div><h3>Keyboard shortcuts</h3>
       <p>They work anywhere in the editor except while typing.</p></div><button class="ed-ib" data-ed="keysclose" aria-label="Close">${ic("x")}</button></header>
-    <dl class="ed-keys">${KEYS.map(([k, l]) => `<dt>${k.split(" ").map(x => `<kbd>${esc(x)}</kbd>`).join("")}</dt><dd>${esc(l)}</dd>`).join("")}</dl></div>`;
+    <div class="ed-keys2">${[[0, 2], [1, 3]].map(col => `<div class="ed-kcol">${col.map(i => { const [g, list] = KEY_GROUPS[i];
+      return `<section><h4>${g}</h4>${list.map(k => { const l = (KEYS.find(x => x[0] === k) || [k, ""])[1];
+        return `<div class="ed-krow"><span>${esc(l)}</span><span class="ed-kk">${k.split(" ").map(x => `<kbd>${esc(x)}</kbd>`).join("")}</span></div>`; }).join("")}</section>`; }).join("")}</div>`).join("")}</div></div>`;
   el.addEventListener("click", e => { if (e.target === el) { E.keysOpen = false; drawKeys(); } });
   $e(".ed").append(el);
 }
@@ -3520,11 +3829,18 @@ dlg.addEventListener("click", async e => {
     else if (d.v === "split" && E.look.split && E.look.split.game?.join() === "0,0,0.5,1" && E.look.split.cam?.join() === "0.5,0,0.5,1")
       E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {})};      // back from Duo: the stream and face cam spots
     if ((isParts(d.v) || d.v === "card") && !b.closest("#edPanel") && E.view !== "frame") E.tab = "layout";
-    E.lookTouched = true; drawPanel(); drawStage(); if (d.v === "split" && !d.kind || d.v === "pip") findFacecam();
+    E.lookTouched = true; drawPanel(); drawStage(); if (d.v === "split" && !d.kind || d.v === "pip" || d.v === "pop") findFacecam();
     return after(was === "grid" || d.v === "grid" ? "t" : "");      // the Scenes lane comes and goes with the face grid
   }
+  if (a === "splitline") { E.look.stroke = +d.v; E.lookTouched = true; paintStroke(); drawPanel(); return after(""); }
   if (a === "strokecol") { E.look.stroke_color = d.v; E.lookTouched = true; paintStroke(); drawPanel(); return after(""); }
   if (a === "pipat") { E.look.split = {...rawSplit(), pip_at: d.v, pip_x: null, pip_y: null}; E.lookTouched = true; placeSplit(); drawPanel(); return after("p"); }
+  if (a === "popset") {                 // one pop-out setting from a button: shape, border kind, background, a colour
+    const sp = rawSplit(), v = d.v;
+    E.look.split = d.k === "grad" ? {...sp, pop_edge: "gradient", pop_c1: d.a, pop_c2: d.b} : {...sp, [d.k]: v};
+    E.lookTouched = true; E.lastKey = ""; placeSplit(); paintOverlay(); drawPanel(); return after("");
+  }
+  if (a === "popat") { E.look.split = {...rawSplit(), pop_x: d.v === "c" ? null : 50, pop_y: d.v === "c" ? null : +d.v}; E.lookTouched = true; placeSplit(); paintOverlay(); drawPanel(); return after(""); }
   if (a === "pipshape" || a === "pipcol") { E.look.split = {...rawSplit(), [a === "pipshape" ? "pip_shape" : "pip_color"]: d.v}; E.lookTouched = true; placeSplit(); drawPanel(); return after(""); }
   if (a === "gridn") {                  // how many people: boxes placed by hand stay, new ones get a slice
     const n = +d.v, sp = rawSplit(), was = sp.faces; if (n === was.length) return;
@@ -3554,7 +3870,8 @@ dlg.addEventListener("click", async e => {
   if (a === "framereset") {             // the Frame view's Reset: the whole picture (or the usual face cam spots)
     if (E.layout === "trio") E.look.split = {...rawSplit(), trio: clone(SPLIT_DEFAULT.trio)};
     else if (E.layout === "grid") E.look.split = {...rawSplit(), faces: evenFaces(rawSplit().faces.length)};
-    else if (isParts(E.layout)) E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {}), pip_at: rawSplit().pip_at, pip_size: rawSplit().pip_size};
+    else if (isParts(E.layout)) E.look.split = {...SPLIT_DEFAULT, ...(clipNow()?.auto_split || {}), pip_at: rawSplit().pip_at, pip_size: rawSplit().pip_size,
+      ...Object.fromEntries(POP_KEYS.map(k => [k, rawSplit()[k]]))};
     else delete E.look.frame;
     E.lookTouched = true; placeRegions(); return after("p");
   }
@@ -3607,27 +3924,67 @@ dlg.addEventListener("click", async e => {
   if (a === "scoreplay") { showAt(E.start); const v = $e("#edVid"); if (v && v.paused) togglePlay(); return; }
   if (a === "aiedit") {                 // the AI editor on this clip: its plan replaces the music, zooms and sounds
     if (E.aiBusy) return;
+    const safe0 = E.safe; if (!E.safe) E.safe = safePick();
+    $e('[data-ed="safe"]')?.setAttribute("aria-pressed", "true");
     E.aiBusy = true; drawStage();
     const t0 = Date.now(), hands = aiHands();
+    aiLog.open();
+    const safeOff = () => setTimeout(() => { if (!safe0 && E.safe) { E.safe = null; drawStage(); $e('[data-ed="safe"]')?.setAttribute("aria-pressed", "false"); } }, 4200);
+    const pop = sel => { const el = $e(sel); if (el) { el.classList.remove("ed-popin"); void el.offsetWidth; el.classList.add("ed-popin"); } };
+    let got = null;
     try {
-      const r = await api(`/api/jobs/${E.jid}/clips/${E.cid}/autoedit`, {method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({start: E.start, end: E.end, look: E.look})});
-      await aiWait(Math.max(0, 2600 - (Date.now() - t0)));       // long enough to see them at work, even when the plan is quick
+      const req = api(`/api/jobs/${E.jid}/clips/${E.cid}/autoedit`, {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({start: E.start, end: E.end, look: E.look})}).then(r => (got = r));
+      const thinking = aiThinking(() => got);
+      const r = await req; await thinking;
+      await aiWait(Math.max(0, 2200 - (Date.now() - t0)));
       histPush?.();
-      if (r.music) E.look.music = r.music;
-      E.look.zooms = r.zooms || []; E.look.sfx = r.sfx || []; E.zSel = -1; E.sfxSel = -1;
-      E.lookTouched = true; E.zKey = ""; E.picKey = "";
-      const tidy = aiTidy();                // and the clean-up: dead air trimmed, fillers and long pauses cut
-      drawPanel(); drawTimeline(); paintOverlay(); after("p");
+      E.zSel = -1; E.sfxSel = -1; E.lookTouched = true; E.picKey = "";
+      const zs = r.zooms || [], fx = r.sfx || [], total = 2 + zs.length + fx.length + 2;
+      let n = 0; const pc = () => 50 + (++n) / total * 50;
+      E.look.zooms = []; E.look.sfx = [];
+      // the music first: its bar grows across its row
+      if (r.music) {
+        E.look.music = r.music; drawTimeline(); pop(".ed-lane.music .ed-mbar");
+        const song = (E.music || []).find(t => t.id === r.music.id);
+        aiLog.add("music", `${song ? song.name : "A music bed"} under the voice at ${r.music.vol}%, rising to ${r.music.peak}% at the end`, pc());
+        await aiWait(650);
+      }
+      // each zoom: on the timeline, the playhead there, the preview zooming in
+      for (const z of zs.sort((p, q) => p.a - q.a)) {
+        E.look.zooms.push(z); E.zKey = ""; drawTimeline(); pop(`.ed-zbar[data-zb="${E.look.zooms.length - 1}"]`);
+        showAt(Math.min(z.b, z.a + 0.5)); paintOverlay();
+        aiLog.add("zoom", `${z.s.toFixed(1)}× punch-in at ${ts(z.a - E.start)}${z.react ? " with a reaction face" : ""}`, pc());
+        await aiWait(520);
+      }
+      // each sound on its beat
+      for (const x of fx.sort((p, q) => p.t - q.t)) {
+        E.look.sfx.push(x); drawTimeline(); pop(`.ed-sfxbar[data-sb="${E.look.sfx.length - 1}"]`);
+        aiLog.add("sound", `${sfxOf(x.id)?.name || "Sound effect"} at ${ts(x.t - E.start)}`, pc());
+        await aiWait(320);
+      }
+      const tidy = aiTidy();                // the clean-up: dead air trimmed, fillers and long pauses cut
+      drawTimeline();
+      aiLog.add("cut", tidy.cuts || tidy.trimmed > 0.3 ? [tidy.cuts ? `Cut ${tidy.cuts} pause${tidy.cuts > 1 ? "s" : ""}` : "", tidy.trimmed > 0.3 ? `trimmed ${tidy.trimmed.toFixed(1)} s of dead air` : ""].filter(Boolean).join(", ") : "No dead air or long pauses to cut", pc());
+      await aiWait(450);
+      const safe = aiSafe();                // the hook and captions where the app won't cover them
+      E.lastKey = ""; paintOverlay();
+      aiLog.add("safe", safe.moved.length ? `Moved the ${safe.moved.join(" and ")} inside ${safe.name}${safe.name.endsWith("s") ? "'" : "'s"} safe area` : `Hook and captions already inside ${safe.name}${safe.name.endsWith("s") ? "'" : "'s"} safe area`, pc());
+      E.zKey = ""; drawPanel(); drawTimeline(); paintOverlay(); after("p"); showAt(E.start);
       const nz = E.look.zooms.length, ns = E.look.sfx.length, song = (E.music || []).find(t => t.id === E.look.music?.id);
       hands.deliver({Music: song ? `Added ${song.name}` : "", Zooms: nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", Sounds: ns ? `${ns} sound${ns > 1 ? "s" : ""}` : "",
         Cuts: tidy.cuts ? `Cut ${tidy.cuts} pause${tidy.cuts > 1 ? "s" : ""}` : "", Timing: tidy.trimmed > 0.3 ? `Trimmed ${tidy.trimmed.toFixed(1)} s` : "",
-        Captions: "Synced", Transcript: "Checked", Review: "Ready"});
-      const tnote = [tidy.cuts ? `${tidy.cuts} pause${tidy.cuts > 1 ? "s" : ""} cut` : "", tidy.trimmed > 0.3 ? `${tidy.trimmed.toFixed(1)} s of dead air trimmed` : ""].filter(Boolean).join(", ");
-      toast(`AI edit: ${[r.note, tnote].filter(Boolean).join(", ") || "done"}. Change anything you like.`, "ok");
-    } catch (er) { hands.stop(); toast(er.message, "bad"); }
+        Captions: "Synced", Transcript: "Checked", Review: "Ready",
+        "Safe zones": safe.moved.length ? `Moved the ${safe.moved.join(" and ")} in` : `All inside ${safe.name.split(" ")[0]}'s safe area`});
+      safeOff();
+      aiLog.done(`${[song ? "music" : "", nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", ns ? `${ns} sound${ns > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ") || "Edit"} added in ${((Date.now() - t0) / 1000).toFixed(1)} s. Change anything you like.`);
+    } catch (er) { hands.stop(); aiLog.close(); toast(er.message, "bad"); safeOff(); }
     E.aiBusy = false; drawStage(); return;
   }
+  if (a === "ailogclose") return aiLog.close();
+  if (a === "splitshare") { E.look.split = {...rawSplit(), share: +d.v}; E.lookTouched = true; E.lastKey = ""; paintOverlay(); drawPanel(); return after(""); }
+  if (a === "safe") { E.safe = E.safe ? null : (() => { try { return localStorage.getItem("ed_safe") || "instagram"; } catch { return "instagram"; } })(); E.lastKey = ""; $e('[data-ed="safe"]')?.setAttribute("aria-pressed", String(!!E.safe)); return drawStage(); }
+  if (a === "safeset") { E.safe = d.v; try { localStorage.setItem("ed_safe", d.v); } catch {} return drawStage(); }
   if (a === "atab") { E.atab = d.t; return drawPanel(); }
   if (a === "shotadd") return shotAdd();
   if (a === "shotdel") {
@@ -3697,7 +4054,7 @@ dlg.addEventListener("click", async e => {
     if (!phone()) menu.style.cssText = `position:fixed;left:${r.left + r.width / 2}px;bottom:${innerHeight - r.top + 10}px;top:auto;z-index:60`;
     $("#clipdlg").append(menu); return;
   }
-  if (a === "exdlg") { if (E.exOpen) { E.exOpen = false; exDoneClear(); return drawEx(); } E.ex ||= {preset: "reels", fmt: "mp4", fps: 30, q: "high", speed: 1}; E.exOpen = true; return drawEx(); }
+  if (a === "exdlg") { if (E.exOpen) { E.exOpen = false; exDoneClear(); return drawEx(); } E.ex ||= {preset: "shorts", fmt: "mp4", fps: 60, q: "1080", speed: 1}; if (!EX_RES.some(r => r[0] === E.ex.q) && E.ex.fmt !== "gif") E.ex.q = "1080"; E.exOpen = true; return drawEx(); }
   if (a === "exclose") { E.exOpen = false; exDoneClear(); return drawEx(); }
   if (a === "exagain") return exSave();
   if (a === "vol100") return setVolume(100);
@@ -3737,6 +4094,12 @@ dlg.addEventListener("input", e => {
   if (e.target.matches?.("[data-strokecol]")) {
     E.look.stroke_color = e.target.value.toUpperCase(); e.target.parentElement.style.setProperty("--c", e.target.value);
     E.lookTouched = true; paintStroke(); return after("");
+  }
+  if (e.target.matches?.("[data-popc]")) {          // the card's edge or fill colour, any colour
+    const sp = rawSplit(), k = e.target.dataset.popc, v = e.target.value.toUpperCase();
+    E.look.split = {...sp, [k]: v}; e.target.parentElement.style.setProperty("--c", e.target.value);
+    e.target.closest(".ed-popft")?.querySelector("i")?.style.setProperty(k === "pop_c1" ? "--c1" : "--c2", e.target.value);
+    E.lookTouched = true; placeSplit(); return after("");
   }
   if (e.target.matches?.("[data-pipcol]")) {        // the face box's border colour, any colour
     E.look.split = {...rawSplit(), pip_color: e.target.value.toUpperCase()}; e.target.parentElement.style.setProperty("--c", e.target.value);
@@ -3816,6 +4179,15 @@ dlg.addEventListener("input", e => {
       if (o) o.textContent = k === "pip_size" ? v + "%" : k === "pip_border" && !v ? "None" : v;
       el.parentElement.style.setProperty("--p", pctOf(v, lim[0], lim[1])); E.lookTouched = true; placeSplit(); paintOverlay();
       if (k === "pip_border" && had !== v > 0) drawPanel();            // the colour row shows only with a border
+      return after("");
+    }
+    if (k === "pop_size" || k === "pop_radius" || k === "pop_border" || k === "pop_out") {
+      const lim = {pop_size: [40, 90], pop_radius: [0, 30], pop_border: [0, 20], pop_out: [0, 45]}[k], v = +el.value;
+      const had = (rawSplit().pop_border ?? 8) > 0;
+      E.look.split = {...rawSplit(), [k]: v}; const o = el.parentElement.querySelector("output");
+      if (o) o.textContent = k === "pop_size" || k === "pop_out" ? (v || k === "pop_size" ? v + "%" : "None") : k === "pop_border" && !v ? "None" : v;
+      el.parentElement.style.setProperty("--p", pctOf(v, lim[0], lim[1])); E.lookTouched = true; E.lastKey = ""; placeSplit(); paintOverlay();
+      if (k === "pop_border" && had !== v > 0) drawPanel();            // the colours show only with a border
       return after("");
     }
     if (k === "grid_share") {               // the face grid's top row, the rest goes to the people below

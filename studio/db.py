@@ -112,6 +112,16 @@ admin_log = sa.Table(                                                         # 
 )
 
 
+waitlist = sa.Table(                                                          # pre-launch: people who asked for the Windows app
+    "waitlist", meta,
+    sa.Column("email", sa.String(254), primary_key=True),
+    sa.Column("platform", sa.String(12), nullable=False, server_default="windows"),
+    sa.Column("created_at", sa.Float, nullable=False),
+    sa.Column("sent_at", sa.Float),                                           # when the download guide last went out
+    sa.Column("sends", sa.Integer, nullable=False, server_default="0"),
+)
+
+
 def init():
     meta.create_all(engine)
 

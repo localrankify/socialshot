@@ -1,15 +1,15 @@
 {
  "/": {
-  "date": "2026-11-18",
-  "hash": "cba82c38ef9b8eb747250e9dc4b0e131"
+  "date": "2026-11-19",
+  "hash": "3a149d6fd5da1f9040ead1e123d68f06"
  },
  "/auto-captions": {
-  "date": "2026-11-18",
-  "hash": "fb3dd89e81c9f6b3afe2a61ff720c45c"
+  "date": "2026-11-19",
+  "hash": "90601d25154d7ceef95e18c99e892ba9"
  },
  "/blog": {
-  "date": "2026-11-18",
-  "hash": "fc08986e9cca23b7a6b787ad49b1a02c"
+  "date": "2026-11-19",
+  "hash": "5171dd519b98bb45e7533363fcfa95f9"
  },
  "/blog/best-time-to-post-youtube-shorts": {
   "date": "2026-11-17"
@@ -44,48 +44,52 @@
  "/blog/youtube-shorts-monetization": {
   "date": "2026-11-17"
  },
+ "/changelog": {
+  "date": "2026-11-19",
+  "hash": "6c168163187a3ee8e0d29cd0bfef64ef"
+ },
  "/kick-clip-maker": {
-  "date": "2026-11-18",
-  "hash": "7988333d97578f009b3b7511b3c76e23"
+  "date": "2026-11-19",
+  "hash": "80e12a31f19ad41df5fa684fd8508a68"
  },
  "/legal": {
-  "date": "2026-11-18",
-  "hash": "fb474e1460892d5f43e237dac009db1f"
+  "date": "2026-11-19",
+  "hash": "9db87e5e7f58e51ac4905ab1a7ee5c01"
  },
  "/live-stream-clipper": {
-  "date": "2026-11-18",
-  "hash": "9b993ea9df098f21422698297a47d3b9"
+  "date": "2026-11-19",
+  "hash": "c390fae2c30900624ccf28c12f557c6d"
  },
  "/opus-clip-alternative": {
-  "date": "2026-11-18",
-  "hash": "3277092d43d33ccc12f5368c3a875c40"
+  "date": "2026-11-19",
+  "hash": "e1fe728884cce2f56b12f970aa660f4b"
  },
  "/podcast-clip-maker": {
-  "date": "2026-11-18",
-  "hash": "d6a6294cc2e4b4d24d09e93318b25a5f"
+  "date": "2026-11-19",
+  "hash": "25b25f8b2c52e43d9f4b23878ee9b4a1"
  },
  "/socialshot-vs-eklipse": {
-  "date": "2026-11-18",
-  "hash": "6408102550686dcb4f6855cd62a57e0e"
+  "date": "2026-11-19",
+  "hash": "0aeb394eb2983946e96d5e85e49bbf67"
  },
  "/socialshot-vs-opus-clip": {
-  "date": "2026-11-18",
-  "hash": "1b0274e12266be5576d97bd8161fb07a"
+  "date": "2026-11-19",
+  "hash": "c98e63b5919fe309e1aeb7f8238cce55"
  },
  "/socialshot-vs-streamladder": {
-  "date": "2026-11-18",
-  "hash": "755b403250e2ac88f34517117d47791b"
+  "date": "2026-11-19",
+  "hash": "b503f4d69e59b73b81de200ac88b339a"
  },
  "/socialshot-vs-vizard": {
-  "date": "2026-11-18",
-  "hash": "4b0b24926673eda5330f66540f748c83"
+  "date": "2026-11-19",
+  "hash": "1e5c2fb0727c5697abf86c0205b51dfb"
  },
  "/twitch-clip-maker": {
-  "date": "2026-11-18",
-  "hash": "a38c5ed2e9d8bc61b74f8252a05ec801"
+  "date": "2026-11-19",
+  "hash": "d9c47b081f555de18f0e793393c29c60"
  },
  "/youtube-shorts-maker": {
-  "date": "2026-11-18",
-  "hash": "41c144a0b5a1155767ffb80dcada81b4"
+  "date": "2026-11-19",
+  "hash": "ef7c90f089ee14a499880512284d1dbd"
  }
 }

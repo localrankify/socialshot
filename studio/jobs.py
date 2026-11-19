@@ -109,12 +109,13 @@ _by_user: dict = {}                       # user -> {job id: job}: listing one p
 _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
 
-DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "studio", "layout": "blur", "quality": 720,
+DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "studio", "layout": "blur", "quality": 1080,
             "range_start": None, "range_end": None, "use_chat": True,
-            "ai_edit": True}      # the AI editor: music, zooms, sound effects (and a reaction) on every new clip
+            "watermark": True,    # a social watermark crediting the source ("Full video on YouTube /channel") on every new clip
+            "ai_edit": False}      # the AI editor: music, zooms, sound effects (and a reaction) on every new clip
 
 
-LIMITS = {"max_clips": (1, 20), "min_len": (5, 120), "max_len": (10, 180), "quality": (360, 1080)}
+LIMITS = {"max_clips": (1, 20), "min_len": (5, 120), "max_len": (10, 180), "quality": (360, 2160)}   # 2160: a 4K source
 
 
 def clean_options(options) -> dict:
@@ -130,7 +131,7 @@ def clean_options(options) -> dict:
             v = v if v in render.STYLES else DEFAULTS["style"]
         elif k == "layout":
             v = v if v in render.LAYOUTS else DEFAULTS["layout"]
-        elif k in ("use_chat", "ai_edit"):        # on/off settings
+        elif k in ("use_chat", "ai_edit", "watermark"):        # on/off settings
             v = v is True or v in (1, "1", "true", "on")
         else:                                    # range_start, range_end: seconds into the video
             v = float(v)
@@ -516,9 +517,32 @@ def retranscribe(job, clip) -> list:
     return words
 
 
+def _source_watermark(job, clip):
+    """A new clip, before its first render: a social watermark crediting where the video came from, the way clip pages
+    do it ("Full video on" + the platform's icon + /channel). Only when the clip's look has no brand of its own and the
+    option is on; the person can change or turn it off in the editor's Brand panel."""
+    if clip.get("version", 0) or clip.get("wm_done") or not (job.get("options") or {}).get("watermark", True):
+        return
+    clip["wm_done"] = True
+    look = dict(clip.get("look") or {k: v for k, v in render.PRESETS.get(clip.get("style"), render.PRESETS["studio"]).items() if k != "label"})
+    if look.get("brand_on"):                       # their saved brand already puts something there
+        return
+    url = str((job.get("source") or {}).get("url") or "")
+    plat = "youtube" if media.is_youtube(url) else "twitch" if "twitch.tv/" in url else "kick" if "kick.com/" in url else ""
+    m = re.search(r"(?:twitch\.tv|kick\.com)/([A-Za-z0-9_]+)", url) or re.search(r"youtube\.com/(@[\w.\-]+)", url)
+    name = (m.group(1) if m else "") or str(job.get("uploader") or job.get("creator_name") or "")
+    handle = re.sub(r"[^a-z0-9_.]", "", name.lower().lstrip("@"))[:30]
+    if not handle and not plat:                     # an uploaded file with no channel: nothing to credit
+        return
+    look.update(brand_on=True, brand_kind="social", brand_head="Full video on" if plat else "", brand_icon=plat or "none",
+                brand_handle=("/" + handle) if handle else "", brand_tag_on=False, brand_font=look.get("brand_font") or "Inter",
+                brand_color=look.get("brand_color") or "#FFFFFF", brand_size=look.get("brand_size") or 84, brand_pos=look.get("brand_pos") or "tr")
+    clip["look"] = render.clean_look(look) or look
+
+
 def _ai_edit(job, clip, words, src):
     """A new clip, before its first render: the AI editor adds music, zooms and sound effects (when it's on)."""
-    if clip.get("auto_edited") or clip.get("version", 0) or not (job.get("options") or {}).get("ai_edit", True):
+    if clip.get("auto_edited") or clip.get("version", 0) or not (job.get("options") or {}).get("ai_edit", False):
         return
     from . import autoedit
     try:
@@ -538,6 +562,7 @@ def render_one(job, clip, words):
     clip["status"] = "rendering"
     save(job)
     try:
+        _source_watermark(job, clip)
         _ai_edit(job, clip, words, Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "") if job.get("source_path") else None)
         words = with_heard(clip, words)
         off = clip.get("src_offset", 0.0)
@@ -571,7 +596,7 @@ def render_one(job, clip, words):
         mid = render.clean_music((clip.get("look") or {}).get("music"))["id"]     # background music from the owner's library
         local["music_path"] = str(render.music_path(job.get("user") or ctx.uid(), mid)) if mid else ""
         # split face cam with no box placed yet: find the streamer's face cam once, and keep it on the clip
-        if clip.get("layout") in ("split", "pip") and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
+        if clip.get("layout") in ("split", "pip", "pop") and not (clip.get("look") or {}).get("split") and "auto_split" not in clip:
             try:
                 from . import facecam
                 cam = facecam.find(src, local["start"], local["end"])
