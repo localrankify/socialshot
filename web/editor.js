@@ -844,16 +844,18 @@ function drawPanel() {
   } else if (E.tab === "text") {
     const L = E.look, H = hookOf(L), f = FONTS(), autoY = Math.round(geo(E.layout, E.sw, E.sh).hook / OUT_H * 100);
     p.innerHTML = head("Text", "The hook: the big line at the top that makes people stop scrolling.") +
-      `<div class="ed-card">
-        <div class="ed-h"><b>Show the hook</b><label class="ed-sw2"><input type="checkbox" data-look="hook" ${L.hook ? "checked" : ""}><span></span></label></div>
+      `<div class="ed-card ed-hookcard">
+        <div class="ed-h"><b>Hook</b><label class="ed-sw2" title="Show the hook"><input type="checkbox" data-look="hook" ${L.hook ? "checked" : ""} aria-label="Show the hook"><span></span></label></div>
         <div class="ed-hookin ${L.hook ? "" : "off"}"><textarea id="edHook" rows="2" maxlength="60" placeholder="The big line at the top" ${L.hook ? "" : "disabled"}>${esc(E.hook)}</textarea>
           <div class="ed-hookbar"><button class="ed-emjbtn ed-tip ${E.emjOpen ? "on" : ""}" data-ed="emjopen" aria-expanded="${!!E.emjOpen}" aria-label="Add an emoji" data-tip="Emoji">${svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8M9 9.5h.01M15 9.5h.01"/>')}</button>
             <span class="ed-count ${E.hook.length > 50 ? "near" : ""}"><span id="edHookN">${E.hook.length}</span>/60</span></div></div>
         ${E.emjOpen ? emojiPicker() : ""}
       </div>
       <div class="ed-card"><b>Style</b>
-        <div class="ed-hstyles">${HOOK_STYLES.map(([k, l, v]) => `<button class="ed-hst ${H.hook_box === v.hook_box && H.hook_ink === v.hook_ink && H.hook_op === v.hook_op ? "on" : ""}" data-ed="hookstyle" data-k="${k}">
-          <i><b style="background:${v.hook_op ? rgba(v.hook_box, v.hook_op) : "transparent"};color:${v.hook_ink};border-radius:4px;${v.hook_op < 35 ? "-webkit-text-stroke:2px #000;paint-order:stroke fill" : ""}">Hook</b></i>${l}</button>`).join("")}</div>
+        <div class="ed-hstyles">${HOOK_STYLES.map(([k, l, v]) => { const on = H.hook_box === v.hook_box && H.hook_ink === v.hook_ink && H.hook_op === v.hook_op;
+          return `<button class="ed-hst ${on ? "on" : ""}" data-ed="hookstyle" data-k="${k}" aria-pressed="${on}">
+          <i><s style="background-image:url('${stillOf()}')"></s><b style="background:${v.hook_op ? rgba(v.hook_box, v.hook_op) : "transparent"};color:${v.hook_ink};border-radius:4px;${v.hook_op < 35 ? "-webkit-text-stroke:2px #000;paint-order:stroke fill" : ""}">Hook</b></i><span>${l}</span></button>`; }).join("")}</div>
+        <p class="ed-sub">Box</p>
         <div class="ed-f">Banner<div class="ed-seg">${[["fit", "Fitted"], ["full", "Full"], ["line", "Per line"], ["none", "None"]].map(([v, l]) =>
           `<button data-ed="hookbanner" data-v="${v}" aria-pressed="${(L.hook_banner || "fit") === v}">${l}</button>`).join("")}</div></div>
         ${swatches("hook_box", "Box colour", H.hook_box)}
@@ -861,21 +863,21 @@ function drawPanel() {
         ${slider("Box opacity", "hook_op", 0, 100, 5, H.hook_op, H.hook_op + "%")}
         ${slider("Corners", "hook_round", 0, 60, 2, H.hook_round, H.hook_round)}
       </div>
-      <div class="ed-card"><b>Font and spacing</b>
+      <div class="ed-card"><b>Type</b>
         <label class="ed-f">Font<select data-look="hook_font">${Object.keys(f).sort((a, b) => a.localeCompare(b)).map(k => `<option ${k === H.hook_font ? "selected" : ""}>${esc(k)}</option>`).join("")}</select></label>
         ${slider("Size", "hook_size", 50, 140, 2, H.hook_size, H.hook_size)}
         ${typeCtl(L, H.hook_font, "hook_")}
         <div class="ed-f">Letters<div class="ed-seg">${[["asis", "As typed"], ["upper", "UPPER"], ["title", "Title"], ["lower", "lower"]].map(([v, l]) =>
           `<button data-ed="hookcase" data-v="${v}" aria-pressed="${(L.hook_case || "asis") === v}">${l}</button>`).join("")}</div></div>
         ${slider("Letter spacing", "hook_sp", -4, 24, 1, H.hook_sp, H.hook_sp)}
-        ${posCard("hook")}
-        <button class="ed-link" data-ed="hookreset">Back to the default look</button>
       </div>
-      <div class="ed-card"><b>Show for</b>
+      <div class="ed-card"><b>Position</b>${posCard("hook")}</div>
+      <div class="ed-card"><b>On screen for</b>
         <div class="ed-f">
           <div class="ed-seg">${[[3, "3 s"], [5, "5 s"], [8, "8 s"], [0, "Whole clip"]].map(([v, l]) => `<button data-ed="hookdur" data-v="${v}" aria-pressed="${H.hook_dur === v}">${l}</button>`).join("")}</div>
           ${slider("Seconds on screen", "hook_dur", 0, Math.max(1, Math.min(60, Math.floor(E.end - E.start))), 0.5, H.hook_dur, H.hook_dur ? H.hook_dur + " s" : "Whole clip", "edHookDur")}</div>
         <p class="ed-help">The hook shows from the start of the clip, then fades away. Drag to the left end to keep it the whole time.</p>
+        <button class="ed-link" data-ed="hookreset">Back to the default look</button>
       </div>
       ${saveLook()}`;
   } else if (E.tab === "layout") {
@@ -1300,12 +1302,14 @@ async function exGo() {
     const r = await fetch(`/api/exports/${token}/file`);
     if (!r.ok) throw new Error("The export didn't work.");
     const blob = await r.blob();
+    if (blob.size < 1024) throw new Error("The export came back empty. Try exporting again.");
     const name = (c.title || c.hook || "clip").replace(/[^\w\- ]+/g, "").trim().slice(0, 60) + "." + x.fmt;
     exDoneClear();
     // the finished file stays in the page while the window is open: it plays below, and can be saved again
-    E.exDone = {url: URL.createObjectURL(blob), name, size: blob.size, fmt: x.fmt, fps: x.fmt === "gif" ? Math.min(x.fps, 15) : x.fps,
+    E.exDone = {url: URL.createObjectURL(blob), blob, name, size: blob.size, fmt: x.fmt, fps: x.fmt === "gif" ? Math.min(x.fps, 15) : x.fps,
       q: x.q, speed: x.speed, secs: x.fmt === "gif" ? Math.min(20, keptLen() / x.speed) : keptLen() / x.speed};
     ok = true;
+    exAutoSave();          // a folder chosen before: it goes straight into the creator's folder, no extra click
   } catch (er) { toast(er.message, "bad"); }
   if (btn) pfStop(btn, ok ? "Done 100%" : "Confirm and export", "Confirm and export");
   // finished: the full button and "Downloaded" stay a moment, then the window shows the finished file; a failure keeps the settings
@@ -1330,6 +1334,11 @@ function exDb(mode, fn) {               // a small store in this browser for the
 }
 const exRootGet = () => exDb("readonly", s => s.get("exportRoot")).catch(() => null);
 const exRootSet = h => exDb("readwrite", s => h ? s.put(h, "exportRoot") : s.delete("exportRoot")).catch(() => null);
+async function exAutoSave() {          // only when the folder is already allowed: never a prompt the person didn't ask for
+  if (!window.showDirectoryPicker) return;
+  const root = await exRootGet();
+  if (root && (await root.queryPermission({mode: "readwrite"}).catch(() => "")) === "granted") exSave();
+}
 async function exRoot(pickNew) {
   let root = pickNew ? null : await exRootGet();
   if (root && (await root.queryPermission({mode: "readwrite"})) !== "granted" && (await root.requestPermission({mode: "readwrite"})) !== "granted") root = null;
@@ -1347,10 +1356,19 @@ async function exSave(pickNew = false) {
       for (let n = 2; n < 100; n++) {      // never over an earlier export: "name (2).mp4" and so on
         try { await dir.getFileHandle(name); name = `${stem} (${n})${ext}`; } catch { break; }
       }
-      const h = await dir.getFileHandle(name, {create: true}), w = await h.createWritable();
-      await w.write(await (await fetch(d.url)).blob()); await w.close();
+      const blob = d.blob || await (await fetch(d.url)).blob();
+      if (!blob.size) throw new Error("empty");
+      const h = await dir.getFileHandle(name, {create: true});
+      try {                                // written whole, then checked; a failed write never leaves an empty file behind
+        const w = await h.createWritable();
+        try { await w.write(blob); await w.close(); } catch (er) { await w.abort?.().catch(() => {}); throw er; }
+        if ((await h.getFile()).size !== blob.size) throw new Error("short");
+      } catch (er) { await dir.removeEntry(name).catch(() => {}); throw er; }
       d.saved = `${root.name}/${folder}/${name}`; drawEx(); return toast(`Saved in ${root.name} › ${folder}`, "ok");
-    } catch (er) { if (er.name === "AbortError") return; }
+    } catch (er) {
+      if (er.name === "AbortError") return;
+      toast("Couldn't write into that folder, so it's downloading instead.", "bad");
+    }
   }
   const a = document.createElement("a"); a.href = d.url; a.download = `${folder} - ${d.name}`;
   document.body.append(a); a.click(); a.remove(); d.saved = `${folder} - ${d.name}`; drawEx();
@@ -4210,7 +4228,15 @@ dlg.addEventListener("click", async e => {
   if (a === "musauto") { E.look.music = {...musicOf(), vol: 18, peak: 95, rise: 3, duck: true}; E.lookTouched = true; drawPanel(); return after(""); }
   if (a === "musdrop") { const m = musicOf(); E.look.music = {...m, peak_at: m.peak_at == null ? Math.max(0, (m.at || 0) + (E.end - E.start)) : null}; E.lookTouched = true; drawPanel(); return after(""); }
   if (a === "hookbanner" || a === "hookcase") { E.look[a === "hookbanner" ? "hook_banner" : "hook_case"] = d.v; E.lookTouched = true; drawPanel(); after(""); return showHook(); }
-  if (a === "emjopen") { E.emjOpen = !E.emjOpen; return drawPanel(); }
+  if (a === "emjopen") {                   // the emoji popover: a click anywhere else closes it
+    E.emjOpen = !E.emjOpen; drawPanel();
+    if (E.emjOpen) setTimeout(() => document.addEventListener("pointerdown", function off(ev) {
+      if (ev.target.closest?.(".ed-emj, .ed-emjbtn")) return;
+      document.removeEventListener("pointerdown", off, true);
+      if (E.emjOpen) { E.emjOpen = false; if (E.tab === "text") drawPanel(); }
+    }, true));
+    return;
+  }
   if (a === "emjcat") { E.emjCat = d.v; E.emjQ = ""; return drawPanel(); }
   if (a === "emjput") {                      // put the emoji where the cursor is in the hook
     const ta = $e("#edHook"); if (!ta || ta.disabled) return;
@@ -4554,7 +4580,7 @@ document.addEventListener("keydown", e => {
   if (mod && (k === "z" || k === "y")) { e.preventDefault(); return histGo(k === "y" || e.shiftKey ? 1 : -1); }
   if (mod || e.altKey) return;
   if (e.key === "Escape") {                 // the topmost small window closes first; the editor itself stays open
-    if (E.keysOpen) { E.keysOpen = false; drawKeys(); } else if (E.tplOpen) { E.tplOpen = false; drawTpl(); }
+    if (E.emjOpen && E.tab === "text") { E.emjOpen = false; drawPanel(); } else if (E.keysOpen) { E.keysOpen = false; drawKeys(); } else if (E.tplOpen) { E.tplOpen = false; drawTpl(); }
     else if (E.exOpen) { E.exOpen = false; drawEx(); } else return;
     e.preventDefault(); return;
   }

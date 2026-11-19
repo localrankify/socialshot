@@ -646,3 +646,88 @@ footer.site ul a:hover{color:#fff}
   .phead.tool .fine{margin-top:12px;gap:2px 12px;font-size:12.5px}
   .phead.tool+.feats .fs-nav{margin-top:0}
 }
+
+/* ---- unslop pass on the inner pages ---- */
+/* product views beside each page's main paragraph */
+.pbody .split>.fs-stage.pv{min-height:380px;padding:32px 24px}
+.pv-who{display:flex;align-items:center;gap:10px;padding:4px 4px 6px}
+.pv-who img{width:32px;height:32px;border-radius:50%;object-fit:cover}
+.pv-who div{flex:1;min-width:0}.pv-who b{display:block;font-size:13px;color:#fff}.pv-who small{display:block;font-size:11px;color:#71717a}
+.sl-wave.pv-wave{height:120px;padding-top:30px;margin:4px 0 6px;max-width:none}
+.pv-score{flex:none;display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:rgba(139,92,246,.18);color:#e9e2ff;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.pv-score.on-clip{position:absolute;left:8px;top:8px;background:var(--accent);color:#fff}
+.pv-cap{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start}
+.pv-phone,.pv-split{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;border:1px solid #2a2a31}
+.pv-phone img{width:100%;height:100%;object-fit:cover;display:block}
+.pv-split{display:grid;grid-template-rows:1fr 1fr}
+.pv-split img{width:100%;height:100%;object-fit:cover;display:block;min-height:0}
+.pv-split img+img{border-top:2px solid #0b0b0d}
+.pv-split .se-cap{top:46%}
+.pv-cap-side{display:flex;flex-direction:column;gap:10px;padding-top:2px}
+.pv-cap-side>small{font-size:11px;color:#71717a}
+.pv-styles{grid-template-columns:1fr 1fr}
+.pv-cap-side .se-line{font-size:11.5px}
+/* the card rows: one quiet panel, each point a row, instead of three equal cards */
+.pbody .cards{grid-template-columns:minmax(0,1fr);gap:0;max-width:880px;margin-left:auto;margin-right:auto;border:1px solid var(--line);border-radius:16px;background:var(--s2);overflow:hidden}
+.pbody .cards .card{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:24px;align-items:baseline;padding:20px 24px;border:0;border-radius:0;background:none}
+.pbody .cards .card+.card{border-top:1px solid var(--line)}
+.pbody .cards .card:hover{translate:none;border-color:transparent}
+.pbody .cards h3{position:relative;padding-left:22px}
+.pbody .cards h3::before{content:"";position:absolute;left:0;top:6px;width:10px;height:10px;border-radius:3px;background:rgba(139,92,246,.2);box-shadow:inset 0 0 0 1.5px #a78bfa}
+.pbody .cards p{margin-top:0}
+/* the steps: a quiet number on a hairline, no glow, no lift */
+.pbody .steps .card::before{background:none;border:1px solid var(--line-3);box-shadow:none;color:var(--accent-ink);font-weight:600}
+.pbody .steps .card:hover{translate:none}
+/* comparison tables: SocialShot's column raised, a tick or a cross on yes and no */
+.cmpx{padding:0;overflow-x:auto}
+.cmpx table{margin:0}
+.cmpx th:nth-child(2),.cmpx td:nth-child(2){background:rgba(139,92,246,.07);color:#fff}
+.cmpx thead th:nth-child(2){color:var(--accent-ink);font-weight:600}
+.cmpx tbody tr:last-child td:nth-child(2){box-shadow:inset 0 -2px 0 rgba(139,92,246,.35)}
+.cmpx thead th:nth-child(2){box-shadow:inset 0 2px 0 rgba(139,92,246,.6)}
+.tk{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:8px;border-radius:50%;vertical-align:-4px}
+.tk .ti{width:11px;height:11px;stroke-width:2.6}
+.tk.yes{background:rgba(34,197,94,.16);color:#4ADE80}
+.tk.no{background:rgba(255,255,255,.06);color:var(--faint)}
+/* the blog's featured post: the title leads; the action is a quiet link */
+.pc-more{display:inline-flex;align-items:center;gap:6px;margin-top:20px;font-size:14px;font-weight:500;color:var(--accent-ink)}
+.pc-more .ti{width:15px;height:15px;transition:translate .2s ease}
+.pcard:hover .pc-more .ti{translate:3px 0}
+@media (max-width:760px){
+  .pbody .cards .card{grid-template-columns:minmax(0,1fr);gap:6px;padding:16px 18px}
+  .pv-cap{grid-template-columns:120px minmax(0,1fr);gap:12px}
+  .pbody .split>.fs-stage.pv{min-height:0;padding:20px 14px}
+}
+
+/* ---- unslop pass on the blog posts: a quiet sidebar, one small product moment, calm in-article prompt ---- */
+.side{gap:0}
+.side .scard{background:none;border:0;border-radius:0;padding:24px 0;border-top:1px solid var(--line)}
+.side>.scard:first-child{border-top:0;padding-top:0}
+.sstick{gap:0}
+.side .scard h3{margin-bottom:12px}
+.toc a{padding:6px 0 6px 14px}
+.side .stry{display:grid;grid-template-columns:72px minmax(0,1fr);gap:16px;align-items:start;margin-top:8px;padding:16px;border:1px solid var(--line-2);border-radius:14px;background:var(--s2)}
+.stry-clip{position:relative;aspect-ratio:9/16;border-radius:8px;overflow:hidden;border:1px solid var(--line-2)}
+.stry-clip img{width:100%;height:100%;object-fit:cover;display:block}
+.stry-clip .pv-score.on-clip{left:4px;top:4px;min-width:22px;height:18px;padding:0 4px;font-size:10.5px;border-radius:4px}
+.stry small{display:block;margin-bottom:4px;font-size:12px;line-height:16px;color:var(--faint);font-variant-numeric:tabular-nums}
+.stry b{font-size:15px;line-height:20px}
+.stry p{margin:4px 0 12px;font-size:13.5px;line-height:20px}
+.stry-go{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:var(--accent-ink);text-decoration:none}
+.stry-go .ti{width:15px;height:15px;transition:translate .2s ease}.stry-go:hover .ti{translate:3px 0}
+.prose .try{background:var(--s2);border-color:var(--line-2)}
+.prose ol li::marker{color:var(--mute);font-variant-numeric:tabular-nums}
+.prose ul li::marker{color:var(--accent-ink)}
+@media (max-width:960px){
+  .side{gap:32px 24px;padding-top:32px;border-top:1px solid var(--line)}
+  .side .scard{border-top:0;padding:0}
+  .side .stry{grid-column:1/-1;margin-top:0}
+}
+@media (max-width:560px){.side{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- unslop pass on features and changelog: no icon tile per section, a solid progress bar, a quiet link ---- */
+.fs-copy h2{margin-top:0}
+.fx-prog span i{background:var(--accent)}
+.ce-more{height:auto;padding:0;border:0;border-radius:0;background:none;color:var(--accent-ink);font-size:14px;font-weight:500;gap:6px}
+.ce-more:hover{background:none;color:#fff}
+.ce-more .ti{transition:translate .2s ease}.ce-more:hover .ti{translate:3px 0}

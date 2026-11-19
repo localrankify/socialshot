@@ -5,11 +5,11 @@
  },
  "/auto-captions": {
   "date": "2026-11-19",
-  "hash": "efd26419dd52d3a9934b6d058155a963"
+  "hash": "0cf3e0e8d57b089ed988ebc7bae0cf27"
  },
  "/blog": {
   "date": "2026-11-19",
-  "hash": "04e7c08cf9b97438762791dbe25a7515"
+  "hash": "05f05a976a57000dfbe620ab8e534501"
  },
  "/blog/best-time-to-post-youtube-shorts": {
   "date": "2026-11-17"
@@ -50,50 +50,50 @@
  },
  "/features": {
   "date": "2026-11-19",
-  "hash": "41db8bed9ecf8d386d0390c8b5da23da"
+  "hash": "3b73351df96a8d788c9e7a4a237ae73c"
  },
  "/kick-clip-maker": {
   "date": "2026-11-19",
-  "hash": "b8bcf766da6278da1a7f3dd48a5c1348"
+  "hash": "8879c3009dafcbf68f5d047981c7f1bf"
  },
  "/legal": {
   "date": "2026-11-19",
-  "hash": "d81ab03929462f02708b5bfe8943fd45"
+  "hash": "8cb1ee181fc429ebb0a109c854fa8fa4"
  },
  "/live-stream-clipper": {
   "date": "2026-11-19",
-  "hash": "db5c79b301574cd588dd3c5140e1ef65"
+  "hash": "82f80d16c27a17f0d69bde1f962081c6"
  },
  "/opus-clip-alternative": {
   "date": "2026-11-19",
-  "hash": "f0b182f34e6a6cf239e20a32da94a48a"
+  "hash": "cf158cb7d6ea39ce7a7319fd26e5e680"
  },
  "/podcast-clip-maker": {
   "date": "2026-11-19",
-  "hash": "ee2170492c23f60879007c72acdbc01e"
+  "hash": "246c654225bad7bed0a9177d66ccf22b"
  },
  "/socialshot-vs-eklipse": {
   "date": "2026-11-19",
-  "hash": "9e7ab2384385dd1a6946c1af28f005e8"
+  "hash": "ea4b69911f7599ff162370625f348501"
  },
  "/socialshot-vs-opus-clip": {
   "date": "2026-11-19",
-  "hash": "3f0fe574da0d82ccb1630e880c9ae2d3"
+  "hash": "53b184dd8618282797f28ef9da0bee9a"
  },
  "/socialshot-vs-streamladder": {
   "date": "2026-11-19",
-  "hash": "1ec37fd41586425879cbf8e143966d38"
+  "hash": "db0e3b07e4beb9c8c38201628a5b5d6e"
  },
  "/socialshot-vs-vizard": {
   "date": "2026-11-19",
-  "hash": "174e5f08211adf52cdc28538d1df85eb"
+  "hash": "280f88f40229155ef0fb8d9314a6387f"
  },
  "/twitch-clip-maker": {
   "date": "2026-11-19",
-  "hash": "4ea2883d7eeb3b74eb18256bd1778bf8"
+  "hash": "dd513d09a4797cf1a8aad88a56991dcc"
  },
  "/youtube-shorts-maker": {
   "date": "2026-11-19",
-  "hash": "d46bee93d4c4e30bb1f6c19f5dad53b5"
+  "hash": "7f528ea553d2d7f1ecea24f71b6df8ff"
  }
 }

@@ -416,7 +416,7 @@ def head(title, desc, path, og, extra="", kind="website", alt="", art=None):
 <link rel="stylesheet" href="/assets/ui.css?v=7">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=33">
+<link rel="stylesheet" href="/assets/site.css?v=37">
 <script src="/assets/site.js?v=4" defer></script>
 {extra}
 </head>
@@ -559,7 +559,7 @@ def post_card(b, big=False):
     if big:  # the top of /blog: load the picture straight away
         img = img.replace('loading="lazy"', 'fetchpriority="high"')
         return (f'<a class="pcard feat" href="/blog/{b["slug"]}" data-tag="{E(b["tag"])}"><span class="pc">{tag}<b>{E(b["h1"])}</b>'
-                f'<small>{E(b["excerpt"])}</small>{meta}<span class="btn primary">Read the guide{ARROW}</span></span>{img}</a>')
+                f'<small>{E(b["excerpt"])}</small>{meta}<span class="pc-more">Read the guide{ARROW}</span></span>{img}</a>')
     return (f'<a class="pcard" href="/blog/{b["slug"]}" data-tag="{E(b["tag"])}">{img}<span class="pc">{tag}<b>{E(b["h1"])}</b>{meta}</span></a>')
 
 
@@ -905,7 +905,7 @@ def features_page():
     for i, g in enumerate(gs):
         items = "".join(f'<li><b>{E(a)}</b><span>{E(b_)}</span></li>' for a, b_ in g["items"])
         secs += (f'<section class="fs{" flip" if i % 2 else ""}" id="{E(g["id"])}"><div class="fs-copy">'
-                 f'<span class="fs-ic">{_ico(FI[g["icon"]])}</span><h2>{E(g["name"])} <span>{len(g["items"])}</span></h2><p>{E(g["intro"])}</p>'
+                 f'<h2>{E(g["name"])} <span>{len(g["items"])}</span></h2><p>{E(g["intro"])}</p>'
                  f'<ul class="fs-list">{items}</ul></div>'
                  f'<div class="fs-stage t-{TINTS[i % len(TINTS)]}" aria-hidden="true">{COMPS[g["scene"]]()}</div></section>')
     extra = graph(ORG, WEBSITE, webpage(path, title, desc, og), crumbs(path, [("Home", "/"), ("Features", path)]))
@@ -918,6 +918,54 @@ def features_page():
            f'<section class="feats"><div class="wrap"><nav class="fs-nav" aria-label="Parts of the app"><div class="fs-nav-in">{chips}</div></nav>{secs}</div></section>'
            + cta() + FEATURES_JS + tail())
     (OUT / "features.html").write_text(out, encoding="utf-8")
+
+
+# ---- the inner pages' product views: what each page talks about, shown in the app instead of a strip of photos ----
+def view_live(who="CarryisLive", where="YouTube Live", avatar="avatar-carry.jpg"):
+    hs = [.3, .45, .38, .52, .4, .36, .62, .95, .88, .42, .35, .48, .4, .34, .46, .5, .38, .9, .84, .4, .36, .5]
+    bars = "".join(f'<i class="{"hot" if h > .8 else ""}" style="height:{round(h * 100)}%"></i>' for h in hs)
+    head = (f'<div class="pv-who"><img src="/brand/{avatar}" alt="" loading="lazy"><div><b>{who}</b><small>{where} · recording 1:42:10</small></div>'
+            '<span class="sw-chip live"><i></i>Live</span></div>')
+    wave = f'<div class="sl-wave pv-wave">{bars}<span class="sl-tag t1">{_ico(IC["check"])}Clip saved</span><span class="sl-tag t2">{_ico(IC["check"])}Clip saved</span></div>'
+    rows = ('<div class="fx-row"><span class="pv-score">94</span><div><b>No win, no sleep</b><small>Chat tripled · 0:42</small></div></div>'
+            '<div class="fx-row"><span class="pv-score">88</span><div><b>The ambush</b><small>Voice spike · 0:55</small></div></div>')
+    return _card("Live recording", head + wave + rows, "w420")
+
+
+def view_captions():
+    styles = '<div class="sp-styles pv-styles"><span class="on">Editorial</span><span>Bounce</span><span>Karaoke</span><span>Neon</span></div>'
+    phone = ('<div class="se-phone pv-phone"><img src="/brand/clip-garyvee.jpg" alt="" loading="lazy">'
+             '<span class="se-cap">provide <em>value</em> first</span><span class="pv-score on-clip">91</span></div>')
+    side = (f'<div class="pv-cap-side"><small>Caption style</small>{styles}'
+            '<div class="se-line on"><small>0:07</small><span>provide <mark>value</mark> first</span></div>'
+            '<div class="sp-rule"><small>Word by word</small><span class="tg on"><i></i></span></div></div>')
+    return _card("Captions", f'<div class="pv-cap">{phone}{side}</div>', "w420")
+
+
+def view_podcast():
+    phone = ('<div class="pv-split"><img src="/brand/podcast-frames/f_1500.jpg" alt="" loading="lazy" style="object-position:30% 40%">'
+             '<img src="/brand/podcast-frames/f_3300.jpg" alt="" loading="lazy" style="object-position:72% 40%">'
+             '<span class="se-cap">the whole <em>point</em> is this</span><span class="pv-score on-clip">89</span></div>')
+    side = ('<div class="pv-cap-side"><small>Layout</small><div class="sp-styles pv-styles"><span class="on">Split</span><span>Trio</span>'
+            '<span>Face grid</span><span>Full frame</span></div><div class="fx-row"><div><b>Both speakers in frame</b><small>Found from the video</small></div></div></div>')
+    return _card("Podcast clip", f'<div class="pv-cap">{phone}{side}</div>', "w420")
+
+
+PAGE_VIEW = {"twitch-clip-maker": lambda: view_live(), "kick-clip-maker": lambda: view_live("kai.irl", "Kick", "avatar-irl.jpg"),
+             "live-stream-clipper": lambda: view_live(), "auto-captions": view_captions, "podcast-clip-maker": view_podcast,
+             "youtube-shorts-maker": lambda: comp_clips()}
+
+
+def page_body(slug, body):
+    """A tool or comparison page's body with its strip of photos swapped for a view of the product, and comparison
+    tables marked: SocialShot's column raised, a tick on yes and a cross on no."""
+    view = PAGE_VIEW.get(slug, comp_moments)()
+    body = re.sub(r'<figure class="shots">.*?</figure>', lambda m: f'<div class="fs-stage pv t-violet" aria-hidden="true">{view}</div>', body, flags=re.S)
+    tick = '<span class="tk yes"><svg class="ti" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg></span>'
+    cross = '<span class="tk no"><svg class="ti" viewBox="0 0 24 24"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></span>'
+    body = re.sub(r"<td>(Yes\b)", lambda m: f"<td>{tick}{m.group(1)}", body)
+    body = re.sub(r"<td>(No(?=[,.<]))", lambda m: f"<td>{cross}{m.group(1)}", body)
+    return body.replace('<div class="card tablewrap"><table>', '<div class="card tablewrap cmpx"><table>')
 
 
 
@@ -961,7 +1009,7 @@ def build():
                + f'<section class="phead tool">{hero_deco()}<div class="wrap">{hero_mark(p)}<span class="sr">{E(p["eyebrow"])}</span><h1>{E(p["h1"])}</h1><p>{E(p["lede"])}</p>'
                f'<div class="ctas"><a class="btn lg primary" href="/#get-app">Get the Windows app{ARROW}</a><a class="btn lg outline" href="/#how">How it works</a></div>'
                f'<ul class="fine"><li>Free, no card</li><li>Your own AI key</li><li>Cloud version in a few days</li></ul></div></section>'
-               + f'<section class="pbody"><div class="wrap">{p["body"]}</div></section>'
+               + f'<section class="pbody"><div class="wrap">{page_body(p["slug"], p["body"])}</div></section>'
                + faq_block(p.get("faq"), p["nav"])
                + f'<section class="rel"><div class="wrap"><h2 class="sec">More ways to clip</h2><div class="rgrid">{rel_pages}</div>'
                + (f'<h2 class="sec">From the blog</h2><div class="pgrid">{rel_posts}</div>' if rel_posts else "")
@@ -1008,8 +1056,9 @@ def build():
                + (f'<div class="scard"><h3>Related guides</h3><div class="sposts">{"".join(side_post(m) for m in more)}</div></div>' if more else "")
                + '<div class="sstick">'
                + (f'<nav class="scard toc" aria-label="On this page"><h3>On this page</h3><ol>{toc_list(toc)}</ol></nav>' if toc else "")
-               + '<div class="scard stry"><b>Clip your next stream</b><p>Clips arrive while you are still live. Free on Windows with your own AI key.</p>'
-               f'<a class="btn primary" href="/#get-app">Get the Windows app{ARROW}</a></div></div></aside></div></div></article>'
+               + '<div class="scard stry"><div class="stry-clip"><img src="/brand/clip-garyvee.jpg" alt="" loading="lazy" width="72" height="128"><span class="pv-score on-clip">91</span></div>'
+               '<div><small>Clip ready · 0:42</small><b>Clip your next stream</b><p>Clips arrive while you are still live. Free on Windows with your own AI key.</p>'
+               f'<a class="stry-go" href="/#get-app">Get the app{ARROW}</a></div></div></div></aside></div></div></article>'
                + (f'<section class="rel"><div class="wrap"><h2 class="sec">Tools for this</h2><div class="rgrid">{"".join(page_card(t) for t in tools)}</div></div></section>' if tools else "")
                + cta() + POST_JS + tail())
         (OUT / "blog" / f'{b["slug"]}.html').write_text(out, encoding="utf-8")

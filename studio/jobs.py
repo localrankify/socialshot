@@ -170,8 +170,26 @@ def job_dir(jid) -> Path:
 HIDDEN = ("dir", "user", "source_path", "recover")
 
 
+def _thumb_later(job):
+    """A finished video with no picture for the list (a live recording, say): one frame of its own video, made once
+    in the background."""
+    if job.get("thumb") or job.get("thumb_tried") or job.get("status") != "done":
+        return
+    src = Path(str(job.get("source_path") or ""))
+    if not src.is_file():
+        return
+    job["thumb_tried"] = True
+
+    def run():
+        if media.save_thumb(Path(job["dir"]), video=src):
+            job["thumb"] = True
+        save(job)
+    threading.Thread(target=ctx.bind(run), daemon=True).start()
+
+
 def public(job) -> dict:
     """What the browser may see: no server paths, no owner id."""
+    _thumb_later(job)
     out = {k: v for k, v in job.items() if k not in HIDDEN}
     out["source"] = {k: v for k, v in job["source"].items() if k != "path"}
     out["clips"] = [{k: v for k, v in c.items() if k not in ("src", "fixed_words", "fixed_for", "caption_words", "heard_words", "heard_for")} for c in job["clips"]]

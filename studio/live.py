@@ -541,6 +541,8 @@ class Session:
             pass
         self.job.update(source_path=str(out), duration=round(self.t_done or segs[-1][2], 2),
                         rec_start=segs[0][1], clock_fix=round(self.clock_fix, 2))
+        if not self.job.get("thumb") and media.save_thumb(self.dir, video=out):    # a picture for the Videos list
+            self.job["thumb"] = True
         jobs.save(self.job)
 
     def _verdict(self, v, result):

@@ -20,13 +20,23 @@
 <link rel="manifest" href="/brand/site.webmanifest">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/ui.css?v=7">
-<link rel="stylesheet" href="/assets/site.css?v=33">
+<link rel="stylesheet" href="/assets/site.css?v=37">
 <script src="/assets/site.js?v=4" defer></script>
 <style>
 /* the three policies: one page, a side menu to switch, the text set for reading */
 body{background:var(--s1)}
-.lgrid{display:grid;grid-template-columns:220px minmax(0,720px);gap:72px;justify-content:center;padding:16px 24px 128px}
-.lnav{position:sticky;top:96px;align-self:start;display:grid;gap:2px}
+.lgrid{display:grid;grid-template-columns:220px minmax(0,720px);gap:72px;justify-content:center;padding:128px 24px 128px}
+.lside{position:sticky;top:104px;align-self:start;display:grid;gap:32px;max-height:calc(100vh - 128px);overflow-y:auto;scrollbar-width:none}
+.lside::-webkit-scrollbar{display:none}
+.lnav{display:grid;gap:2px}
+.lhead{padding-bottom:32px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.lhead h1{font-family:var(--font-head);font-size:clamp(32px,4vw,44px);line-height:1.1;letter-spacing:-.035em;font-weight:600;color:#fff}
+.lhead p{margin-top:12px;font-size:14px;color:var(--mute);font-variant-numeric:tabular-nums}
+.ltoc small{display:block;margin:0 0 10px 12px;font-size:12.5px;color:var(--faint)}
+.ltoc ol{list-style:none;margin:0;padding:0}
+.ltoc a{display:block;padding:5px 0 5px 12px;border-left:2px solid var(--line-2);color:var(--mute);font-size:13.5px;line-height:20px;text-decoration:none;transition:color .15s ease,border-color .15s ease}
+.ltoc a:hover{color:#fff}.ltoc a.on{color:#fff;border-left-color:var(--accent)}
+article h2{scroll-margin-top:104px}
 .lnav small{display:block;margin:0 12px 10px;font-size:12.5px;color:var(--faint)}
 .lnav a{display:flex;align-items:center;height:38px;padding:0 12px;border-radius:var(--r);color:var(--dim);font-size:14px;text-decoration:none;transition:background-color .15s ease,color .15s ease}
 .lnav a:hover{background:var(--s2);color:var(--text)}
@@ -47,7 +57,9 @@ article a{color:var(--accent-ink);text-underline-offset:3px}
 article .box{margin:18px 0;padding:16px 18px;border-radius:var(--r-card);background:var(--s2);border:1px solid var(--line-2);color:var(--text-2)}
 article .caps{color:var(--text-2)}
 @media (max-width:860px){
-  .lgrid{grid-template-columns:1fr;gap:28px;padding:0 16px 96px}
+  .lgrid{grid-template-columns:1fr;gap:24px;padding:104px 16px 96px}
+  main{display:contents}.lhead{order:-2}.lside{position:static;max-height:none;overflow:visible;order:-1}.ltoc{display:none}
+  .lhead{padding-bottom:24px}
   .lnav{position:static;display:flex;overflow-x:auto;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--line);scrollbar-width:none}
   .lnav::-webkit-scrollbar{display:none}
   .lnav small{display:none}.lnav a{flex:none}
@@ -58,13 +70,14 @@ article .caps{color:var(--text-2)}
 <body data-page="{{PAGE}}">
 <header class="nav" id="nav"><div class="nav-in">
   <a class="logo" href="/" aria-label="SocialShot home"><span class="lockup"><img src="/brand/favicon.svg?v=6" alt="" width="32" height="32"><b>SocialShot</b></span></a>
-  <nav aria-label="Sections"><a href="/#features">Features</a><a href="/#how">How it works</a><a href="/#styles">Caption styles</a><a href="/#compare">Compare</a><a href="/#pricing">Pricing</a><a href="/blog">Blog</a></nav>
+  <nav aria-label="Sections"><a href="/#features">Features</a><a href="/#how">How it works</a><a href="/#styles">Caption styles</a><a href="/#compare">Compare</a><a href="/#pricing">Pricing</a><a href="/blog">Blog</a><a href="/changelog">Changelog</a></nav>
   <div class="acts"><a class="btn ghost" href="/login">Sign in</a><a class="btn primary" href="/#get-app">Get the app</a></div>
+  <button class="nav-burger" type="button" aria-label="Open the menu" aria-expanded="false" aria-controls="nav-menu"><i></i><i></i></button>
+  <div class="nav-menu" id="nav-menu" hidden><nav aria-label="Menu"><a href="/#features">Features</a><a href="/#how">How it works</a><a href="/#styles">Caption styles</a><a href="/#compare">Compare</a><a href="/#pricing">Pricing</a><a href="/features">All features</a><a href="/blog">Blog</a><a href="/changelog">Changelog</a></nav><a class="btn lg primary nm-cta" href="/#get-app">Get the Windows app<svg class="ti" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a><small class="nm-note">Free for Windows 10 and 11</small></div>
 </div></header>
-<div class="phead"><div class="wrap"><span class="eyebrow">Legal</span><h1 id="lt">{{TITLE}}</h1><p id="lu">Last updated 13 November 2026</p></div></div>
 <div class="lgrid">
-<nav class="lnav" aria-label="Legal pages"><small>Policies</small><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a><a href="/acceptable-use">Acceptable Use</a></nav>
-<main>
+<aside class="lside"><nav class="lnav" aria-label="Legal pages"><small>Policies</small><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a><a href="/acceptable-use">Acceptable Use</a></nav><nav class="ltoc" aria-label="On this page"><small>On this page</small><ol id="ltoc"></ol></nav></aside>
+<main><header class="lhead"><h1 id="lt">{{TITLE}}</h1><p id="lu">Last updated 13 November 2026</p></header>
 
 <!-- ============================================================ TERMS -->
 <article id="terms">
@@ -264,8 +277,22 @@ function showLegal(page, push) {
   const art = document.getElementById(page); art.style.animation = "none"; art.offsetWidth; art.style.animation = "";
   if (push) history.pushState({page}, "", "/" + page);
   window.scrollTo({top: 0, behavior: "smooth"});
+  buildToc();
   return true;
 }
+function buildToc() {
+  const art = document.getElementById(document.body.dataset.page), ol = document.getElementById("ltoc");
+  const hs = [...art.querySelectorAll("h2")];
+  hs.forEach((h, i) => { if (!h.id) h.id = art.id + "-" + (h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || i); });
+  ol.innerHTML = hs.map(h => `<li><a href="#${h.id}">${h.textContent}</a></li>`).join("");
+  spy();
+}
+function spy() {
+  const links = [...document.querySelectorAll("#ltoc a")]; let on = links[0];
+  for (const a of links) { const h = document.getElementById(a.hash.slice(1)); if (h && h.getBoundingClientRect().top < 140) on = a; }
+  links.forEach(a => a.classList.toggle("on", a === on));
+}
+addEventListener("scroll", spy, {passive: true});
 document.addEventListener("click", e => {
   const a = e.target.closest("a[href]"); if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
   const page = a.getAttribute("href").replace(/^\//, "");
@@ -273,6 +300,7 @@ document.addEventListener("click", e => {
 });
 document.getElementById("lu").textContent = document.querySelector("#" + document.body.dataset.page + " .updated").textContent;
 addEventListener("popstate", () => showLegal(location.pathname.replace(/^\//, ""), false));
+buildToc();
 </script>
 </body>
 </html>

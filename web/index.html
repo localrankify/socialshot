@@ -5679,6 +5679,47 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .ed-outro-c span.pill{left:50%;right:auto;transform:translate(-50%,-50%);background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
 .ed-outro-c .oi{position:absolute;left:50%;transform:translateX(-50%);display:flex}
 .ed-outro-c .oi em{display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 1px rgba(255,255,255,.19)}
+/* a clip still being made, in a video card's row */
+.pc-wait{cursor:default}
+.pc-wait .pc-img{display:grid;place-items:center;align-content:center;gap:8px;background:linear-gradient(180deg,#17171A,#121214)}
+.pc-wait .jp-spin{width:20px;height:20px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 25%,transparent);border-top-color:var(--accent);animation:jp-spin .9s linear infinite}
+@media (prefers-reduced-motion:reduce){.pc-wait .jp-spin{animation:none}}
+.pc-wait .pc-img small{font-size:11.5px;font-weight:500;color:#8E8E96}
+.pc-wait b{color:#A1A1AA}
+/* ================= editor panels, quieter: a plain header (no colour wash), the Text panel's hook as one card with
+   the emoji picker as a popover, and hook styles shown on the clip's own frame */
+.ed .ed-hero,.ed .ed-panel>.ed-hero,.ed .ed-txhead>.ed-hero{background:transparent!important;border:0!important;border-bottom:1px solid rgba(255,255,255,.06)!important;box-shadow:none!important}
+.ed .ed-panel>.ed-hero{padding:14px 16px 12px!important;border-radius:0!important}
+.ed .ed-hero-ic{background:#1F1F23!important;color:#E4E4E7!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.ed .ed-panel>.ed-hero h3{font-size:13.5px;font-weight:600;color:#F4F4F5}
+.ed .ed-panel>.ed-hero p{font-size:12px;line-height:1.45;color:#8E8E96}
+.ed .ed-hookcard{position:relative}
+.ed .ed-hookcard .ed-h b{font-size:13px}
+.ed .ed-hookin textarea{min-height:76px;padding:12px 14px 34px!important;border-radius:10px;font-size:14px;line-height:1.45;resize:none}
+.ed .ed-hookbar{position:absolute;left:8px;right:10px;bottom:8px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.ed .ed-hookbar>*{pointer-events:auto}
+.ed .ed-hookbar .ed-emjbtn{position:static;height:26px;width:26px;padding:0;justify-content:center;border-radius:7px;border:0;background:transparent;color:#8E8E96}
+.ed .ed-hookbar .ed-emjbtn:hover,.ed .ed-hookbar .ed-emjbtn.on{background:#26262B;color:#F4F4F5}
+.ed .ed-hookbar .ed-emjbtn svg{width:16px;height:16px}
+.ed .ed-count{font-size:11px;color:#6B6B73;font-variant-numeric:tabular-nums}
+.ed .ed-count.near{color:#FBBF24}
+.ed .ed-hookcard .ed-emj{position:absolute;left:12px;right:12px;top:calc(100% - 6px);z-index:30;margin:0;padding:8px;border-radius:12px;background:#17171A;
+  border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 40px -12px rgba(0,0,0,.75);animation:ed-pop .14s ease-out}
+@keyframes ed-pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ed .ed-hookcard .ed-emj{animation:none}}
+.ed .ed-hookcard .ed-emj .ed-search{height:32px}
+.ed .ed-emjgrid{grid-template-columns:repeat(8,minmax(0,1fr));max-height:168px}
+.ed .ed-emjgrid button:hover{transform:none}
+.ed .ed-hstyles{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ed .ed-hst{gap:6px;justify-items:stretch;padding:0;border:0;background:none;color:#A1A1AA;text-align:left}
+.ed .ed-hst:hover{background:none;color:#F4F4F5}
+.ed .ed-hst i{position:relative;height:54px;border-radius:9px;overflow:hidden;background:#111113;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.ed .ed-hst i s{position:absolute;inset:0;background-size:cover;background-position:center 30%;filter:brightness(.55) saturate(.9);transition:filter .15s ease}
+.ed .ed-hst:hover i s{filter:brightness(.68) saturate(.95)}
+.ed .ed-hst i b{position:relative;font-size:11.5px;padding:3px 7px}
+.ed .ed-hst.on i{box-shadow:inset 0 0 0 2px var(--accent)}
+.ed .ed-hst.on{color:#F4F4F5}
+.ed .ed-hst>span{padding-left:2px;font-size:11.5px;font-weight:500}
 </style>
 </head>
 <body>
@@ -7273,14 +7314,15 @@ function procHtml(j) {
     <div class="jp-row"><div class="jp-t"><i class="jp-spin"></i><b>${esc(j.stage || "Getting ready")}</b></div><span class="jp-pct">${pct}<small>%</small></span></div>
     <div class="jp-bar"><i style="width:${Math.max(2, pct)}%"></i></div></div>`;
 }
-function forgeHtml(j) {
+function forgeHtml(j, label, note) {
   const pct = Math.round((j.progress || 0) * 100);
   const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="">` : "";
   requestAnimationFrame(fgStart);
-  return `<div class="pc-forge" role="status" aria-label="${esc(j.stage || "Working")}, ${pct}%">
+  label = label || j.stage || "Getting ready"; note = note ?? `${pct}%`;
+  return `<div class="pc-forge" role="status" aria-label="${esc(label)}, ${esc(note)}">
     <div class="fg-cards" aria-hidden="true"><span class="l"></span><span class="r"></span><span class="m">${pic}</span></div>
     <div class="fg-pix" aria-hidden="true"><canvas></canvas></div>
-    <div class="fg-txt"><b>${esc(j.stage || "Getting ready")}</b><span>${pct}%</span></div></div>`;
+    <div class="fg-txt"><b>${esc(label)}</b><span>${esc(note)}</span></div></div>`;
 }
 let fgRaf = 0;
 const fgStill = matchMedia("(prefers-reduced-motion: reduce)");
@@ -7328,7 +7370,8 @@ function projHtml(j) {
   const meta = [who && [ic("user"), who], j.uploader && [ic("radio"), j.uploader], j.duration && [ic("clock"), fmt(j.duration) + " long"],
                 j.clips.length && [ic("scissors"), `${ready.length}/${j.clips.length} clips ready`],
                 j.chat && [ic("chat"), `${j.chat.spikes} chat spike${j.chat.spikes === 1 ? "" : "s"}`]].filter(Boolean).map(([i, t]) => `<span class="mp">${i}${esc(t)}</span>`).join("");
-  const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="" loading="lazy">` : `<span class="pc-noimg">${ic(j.source?.type === "file" ? "film" : "link")}</span>`;
+  const pic = j.thumb ? `<img src="/media/${esc(j.id)}/thumb.jpg" alt="" loading="lazy">`
+    : ready[0] ? `<img src="/media/${esc(j.id)}/${esc(ready[0].cover)}?v=${ready[0].version}" alt="" loading="lazy">` : `<span class="pc-noimg">${ic(j.source?.type === "file" ? "film" : "link")}</span>`;
   const link = `/app/videos/${encodeURIComponent(j.id)}`, total = ready.length;
   // the clips as 9:16 tiles. The card shows 6, 4 or 2 of them by its own width; the last one shown carries "+N" when
   // there are more, and opens the project.
@@ -7336,8 +7379,15 @@ function projHtml(j) {
   const tiles = ready.slice(0, 6).map((c, i) => `<div class="pc-t">
       <button class="pc-clip" data-act="openclip" data-j="${j.id}" data-c="${esc(c.id)}" aria-label="Edit clip: ${esc(c.title || c.hook || "clip")}">
         <span class="pc-img"><img src="/media/${j.id}/${esc(c.cover)}?v=${c.version}" alt="" loading="lazy"><span class="du">${fmt(c.end - c.start)}</span><i class="pc-play">${ic("play")}</i></span>
-        <b>${esc(c.title || c.hook || "Untitled clip")}</b></button>${plus(i, 6)}${plus(i, 4)}${plus(i, 2)}</div>`).join("");
-  const waiting = busy && !total ? forgeHtml(j) : "";
+        <b>${esc(c.title || c.hook || "Untitled clip")}</b></button>${plus(i, 6)}${plus(i, 4)}${plus(i, 2)}</div>`).join("")
+    // clips still being made, after the ready ones: a quiet tile each, so the row isn't half empty
+    + (ready.length && ready.length < 6 ? j.clips.filter(c => c.status === "queued" || c.status === "rendering").slice(0, 6 - ready.length).map(c => `<div class="pc-t">
+      <div class="pc-clip pc-wait" role="status"><span class="pc-img"><i class="jp-spin"></i><small>${c.status === "rendering" ? "Making" : "In line"}</small></span>
+        <b>${esc(c.title || c.hook || "New clip")}</b></div></div>`).join("") : "");
+  const making = j.clips.filter(c => c.status === "queued" || c.status === "rendering").length;
+  const waiting = busy && !total ? forgeHtml(j)
+    : !total && (j.finding || making) ? forgeHtml(j, j.finding || `Making ${making} clip${making === 1 ? "" : "s"}`,
+        j.clips.length ? `${ready.length} of ${j.clips.length} clips ready` : "Reading the video for its best moments") : "";
   return `<div class="pc-info" data-act="openproj" data-j="${j.id}" title="Open the project">
       <a class="pc-cover" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project: ${esc(name)}">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</a>
       <a class="pc-name" href="${link}" data-act="openproj" data-j="${j.id}"><h3 title="${esc(name)}">${esc(name)}</h3></a>
@@ -8540,6 +8590,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=174"></script>
+<script src="/assets/editor.js?v=176"></script>
 </body>
 </html>

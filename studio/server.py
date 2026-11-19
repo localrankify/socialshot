@@ -1447,7 +1447,7 @@ def _export_run(tok: str, cmd: list, secs: float):
                     pass
         err = proc.stderr.read()
         proc.wait(timeout=900)
-        if proc.returncode != 0 or not Path(e["file"]).is_file():
+        if proc.returncode != 0 or not Path(e["file"]).is_file() or Path(e["file"]).stat().st_size < 1024:
             raise RuntimeError(err[-200:] or "ffmpeg stopped")
         e.update(pct=100, done=True)
     except Exception as ex:  # noqa: BLE001
