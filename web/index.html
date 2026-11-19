@@ -6063,6 +6063,46 @@ dialog.sd{width:min(940px,calc(100vw - 32px))!important}
 .sd-fld input,.sd-fld select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;color-scheme:dark}
 .sd-fld input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 @media (max-width:420px){.sd-when2{grid-template-columns:1fr}}
+/* ================= a creator's own page: the profile card at the top */
+#crhero:empty{display:none}
+.crh{position:relative;margin-bottom:16px;border-radius:18px;background:#151517;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);overflow:hidden}
+.crh-ban{position:relative;height:96px;overflow:hidden;background:linear-gradient(135deg,#232327,#18181B)}
+.crh-ban>i{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(30px) saturate(1.35) brightness(.6);transform:scale(1.2)}
+.crh-ban::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,#151517)}
+.crh-row{position:relative;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;margin-top:-44px;padding:0 22px 20px}
+.crh-id{display:flex;align-items:flex-end;gap:16px;min-width:0}
+.crh-id .avatar{flex:none;width:88px!important;height:88px!important;border-radius:50%;font-size:32px;box-shadow:0 0 0 4px #151517}
+.crh-id .avatar.ring{box-shadow:0 0 0 4px #151517,0 0 0 6px #F43F5E}
+.crh-nm{min-width:0;display:grid;gap:3px;padding-bottom:2px}
+.crh-nm h2{margin:0;font-size:24px;line-height:1.15;font-weight:700;letter-spacing:-.015em;color:#F4F4F5;font-family:var(--font-head,inherit)}
+.crh-nm p{margin:0;font-size:13px;color:#8E8E96}
+.crh-links{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+.crh-links .sbadge{margin:0}
+.crh-ch{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px 0 4px;border-radius:999px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+  color:#C4C4CC;font-size:12px;font-weight:500;text-decoration:none;transition:background-color .15s ease,color .15s ease}
+.crh-ch:hover{background:rgba(255,255,255,.08);color:#fff}
+.crh-ch .logo{width:18px;height:18px;border-radius:5px}.crh-ch .logo svg{width:10px;height:10px}
+.crh-ch>svg{width:11px;height:11px;opacity:.6}
+.crh-stats{display:grid;grid-template-columns:repeat(4,minmax(92px,auto));gap:0;border-radius:12px;background:rgba(255,255,255,.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);overflow:hidden}
+.crh-t{display:grid;gap:2px;padding:11px 16px;border:0;background:transparent;text-align:left;font:inherit;color:inherit}
+.crh-t+.crh-t{border-left:1px solid rgba(255,255,255,.06)}
+.crh-t b{font-size:20px;font-weight:700;color:#F4F4F5;font-variant-numeric:tabular-nums}
+.crh-t b.on{color:#4ADE80}
+.crh-t span{font-size:11.5px;color:#8E8E96}
+.crh-t.act{cursor:pointer;transition:background-color .15s ease}.crh-t.act:hover{background:rgba(255,255,255,.05)}
+@media (max-width:760px){.crh-stats{grid-template-columns:repeat(2,1fr);width:100%}.crh-t:nth-child(3){border-left:0}.crh-t:nth-child(n+3){border-top:1px solid rgba(255,255,255,.06)}}
+/* the clips on a creator's page: the Videos rows, spaced the same */
+#cbody #jobs>section.job.vcard+section.job.vcard{margin-top:0}
+#cbody #jobs{display:grid;gap:10px}
+/* the profile card's badge and channel links: one height, the platform's own symbol in its colour, the arrow small */
+.crh-links{gap:8px}
+.crh-links .sbadge,.crh-ch{box-sizing:border-box;height:26px!important;display:inline-flex!important;align-items:center;border-radius:999px;font-size:12px;line-height:1}
+.crh-links .sbadge{padding:0 10px!important}
+.crh-ch{gap:7px;padding:0 10px 0 9px!important}
+.crh-gl{display:grid;place-items:center;width:15px;height:15px}
+.crh-gl svg{width:15px;height:15px}
+.crh-ch>svg{width:10px;height:10px;margin-left:-1px;opacity:.55;transition:opacity .15s ease,transform .15s ease}
+.crh-ch:hover>svg{opacity:.9;transform:translate(1px,-1px)}
 </style>
 </head>
 <body>
@@ -6383,6 +6423,25 @@ function playerSrc(k, e) {
   return "";
 }
 const since = ts => { const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60)); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
+/* the creator's own page starts with who they are: their picture as a soft banner, the avatar, name and state, their
+   channels as links, and the numbers that matter here */
+function drawCrHero() {
+  const box = $("#crhero"); if (!box) return;
+  const c = creator(); if (!c) return put(box, "");
+  const jobs = S.jobs.filter(j => j.creator === c.id), ready = jobs.reduce((n, j) => n + j.clips.filter(x => x.status === "done").length, 0);
+  const recs = jobs.filter(j => j.kind === "live").length, pic = c.profile?.pic && c.profile.channel === c.channel ? avatarUrl(c) : "";
+  const plats = Object.keys(c.channels || {}).filter(k => PLAT[k]), pr = plats[0] && (c.profiles || {})[plats[0]];
+  const sub = [plats[0] && PLAT[plats[0]].name, pr?.followers].filter(Boolean).join(" · ") || "No channel yet";
+  const tile = (v, l, cls = "") => `<div class="crh-t ${cls}"><b>${v}</b><span>${l}</span></div>`;
+  put(box, `<section class="crh ${c.live_job || liveOn(c).length ? "is-live" : ""}">
+    <div class="crh-ban">${pic ? `<i style="background-image:url('${pic}')"></i>` : ""}</div>
+    <div class="crh-row">
+      <div class="crh-id">${cav(c)}<div class="crh-nm"><h2>${esc(c.name)}</h2><p>${esc(sub)}</p>
+        <div class="crh-links">${statusBadge(c)}${plats.map(k => `<a class="crh-ch" href="${esc(c.channels[k])}" target="_blank" rel="noopener" title="Open on ${PLAT[k].name}"><span class="crh-gl" style="color:${k === "kick" ? PLAT[k].fg : PLAT[k].bg}">${PLAT[k].svg}</span>${PLAT[k].name}${ic("upright")}</a>`).join("")}</div></div></div>
+      <div class="crh-stats">${tile(jobs.length, "Videos")}${tile(ready, "Clips ready")}${tile(recs, "Recordings")}
+        <button class="crh-t act" data-act="tab" data-t="setup" title="Change in Setup"><b class="${c.auto_watch ? "on" : ""}">${c.auto_watch ? "On" : "Off"}</b><span>Auto-record</span></button></div>
+    </div></section>`);
+}
 function drawStream() {
   const box = $("#stream"); if (!box) return;
   const c = creator(); if (!c) return;
@@ -6788,7 +6847,7 @@ function go(v, tab, fromHistory) {
   else if (v === "creators") view.innerHTML = `<div id="crs"></div>`;
   else if (v === "usage") { view.innerHTML = `<div id="usage"></div>`; loadUsage(); }
   else if (v === "schedule") { view.innerHTML = `<div id="sched"></div>`; loadSchedule(); }
-  else view.innerHTML = `<div id="stream"></div><div id="cbody"></div>`;   // the live player stays put across tabs: no restart, no rebuffer
+  else view.innerHTML = `<div id="crhero"></div><div id="stream"></div><div id="cbody"></div>`;   // the live player stays put across tabs: no restart, no rebuffer
   if ($("#add")) drawAdd(v === "overview" ? "hero" : "compact");
   if (v === "settings") drawSettings();
   if (v.startsWith("c:")) setTab(S.ctab);
@@ -7838,6 +7897,7 @@ function vCardHtml(j) {
       <div class="vc-main"><h3 title="${esc(name)}">${esc(name)}</h3><div class="vc-meta">${meta}</div></div>
       <span class="vc-state ${stCls}">${stCls === "work" ? `<i class="vc-dot"></i>` : ""}${stTxt}</span>
       <div class="vc-acts">${busy ? "" : `
+        ${total ? moreBtn(j) : ""}
         ${total ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${j.id}" title="Download all clips as a zip" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
         <button class="btn sm icon ghost" data-act="deljob" data-j="${j.id}" title="Delete" aria-label="Delete this video and its clips">${ic("trash")}</button>
         <label class="selck" title="Select"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
@@ -8043,11 +8103,12 @@ function drawJobs() {
   list.forEach((j, i) => {
     let el = $(`section[data-job="${j.id}"]`, root);
     if (!el) { el = document.createElement("section"); el.dataset.job = j.id; }
-    const open = cards && j.status !== "live" && vIsOpen(j, i);
-    el.className = cards && j.status !== "live" ? `job vcard${open ? " open" : ""}` : "job";
+    const rows = cards || (!!cid && !proj);       // the Videos page and a creator's page: rows that open
+    const open = rows && j.status !== "live" && vIsOpen(j, i);
+    el.className = rows && j.status !== "live" ? `job vcard${open ? " open" : ""}` : "job";
     if (root.children[i] !== el) root.insertBefore(el, root.children[i] || null);
-    put(el, cards ? (j.status === "live" ? liveHtml(j) : vCardHtml(j)) : jobHtml(j, !!proj));
-    if (cards) el.querySelector(".vc-head")?.setAttribute("aria-expanded", String(open));
+    put(el, rows ? (j.status === "live" ? liveHtml(j) : vCardHtml(j)) : jobHtml(j, !!proj));
+    if (rows) el.querySelector(".vc-head")?.setAttribute("aria-expanded", String(open));
   });
 }
 
@@ -8665,7 +8726,7 @@ async function saveSettings() { const d = {}; $$("#sform [data-s]").forEach(i =>
 
 /* ============================================================ render + polling */
 function render() {
-  drawShell(); drawJobs(); drawStream(); drawSelBar();
+  drawShell(); drawJobs(); drawCrHero(); drawStream(); drawSelBar();
   if (S.view === "overview") drawOverview();
   if (S.view === "creators") drawCreators();
   if ($("#clog")) drawLog();
