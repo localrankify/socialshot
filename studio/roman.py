@@ -159,7 +159,7 @@ _UR_WORDS = {"ہے": "hai", "ہیں": "hain", "ہوں": "hoon", "ہو": "ho", "�
              "کام": "kaam", "دن": "din", "آج": "aaj", "کل": "kal", "بس": "bas", "شکریہ": "shukriya", "واہ": "wah",
              "گھر": "ghar", "ہوا": "hua", "ہوئی": "hui", "ہوئے": "hue", "اس": "us", "ان": "un", "جو": "jo", "جب": "jab",
              "تب": "tab", "مگر": "magar", "پاکستان": "Pakistan", "زندگی": "zindagi", "پیسے": "paise", "روپے": "rupay"}
-_UR_CONS = {"ب": "b", "پ": "p", "ت": "t", "ٹ": "t", "ث": "s", "ج": "j", "چ": "ch", "ح": "h", "خ": "kh", "د": "d",
+_UR_CONS = {"ڪ": "k", "ب": "b", "پ": "p", "ت": "t", "ٹ": "t", "ث": "s", "ج": "j", "چ": "ch", "ح": "h", "خ": "kh", "د": "d",
             "ڈ": "d", "ذ": "z", "ر": "r", "ڑ": "r", "ز": "z", "ژ": "zh", "س": "s", "ش": "sh", "ص": "s", "ض": "z",
             "ط": "t", "ظ": "z", "غ": "gh", "ف": "f", "ق": "q", "ک": "k", "ك": "k", "گ": "g", "ل": "l", "م": "m",
             "ن": "n", "ہ": "h", "ه": "h", "ة": "a", "ھ": "h"}
@@ -237,9 +237,18 @@ _HINDI_RUN = r"[ऀ-ॿ]+"
 _URDU_RUN = r"[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+"
 
 
+_LOOSE = re.compile(r"(?<=[A-Za-z])[ऀ-ःऺ-ॏॕ-ॗ]+")
+
+
+def loose_signs(text: str) -> str:
+    """A Hindi vowel sign left on a Roman letter, as speech models and caption fixes sometimes write ("meenे",
+    "kो"): spelled as the vowel it stands for ("meene", "ko"); a sign with no sound of its own is dropped."""
+    return _LOOSE.sub(lambda m: "".join(_SIGNS.get(c) or _NASAL.get(c) or "" for c in m.group(0)), text)
+
+
 def to_roman(text: str) -> str:
     """Every Hindi and Urdu word in the text spelled in Roman letters. Anything else is left exactly as it is."""
-    text = text or ""
+    text = loose_signs(text or "")
     if DEVANAGARI.search(text):
         text = re.sub(_HINDI_RUN, lambda m: _word(m.group(0)), text)
     if OTHER_SCRIPT.search(text):
@@ -259,5 +268,18 @@ def unicodedata_nfc(s: str) -> str:
 
 
 def words(ws: list) -> list:
-    """Caption words ({'w', 's', 'e'}) with any Hindi or Urdu in Roman letters. Timings are untouched."""
-    return [dict(w, w=to_roman(w["w"])) if needs_roman(w.get("w", "")) else w for w in ws]
+    """Caption words ({'w', 's', 'e'}) with any Hindi or Urdu in Roman letters. Timings are untouched. The last
+    word on it: a letter still not in the caption fonts after that (a rare Sindhi or Bengali one) is left out, and a
+    word with nothing left is dropped, so a caption never shows empty boxes."""
+    out = []
+    for w in ws:
+        t = w.get("w", "")
+        if needs_roman(t) or not drawable(t):
+            t = to_roman(t)
+            if not drawable(t):
+                t = "".join(ch for ch in t if drawable(ch)).strip()
+            if not any(ch.isalnum() for ch in t):
+                continue
+            w = dict(w, w=t)
+        out.append(w)
+    return out

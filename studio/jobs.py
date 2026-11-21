@@ -815,7 +815,8 @@ def more_clips(job, n, changes=None):
             y = min(end, x + step)
             _set(job, finding=f"Writing the rest of the transcript (minute {round(x / 16000 / 60)} of {round(end / 16000 / 60)})")
             sh = x / 16000
-            words += [dict(w, s=round(w["s"] + sh, 2), e=round(w["e"] + sh, 2)) for w in transcribe.transcribe(audio[x:y])]
+            listen = transcribe.transcribe_hindi if (job.get("lang") or "").lower().startswith(("hi", "ur")) else transcribe.transcribe
+            words += [dict(w, s=round(w["s"] + sh, 2), e=round(w["e"] + sh, 2)) for w in listen(audio[x:y])]
             words.sort(key=lambda w: w["s"])
             (d / "words.json").write_text(json.dumps(words), encoding="utf-8")
             job["transcribed_to"] = round(y / 16000, 2)
@@ -1117,6 +1118,18 @@ def _run_job(job):
             yt = None
         job["transcript_from"] = "youtube" if yt else "own"
         job["lang"] = yt[1] if yt else ""          # the language spoken, when YouTube says (decides the captions)
+    if not yt and not resuming and not (job.get("lang") or "").lower().startswith("en"):
+        # The main model hears English only: Hindi speech came out as a few guessed words and no clips were found.
+        # A few stretches are heard by the Hindi model first; a Hindi video is then written with it throughout.
+        _set(job, stage="Listening for the language")
+        try:
+            if transcribe.sounds_hindi(audio[lo:hi]):
+                job["lang"] = "hi"
+        except Exception:  # noqa: BLE001 - not sure: the main model, as before
+            pass
+        save(job)
+    hindi = (job.get("lang") or "").lower().startswith(("hi", "ur")) and not yt
+    listen = transcribe.transcribe_hindi if hindi else transcribe.transcribe
     if resuming:
         try:
             words = json.loads((d / "words.json").read_text(encoding="utf-8"))
@@ -1149,7 +1162,7 @@ def _run_job(job):
                     more = {"stage": f"Writing the transcript (minute {int(at // 60)} of {round(span / 60)})"} \
                         if len(blocks) > 1 and job.get("stage", "").startswith("Writing") else {}
                     _set(job, progress=max(job["progress"], 0.14 + 0.78 * at * 16000 / max(1, hi - lo)), **more)
-            heard[i] = ahead.submit(ctx.bind(transcribe.transcribe), audio[a_:b_], tp)
+            heard[i] = ahead.submit(ctx.bind(listen), audio[a_:b_], tp)
 
     def chat_spikes(until):
         """The chat's spikes so far ([(second in the video, messages)]), or None if there is no chat to read.

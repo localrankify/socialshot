@@ -11,7 +11,7 @@ import time
 
 import numpy as np
 
-from . import config
+from . import config, roman
 
 _lock = threading.Lock()
 
@@ -306,30 +306,156 @@ def _finish(pieces) -> list:
 # dropped. Meta's Omnilingual model hears Hindi properly. It writes Hindi in Urdu or Devanagari letters; the caption
 # step then spells that in Roman letters (Hinglish), as it already does for Hindi videos. Measured on a Hindi stream
 # over game sound: 93 words heard where the main model heard 28, in about the same time.
-_hindi = None
-_hindi_use = threading.Lock()          # one clip at a time through it: it is used rarely and holds one copy
 _HINDI_LETTERS = re.compile(r"[ऀ-ॿ؀-ۿ]")
+# Copies of the Hindi model, made when first needed, as many as the main model's (a whole Hindi video is heard by
+# them side by side, the same way).
+_hfree: "queue.LifoQueue" = queue.LifoQueue()
+_hmade = 0
 
 
-def _hindi_words(audio: np.ndarray) -> list:
-    global _hindi
+def _new_hindi():
     import sherpa_onnx
-    with _hindi_use:
-        if _hindi is None:
-            d = config.HINDI_MODEL_DIR
-            model = min(d.glob("model*.onnx"), key=lambda f: "int8" not in f.name)   # the compact file if there
-            _hindi = sherpa_onnx.OfflineRecognizer.from_omnilingual_asr_ctc(
-                model=str(model), tokens=str(d / "tokens.txt"), num_threads=THREADS, provider=PROVIDER)
-        pieces = []
-        for a, b in _chunks(audio, *CLIP_PIECES):
-            seg = audio[a:b].astype(np.float32) / 32768.0
-            if len(seg) < 4800 or float(np.sqrt((seg ** 2).mean())) < 0.003:
-                continue
-            st = _hindi.create_stream()
+    d = config.HINDI_MODEL_DIR
+    model = min(d.glob("model*.onnx"), key=lambda f: "int8" not in f.name)   # the compact file if there
+    return sherpa_onnx.OfflineRecognizer.from_omnilingual_asr_ctc(
+        model=str(model), tokens=str(d / "tokens.txt"), num_threads=THREADS, provider=PROVIDER)
+
+
+def _take_hindi():
+    global _hmade
+    try:
+        return _hfree.get_nowait()
+    except queue.Empty:
+        pass
+    with _lock:
+        make = _hmade < COPIES
+        if make:
+            _hmade += 1
+    if make:
+        try:
+            return _new_hindi()
+        except Exception:
+            with _lock:
+                _hmade -= 1
+            raise
+    return _hfree.get()
+
+
+def _speech_pieces(audio: np.ndarray):
+    """[(a, b, float piece)] of the audio cut at quiet moments into 6-10 s pieces (the Hindi model drops speech it is
+    unsure of in long pieces), silent pieces left out."""
+    out = []
+    for a, b in _chunks(audio, *CLIP_PIECES):
+        seg = audio[a:b].astype(np.float32) / 32768.0
+        if len(seg) < 4800 or float(np.sqrt((seg ** 2).mean())) < 0.003:
+            continue
+        out.append((a, b, seg))
+    return out
+
+
+def _hindi_decode(group) -> list:
+    """Words for some pieces, with one copy of the Hindi model."""
+    rec = _take_hindi()
+    try:
+        out = []
+        for a, b, seg in group:
+            st = rec.create_stream()
             st.accept_waveform(16000, seg)
-            _hindi.decode_stream(st)
-            pieces.append(_words(list(st.result.tokens), [float(t) for t in st.result.timestamps], a, b))
-    return _finish(pieces)
+            rec.decode_stream(st)
+            out.append(_words(list(st.result.tokens), [float(t) for t in st.result.timestamps], a, b))
+        return out
+    finally:
+        _hfree.put(rec)
+
+
+# The Hindi model knows 1600 languages and now and then writes a word in a neighbour's letters (Bengali, Gurmukhi,
+# Gujarati) or a stray Chinese character. Those Indian scripts sit in the same order as Devanagari, so their letters
+# are moved over to it (the caption step then spells Devanagari in Roman letters); anything else that is not Latin,
+# Devanagari or Urdu is dropped, so no caption is drawn in letters the fonts don't have.
+_SHIFT = ((0x0980, 0x09FF, 0x80), (0x0A00, 0x0A7F, 0x100), (0x0A80, 0x0AFF, 0x180))
+
+
+def _keep_char(ch: str) -> str:
+    o = ord(ch)
+    for lo, hi, back in _SHIFT:
+        if lo <= o <= hi:
+            return chr(o - back)
+    if o < 0x250 or 0x0900 <= o <= 0x097F or 0x0600 <= o <= 0x06FF or 0x0750 <= o <= 0x077F or 0xFB50 <= o <= 0xFEFF:
+        return ch
+    return ""
+
+
+def _tidy_script(pieces: list) -> list:
+    out = []
+    for piece in pieces:
+        kept = []
+        for w in piece:
+            t = "".join(_keep_char(c) for c in w["w"]).strip()
+            t = roman.loose_signs(t)           # a Hindi vowel sign left on a Roman letter ("yे" -> "ye")
+            if any(c.isalnum() for c in t):
+                kept.append(dict(w, w=t))
+        out.append(kept)
+    return out
+
+
+def _hindi_words(audio: np.ndarray, on_progress=None) -> list:
+    """The audio heard by the Hindi model: pieces shared out to every copy, words back in order."""
+    todo = _speech_pieces(audio)
+    groups = [todo[i:i + 6] for i in range(0, len(todo), 6)]
+    if not groups:
+        return []
+    done = [0]
+
+    def one(group):
+        out = _hindi_decode(group)
+        done[0] += 1
+        if on_progress:
+            on_progress(done[0] / len(groups))
+        return out
+
+    if COPIES > 1 and len(groups) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(min(COPIES, len(groups)), thread_name_prefix="asr-hi") as ex:
+            results = list(ex.map(one, groups))
+    else:
+        results = [one(g) for g in groups]
+    return _finish(_tidy_script([piece for out in results for piece in out]))
+
+
+def transcribe_hindi(audio: np.ndarray, on_progress=None) -> list:
+    """A whole Hindi (or Urdu) video's words, in Hindi or Urdu letters. The caption step spells them in Roman
+    letters (Hinglish)."""
+    return _hindi_words(audio, on_progress)
+
+
+def sounds_hindi(audio: np.ndarray, sample_secs: float = 24.0) -> bool:
+    """Is this video spoken in Hindi or Urdu? A few stretches of speech, spread over its first minutes, are heard by
+    the Hindi model: mostly Hindi or Urdu letters back means yes. English comes back in Roman letters, so an English
+    video says no. Takes a few seconds; False when the Hindi model isn't here or can't be used."""
+    from . import fetch_model
+    if not config.HINDI_ASR:
+        return False
+    if not fetch_model.hindi_ready():
+        fetch_model.fetch_hindi_later()
+        return False
+    pieces = _speech_pieces(audio[: 8 * 60 * 16000])
+    if not pieces:
+        return False
+    loud = sorted(pieces, key=lambda p: -float(np.sqrt((p[2] ** 2).mean())))[: max(3, len(pieces) // 2)]
+    loud.sort(key=lambda p: p[0])                    # the louder half (speech, more than music), in time order
+    want = max(1, int(sample_secs / 8))
+    pick = [loud[round(i * (len(loud) - 1) / max(1, want - 1))] for i in range(min(want, len(loud)))]
+    try:                                             # each stretch on its own copy of the model, at the same time
+        if COPIES > 1 and len(pick) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(min(COPIES, len(pick)), thread_name_prefix="asr-lang") as ex:
+                got = list(ex.map(lambda p: _hindi_decode([p]), pick))
+        else:
+            got = [_hindi_decode(pick)]
+        words = [w for out in got for piece in out for w in piece]
+    except Exception:  # noqa: BLE001 - a broken Hindi model: the video is heard by the main model as before
+        return False
+    return len(words) >= 6 and _hindi_share(words) >= 0.5
 
 
 def _hindi_share(words) -> float:
