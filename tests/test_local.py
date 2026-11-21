@@ -11,7 +11,7 @@ os.environ.update(DATABASE_URL="", PEAKCUT_ACCOUNTS="0", PEAKCUT_AI_PROVIDER="ge
 sys.path.insert(0, ".")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from studio import ai, config, db, server  # noqa: E402
+from studio import ai, config, db, jobs, server  # noqa: E402
 
 db.init()
 fails = []
@@ -111,6 +111,25 @@ check("the test asks the saved model and reports back", (r.status_code, r.json()
 put({"provider": "gemini", "models": "g-fast", "key": "wrong-key-000000000000"})
 r = post("/api/ai/test")
 check("a failed test says why, without the key", (r.status_code, "wrong-key-000000000000" in r.text), (502, False))
+
+# ---- a clip setup saved as a template, and turned on for new clips
+uid = c.get("/api/status").json()["user"]["id"]
+r = c.put("/api/brand", json={"templates": [{"name": "  Podcast look  ", "layout": "not-a-layout",
+    "look": {"font": "Poppins", "frame": [0.1, 0.2, 0.5, 0.6], "effect": "warm"}}]}, headers=ORIGIN)
+t = r.json().get("templates", [{}])[0]
+check("a template is saved", (r.status_code, t.get("name"), t.get("layout"), (t.get("look") or {}).get("frame")),
+      (200, "Podcast look", "blur", [0.1, 0.2, 0.5, 0.6]))
+check("it stays off until it is turned on", r.json().get("template"), "")
+r = c.put("/api/brand", json={"template": t["id"]}, headers=ORIGIN)
+check("turning a template on", r.json().get("template"), t["id"])
+lay, look = jobs.new_clip_setup(uid)
+check("new clips take that setup", (lay, look.get("frame"), look.get("effect")), ("blur", [0.1, 0.2, 0.5, 0.6], "warm"))
+r = c.put("/api/brand", json={"styles": [{"name": "Kit", "look": {"font": "Anton"}}], "default": "Kit"}, headers=ORIGIN)
+check("saving a brand look keeps the template", (r.json().get("template"), (r.json().get("templates") or [{}])[0].get("name")), (t["id"], "Podcast look"))
+r = c.put("/api/brand", json={"templates": [{**t, "name": "Renamed", "layout": "card"}], "template": ""}, headers=ORIGIN)
+check("a template can be renamed and turned off", (r.status_code, r.json().get("template"), r.json()["templates"][0]["name"], r.json()["templates"][0]["layout"]),
+      (200, "", "Renamed", "card"))
+check("with none on, new clips use the options again", jobs.new_clip_setup(uid)[0], None)
 
 print("ALL PASSED" if not fails else f"{len(fails)} failed")
 import shutil  # noqa: E402

@@ -204,11 +204,11 @@ const SPLIT_DEFAULT = {game: [0, 0, 1, 1], cam: [0.68, 0.58, 0.30, 0.40], cam_at
   trio: [[0, 0, 0.3333, 1], [0.3333, 0, 0.3333, 1], [0.6667, 0, 0.3333, 1]],
   faces: [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]], grid_share: 50, scenes: [],
   pop_shape: "rounded", pop_size: 70, pop_x: null, pop_y: null, pop_radius: 8, pop_border: 8, pop_edge: "solid", pop_c1: "#FFFFFF",
-  pop_c2: "#FF8A1F", pop_out: 22, pop_bg: "cam", pop_fill: "#FFFFFF", pop_fit: "face"};
+  pop_c2: "#FF8A1F", pop_out: 22, pop_bg: "cam", pop_fill: "#FFFFFF", pop_fit: "face", pop_fx: "none", pop_ratio: "tall"};
 // the layouts made of parts of the picture (the split boxes), not one framed shot (render.PARTS)
 const PARTS = ["split", "pip", "trio", "grid", "pop"];
 const POP_AT = [50, 57];               // the pop-out card's middle until it is dragged (render.POP_AT)
-const POP_KEYS = ["pop_fit", "pop_shape", "pop_size", "pop_x", "pop_y", "pop_radius", "pop_border", "pop_edge", "pop_c1", "pop_c2", "pop_out", "pop_bg", "pop_fill"];
+const POP_KEYS = ["pop_fx", "pop_ratio", "pop_fit", "pop_shape", "pop_size", "pop_x", "pop_y", "pop_radius", "pop_border", "pop_edge", "pop_c1", "pop_c2", "pop_out", "pop_bg", "pop_fill"];
 /* the pop-out card in frame pixels (render.pop_geometry): the face cam fills a w x t picture, the card shows its lower
    h rows at (x, y), and the cut-out person over the whole picture rises `pop` pixels above the card */
 /* where the face is inside the face cam box, asked of the server once per box (render.pop_line uses the same) */
@@ -241,7 +241,8 @@ function popLine(sp) {
 }
 /* render.pop_frame: the face framed in the card (centred, POP_FACE of its width, hair just below the top) and how
    much rises above it, so the card's top edge crosses the head at the head line. null: show the box as placed */
-const POP_FACE = 0.42, POP_ROUND_H = 0.95;
+const POP_FACE = 0.42, POP_ROUND_H = 0.95, POP_WIDE_H = 0.56, POP_TOP = 0.025;
+const popMargin = (w, h) => Math.round(Math.max(28, 0.13 * Math.max(w, h)) / 2) * 2;     // popfx.margin
 function popFrame(sp, w, h) {
   const face = popFace(sp);
   if (!face || (sp.pop_fit || "face") !== "face") return null;
@@ -262,9 +263,11 @@ function popFrame(sp, w, h) {
 function popGeo(sp = splitOf()) {
   const W = OUT_W, H = OUT_H, pw = Math.round(W * (sp.pop_size || 70) / 100 / 2) * 2, c = sp.cam, shape = sp.pop_shape || "rounded", out = popLine(sp) * 100;
   let t, pop, h, crop = c;
-  const fr = popFrame(sp, pw, shape === "circle" || shape === "square" ? pw : Math.round(pw * POP_ROUND_H / 2) * 2);
+  const wide = shape === "rounded" && sp.pop_ratio === "wide";
+  const fixed = shape === "circle" || shape === "square" ? pw : wide ? Math.round(pw * POP_WIDE_H / 2) * 2 : null;
+  const fr = popFrame(sp, pw, fixed || Math.round(pw * POP_ROUND_H / 2) * 2);
   if (fr) { ({t, pop, crop} = fr); h = t - pop; }
-  else if (shape === "circle" || shape === "square") { h = pw; t = Math.round(h / Math.max(0.5, 1 - out / 100) / 2) * 2; pop = t - h; }   // as tall as wide
+  else if (fixed) { h = fixed; t = Math.round(h / Math.max(0.5, 1 - out / 100) / 2) * 2; pop = t - h; }   // the card's own shape
   else {
     const ar = (c[3] * (E.sh || 9)) / Math.max(1e-6, c[2] * (E.sw || 16));
     t = Math.round(pw * Math.max(0.8, Math.min(1.6, ar)) / 2) * 2; pop = Math.round(t * out / 100 / 2) * 2; h = t - pop;
@@ -272,10 +275,12 @@ function popGeo(sp = splitOf()) {
   const b = Math.round((sp.pop_border ?? 8) * W / 1080);
   const cx = sp.pop_x ?? POP_AT[0], cy = sp.pop_y ?? POP_AT[1];
   let x = Math.round(W * cx / 100 - pw / 2), y = Math.round(H * cy / 100 - h / 2);
-  x = Math.max(b, Math.min(W - pw - b, x)); y = Math.max(pop, b, Math.min(H - h - b, y));
+  const mt = Math.round(H * POP_TOP);
+  x = Math.max(b, Math.min(W - pw - b, x)); y = Math.max(pop + mt, b + mt, Math.min(H - h - b, y));
   const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_edge === "gradient" ? sp.pop_c2 || c1 : c1;
   const r = shape === "circle" ? pw / 2 : Math.round(pw * (sp.pop_radius ?? 8) / 100);
-  return {x, y, w: pw, h, t, pop, b, r, c1, c2, fill: sp.pop_bg === "plain" ? sp.pop_fill || "#FFFFFF" : null, crop};
+  return {x, y, w: pw, h, t, pop, b, r, c1, c2, fill: sp.pop_bg === "plain" ? sp.pop_fill || "#FFFFFF" : null, crop,
+    fx: ["glow", "fire", "thunder"].includes(sp.pop_fx) ? sp.pop_fx : null};
 }
 const isParts = l => PARTS.includes(l);
 // picture in picture's small box, in frame pixels (render.pip_geometry)
@@ -421,6 +426,7 @@ function geo(layout, sw, sh) {
   if (layout === "pip") return {layout, fg: H, hook: r(300), cap: r((splitOf().pip_at || "br")[0] === "t" ? 1380 : 1180)};
   if (layout === "pop") {               // render.geometry: the captions under the card, or on its lower part if no room
     const q = popGeo(), below = q.y + q.h + q.b + Math.round(H * 0.055);
+    if (q.y - q.pop < H * 0.25) return {layout, fg: H, hook: below, cap: Math.max(below + Math.round(H * 0.16), Math.round(H * 0.74))};   // card across the top
     return {layout, fg: H, hook: r(300), cap: below < H * 0.88 ? below : q.y + q.h - Math.round(H * 0.07)};
   }
   const fr = frameRegion();
@@ -605,7 +611,8 @@ window.openClip = async function (jid, cid) {
     api("/api/pack/sfx").then(r => { E.sfxLib = r; if (E.tab === "audio") drawPanel(); drawTimeline(); }).catch(() => { E.sfxLib = {groups: [], items: []}; });
     if (E.cid !== cid) return;
     Object.assign(E, {words: clone(cap.words), auto: cap.edited ? [] : clone(cap.words), edited: cap.edited,
-      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], brandDef: brand.default, logoV: brand.logo || 0, chat: cap.chat || null});
+      off: cap.offset, min: cap.min, max: cap.max, brand: brand.styles || [], brandDef: brand.default, logoV: brand.logo || 0,
+      templates: brand.templates || [], templateOn: brand.template || "", chat: cap.chat || null});
   } catch (e) { toast(e.message, "bad"); }
   E.saved = snap(); E.lookKey = JSON.stringify(E.look);
   // A hook made before hooks were written in normal case: offered in normal case, as a change to save
@@ -903,7 +910,8 @@ function drawPanel() {
       : `<i class="lp-bg" style="${bg}"></i><i class="lp-fg ${k}" style="${bg}"></i>`;
     const cd = cardOf();
     p.innerHTML = head("Layout", "How the video sits in the frame. Split puts the streamer's face cam under the stream.") + `
-      <div class="ed-row ed-layacts"><button class="ed-btn" data-ed="tpl">${svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>')}Templates</button>
+      <div class="ed-row ed-layacts"><button class="ed-btn" data-ed="tplsaveopen">${ic("plus")}Save as template</button>
+        <button class="ed-btn" data-ed="tpl">${svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>')}Templates</button>
         <button class="ed-btn" data-ed="view" data-v="frame">${svg('<path d="M7 3v14h14M3 7h14v14"/>')}Frame the video</button></div>
       <div class="ed-lays2">${LAYS.map(([k, l, s]) => `<button data-ed="layout" data-v="${k}" aria-pressed="${E.layout === k}" title="${esc(s)}">
         <span class="lp-ph ${k === "pop" ? "popout" : k} ${k === "split" && sp.cam_at === "top" ? "camtop" : ""}">${mini(k)}${E.layout === k ? `<span class="ed-pck">${ic("check")}</span>` : ""}</span>
@@ -1108,6 +1116,7 @@ function drawStage() {
     : `<div class="ed-phone" id="edPhone" style="--aw:${OUT_W};--ah:${OUT_H}">
       ${E.view === "live" ? `${g.layout === "pip" ? band("edBandG", "edVid", false) + `<div class="ed-band ed-pipb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
         : g.layout === "pop" ? band("edBandG", "edVid", false) + `<i class="ed-popring" id="edPopRing" aria-hidden="true"></i>`
+          + `<video class="ed-popfx" id="edPopFx" muted loop playsinline autoplay preload="auto" aria-hidden="true"></video>`
           + `<i class="ed-popfill" id="edPopFill" aria-hidden="true"></i><div class="ed-band ed-pipb ed-popb" id="edBandC"><video class="ed-bv" id="edVid2" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
           + `<div class="ed-band ed-popo" id="edBandO" title="Drag to move the card"><video class="ed-bv" id="edVid3" src="/media/${E.jid}/${E.cid}/source?f=mp4" playsinline preload="auto" muted></video></div>`
           + `<video class="ed-popcut" id="edPopCut" playsinline preload="auto" muted aria-hidden="true"></video><canvas class="ed-popcut" id="edPopCv" aria-hidden="true"></canvas>`
@@ -2044,7 +2053,8 @@ function aiHands() {
 /* ---------- AI edit, live: a log over the transcript side that says what the AI is doing as it does it, line by line,
    each with the colour of the part it works on (the same colours as the cursors and the timeline rows) */
 const AI_TAGS = {read: ["Reading", "#93C5FD"], plan: ["Planning", "#E879F9"], music: ["Music", "#22C55E"], zoom: ["Zoom", "#F59E0B"],
-  sound: ["Sound", "#38BDF8"], cut: ["Cut", "#A3E635"], safe: ["Safe zone", "#F87171"], done: ["Done", "#FFFFFF"]};
+  sound: ["Sound", "#38BDF8"], cut: ["Cut", "#A3E635"], safe: ["Safe zone", "#F87171"], done: ["Done", "#FFFFFF"],
+  look: ["Layout", "#2DD4BF"], caps: ["Captions", "#FB7185"], kind: ["Video", "#93C5FD"]};
 const aiLog = {
   el: null, t0: 0,
   open() {
@@ -2067,13 +2077,17 @@ const aiLog = {
     const ol = this.el.querySelector(".ed-ailines"); ol.append(li); ol.scrollTop = ol.scrollHeight;
     if (pct != null) this.el.querySelector(".ed-aibar i").style.width = Math.min(100, pct) + "%";
   },
-  done(text) {
+  done(text, undo) {
     if (!this.el) return;
     this.add("done", text, 100);
     this.el.classList.add("finished");
     this.el.querySelector("header span").textContent = "finished";
     this.el.querySelector("header .jp-spin")?.replaceWith(Object.assign(document.createElement("i"), {className: "ed-aiok", innerHTML: ic("check")}));
-    clearTimeout(this.tm); this.tm = setTimeout(() => this.close(), 7000);
+    clearTimeout(this.tm);
+    if (undo) {                 // every change is listed above: keep them, or put the clip back the way it was
+      this.el.insertAdjacentHTML("beforeend", `<footer class="ed-aifoot"><span>Check the preview, then keep or undo.</span>
+        <button class="ed-btn sm" data-ed="aiundo">${ic("x")}Undo AI edit</button><button class="ed-btn primary sm" data-ed="ailogclose">${ic("check")}Keep changes</button></footer>`);
+    } else this.tm = setTimeout(() => this.close(), 7000);
   },
   close(now) {
     const el = this.el; this.el = null; clearTimeout(this.tm); if (!el) return;
@@ -2579,20 +2593,24 @@ const POP_SHAPES = [["circle", "Circle", '<circle cx="12" cy="13.5" r="7"/><circ
 function popCard(sp) {
   const shape = sp.pop_shape || "rounded", b = sp.pop_border ?? 8, out = sp.pop_out ?? 22, grad = sp.pop_edge === "gradient";
   const c1 = sp.pop_c1 || "#FFFFFF", c2 = sp.pop_c2 || "#FF8A1F", plain = sp.pop_bg === "plain", fill = sp.pop_fill || "#FFFFFF";
-  const spot = sp.pop_x == null ? "c" : sp.pop_x === 50 && [40, 70].includes(sp.pop_y) ? String(sp.pop_y) : "";
+  const spot = sp.pop_x == null ? "c" : sp.pop_x === 50 && [0, 40, 70].includes(sp.pop_y) ? (sp.pop_y ? String(sp.pop_y) : "top") : "";
+  const wideTop = shape === "rounded" && sp.pop_ratio === "wide" && spot === "top" && (sp.pop_size || 70) >= 90;
   const seg = (k, opts, cur) => `<div class="ed-seg">${opts.map(([v, l]) => `<button data-ed="popset" data-k="${k}" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join("")}</div>`;
   const dot = (k, c, on, label = c) => `<button data-ed="popset" data-k="${k}" data-v="${c}" style="--c:${c}" aria-pressed="${on}" aria-label="${label}" title="${label}"></button>`;
   const pick = (k, c, label) => `<label class="ed-pipcp" style="--c:${c}" title="${label}"><input type="color" value="${c.toLowerCase()}" data-popc="${k}" aria-label="${label}"></label>`;
   return `<div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Pop-out card</b><small class="ed-pipnote">Drag it on the video to move it, its corner to resize</small></div>
     <div class="ed-pipshapes" role="radiogroup" aria-label="Shape">${POP_SHAPES.map(([v, l, d]) => `<button role="radio" data-ed="popset" data-k="pop_shape" data-v="${v}" aria-checked="${shape === v}">${svg(d)}<span>${l}</span></button>`).join("")}</div>
     <div class="ed-piprow"><span class="ed-pipl">Face</span>${seg("pop_fit", [["face", "Centred"], ["box", "As placed"]], sp.pop_fit === "box" ? "box" : "face")}</div>
-    <div class="ed-piprow"><span class="ed-pipl">Place</span><div class="ed-seg">${[["40", "Higher"], ["c", "Middle"], ["70", "Lower"]].map(([v, l]) =>
+    ${shape === "rounded" ? `<div class="ed-piprow"><span class="ed-pipl">Card</span>${seg("pop_ratio", [["tall", "Tall"], ["wide", "Wide"]], sp.pop_ratio === "wide" ? "wide" : "tall")}</div>` : ""}
+    <div class="ed-piprow"><span class="ed-pipl">Place</span><div class="ed-seg">${[["top", "Top"], ["40", "Higher"], ["c", "Middle"], ["70", "Lower"]].map(([v, l]) =>
       `<button data-ed="popat" data-v="${v}" aria-pressed="${spot === v}">${l}</button>`).join("")}</div></div>
-    ${slider("Size", "pop_size", 40, 90, 1, sp.pop_size || 70, (sp.pop_size || 70) + "%")}
+    <button class="ed-btn ed-popwide" data-ed="popwide" aria-pressed="${wideTop}">${svg('<rect x="3" y="4" width="18" height="8" rx="2"/><path d="M7 16h10M9 20h6"/>')}Wide across the top</button>
+    ${slider("Size", "pop_size", 40, 96, 1, sp.pop_size || 70, (sp.pop_size || 70) + "%")}
     ${slider("Head line", "pop_out", 0, 45, 1, out, out ? out + "%" : "None")}
     <p class="ed-help">How much of the head rises over the card. Or drag the handle beside the card's top edge.</p>
     ${shape !== "circle" ? slider("Corners", "pop_radius", 0, 30, 1, sp.pop_radius ?? 8, sp.pop_radius ?? 8) : ""}</div>
   <div class="ed-card ed-pipset ed-popset"><div class="ed-h"><b>Card border</b></div>
+    <div class="ed-piprow"><span class="ed-pipl">Effect</span>${seg("pop_fx", [["none", "None"], ["glow", "Glow"], ["fire", "Fire"], ["thunder", "Thunder"]], ["glow", "fire", "thunder"].includes(sp.pop_fx) ? sp.pop_fx : "none")}</div>
     ${slider("Width", "pop_border", 0, 20, 1, b, b || "None")}
     ${b ? `${seg("pop_edge", [["solid", "Solid"], ["gradient", "Gradient"]], grad ? "gradient" : "solid")}
       ${grad ? `<div class="ed-piprow"><span class="ed-pipl">Presets</span><div class="ed-pipcols">${POP_EDGES.filter(e => e[2]).map(([l, a, z]) =>
@@ -2743,11 +2761,46 @@ function miniTpl(t) {
   const ring = x.stroke ? `<i class="lp-ring" style="box-shadow:inset 0 0 0 ${Math.max(1.5, x.stroke / 4)}px ${x.stroke_color || "#fff"}"></i>` : "";
   return `<span class="lp-ph ${t.layout === "pop" ? "popout" : t.layout} ${t.cam_at === "top" ? "camtop" : ""}" style="aspect-ratio:${w}/${h}${fx ? `;filter:${fx}` : ""}">${inner}${ring}${hk}</span>`;
 }
+// the setups this person saved: the whole clip (layout, captions, hook, frame, card, brand), not just a caption look
+function mineTpl() {
+  const list = E.templates || [], on = E.templateOn || "";
+  const save = E.tplSave
+    ? `<div class="ed-mine-save"><input id="edTplName" placeholder="Name this setup, e.g. Podcast" maxlength="40" aria-label="Template name">
+        <button type="button" class="ed-btn sm primary" data-ed="tplsavenew">Save</button>
+        <button type="button" class="ed-qx" data-ed="tplsavex" aria-label="Cancel">${ic("x")}</button></div>`
+    : `<button type="button" class="ed-btn" data-ed="tplsaveopen">${ic("plus")}Save this setup</button>`;
+  const rows = list.map(t => {
+    const live = on === t.id;
+    if (E.tplRename === t.id) return `<div class="ed-mine-row"><input id="edTplRename" value="${esc(t.name)}" maxlength="40" aria-label="New name">
+      <button type="button" class="ed-btn sm primary" data-ed="tplrenamedo" data-id="${esc(t.id)}">Save name</button>
+      <button type="button" class="ed-btn sm" data-ed="tplrenamex">Cancel</button></div>`;
+    return `<div class="ed-mine-row"><b>${esc(t.name)}</b><span class="ed-mine-acts">
+      <button type="button" data-ed="tplapply" data-id="${esc(t.id)}">Use on this clip</button>
+      <button type="button" data-ed="tplupdate" data-id="${esc(t.id)}">Update</button>
+      <button type="button" data-ed="tplrename" data-id="${esc(t.id)}">Rename</button>
+      <button type="button" data-ed="tpluse" data-id="${esc(t.id)}" aria-pressed="${live}">${live ? "On for new clips" : "Use for new clips"}</button>
+      <button type="button" data-ed="tpldel" data-id="${esc(t.id)}">Remove</button></span></div>`;
+  }).join("");
+  return `<section class="ed-mine"><div class="ed-mine-h"><b>Your templates</b>
+    <p>Saves this clip's layout, captions, hook, frame, card and brand. Use it on another clip, or turn it on so new videos come out the same. Your words and trim stay.</p></div>
+    ${save}${rows || `<p class="ed-mine-empty">None saved yet.</p>`}</section>`;
+}
+async function saveTemplates(list, active) {
+  const body = {templates: list};
+  if (active !== undefined) body.template = active;
+  const r = await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  E.templates = r.templates || [];
+  E.templateOn = r.template || "";
+  if (typeof S !== "undefined") S.brandKit = {...(S.brandKit || {}), ...r};
+  if (typeof drawTplOpts === "function") drawTplOpts();
+  return r;
+}
 function drawTpl() {
   if (!E.tplOpen) return $e("#edTpl")?.remove();
   const cat = E.tplCat || "all", list = TPLS.filter(t => cat === "all" || t.cat === cat);
-  const inner = `<header><div><h3>Templates</h3><p>A layout, shape and caption look in one click. Your words, trim and brand stay.</p></div>
+  const inner = `<header><div><h3>Templates</h3><p>Ready-made looks, and setups you saved from a clip. Your words and trim stay.</p></div>
       <button class="ed-ib" data-ed="tplclose" aria-label="Close">${ic("x")}</button></header>
+    ${mineTpl()}
     <div class="ed-tpl-cats" role="tablist">${TPL_CATS.map(([k, l]) => `<button role="tab" data-ed="tplcat" data-v="${k}" aria-selected="${cat === k}">${l}</button>`).join("")}</div>
     <div class="ed-tpl-grid">${list.map(t => `<button class="ed-tpl" data-ed="tplpick" data-v="${t.k}" aria-pressed="${E.tplOn === t.k}">
       <span class="ed-tpl-pv">${miniTpl(t)}</span><span class="ed-tpl-t"><b>${esc(t.name)}</b><small>${esc(t.sub)}</small>
@@ -2761,7 +2814,7 @@ function drawTpl() {
   el.addEventListener("click", e => { if (e.target === el) { E.tplOpen = false; drawTpl(); } });   // a click beside it closes it
   $e(".ed").append(el);
 }
-function applyTpl(k) {
+function applyTpl(k, quiet = false) {
   const t = TPLS.find(x => x.k === k); if (!t) return;
   const L = E.look;
   const caps = t.caps ? {...lookFromStyle("clean"), ...t.caps} : lookFromStyle(t.style);
@@ -2772,9 +2825,10 @@ function applyTpl(k) {
   if (isParts(t.layout)) E.look.split = {...rawSplit(), ...(t.split ? clone(t.split) : {}), cam_at: t.cam_at || "bottom"};
   if (t.layout === "card") E.look.card = {...cardOf(), theme: t.theme};
   E.layout = t.layout; E.tplOn = k; E.lookTouched = true; E.tplOpen = false;
-  setFrame(); drawTpl(); E.tab = "layout"; drawPanel(); drawStage();
+  if (!quiet) E.tab = "layout";
+  setFrame(); drawTpl(); drawPanel(); drawStage();
   if (t.layout === "split" || (t.layout === "pip" || t.layout === "pop") && !t.split) findFacecam();
-  after("pt"); toast(`${t.name} applied`, "ok");
+  after("pt"); if (!quiet) toast(`${t.name} applied`, "ok");
 }
 /* ---------- the split layout in the preview: two bands, each showing one part of the same video.
    Each band crops its part and fills its band exactly like render._filter: crop the part, cover the band, centre. */
@@ -2803,6 +2857,16 @@ function placeSplit() {
     const lip = Math.min(Math.max(q.r, q.b), q.w * 0.08) * k, hb = q.pop * k + lip;
     const hx = Math.min(q.w * 0.22, q.w * 0.3) * k, hy = Math.min(Math.max(q.pop * 1.25, q.w * 0.22) * k, hb * 0.9);
     const cut = popCut(q, sp, k);         // the real cut-out, from the same cut-out as the finished clip
+    const FX = $e("#edPopFx");
+    if (FX) {                             // the border effect: made by the server like the clip's, at the preview's size
+      if (!q.fx) { FX.style.display = "none"; FX.removeAttribute("src"); FX.dataset.u = ""; }
+      else {
+        const m = popMargin(q.w, q.h), sc = Math.max(0.2, Math.min(0.6, Math.ceil(k * (window.devicePixelRatio || 1) * 20) / 20));
+        const u = `/api/popfx?${new URLSearchParams({kind: q.fx, w: q.w, h: q.h, r: Math.round(q.r), b: q.b, c: q.c1, s: sc})}`;
+        if (FX.dataset.u !== u) { FX.dataset.u = u; FX.src = u; FX.play?.().catch(() => {}); }
+        FX.style.cssText = `left:${(q.x - m) * k}px;top:${(q.y - m) * k}px;width:${(q.w + 2 * m) * k}px;height:${(q.h + 2 * m) * k}px`;
+      }
+    }
     const L = $e("#edPopLine"), GD = $e("#edPopGuide");    // the head line: its handle beside the card, its guide across it
     if (L) { L.style.left = `${Math.min(W - 34, (q.x + q.w + q.b) * k + 8)}px`; L.style.top = `${q.y * k}px`; }
     if (GD) GD.style.cssText = `left:${(q.x - q.b) * k}px;top:${q.y * k}px;width:${(q.w + 2 * q.b) * k}px`;
@@ -3084,7 +3148,7 @@ function gridCard(sp) {
 /* picture in picture: drag the small box anywhere on the video, or its corner to resize it. Stored as its middle
    (% of the frame) and its width (% of the frame), the numbers render.pip_geometry uses. */
 let pipDrag = null;
-const dragKeys = () => E.layout === "pop" ? {s: "pop_size", x: "pop_x", y: "pop_y", lo: 40, hi: 90, geo: popGeo} : {s: "pip_size", x: "pip_x", y: "pip_y", lo: 22, hi: 50, geo: pipGeo};
+const dragKeys = () => E.layout === "pop" ? {s: "pop_size", x: "pop_x", y: "pop_y", lo: 40, hi: 96, geo: popGeo} : {s: "pip_size", x: "pip_x", y: "pip_y", lo: 22, hi: 50, geo: pipGeo};
 dlg_on("pointerdown", e => {
   if ((E.layout !== "pip" && E.layout !== "pop") || E.view !== "live") return;
   const box = e.target.closest("#edBandC, #edBandO"); if (!box) return;
@@ -4043,7 +4107,11 @@ dlg.addEventListener("click", async e => {
     E.look.split = d.k === "grad" ? {...sp, pop_edge: "gradient", pop_c1: d.a, pop_c2: d.b} : {...sp, [d.k]: v};
     E.lookTouched = true; E.lastKey = ""; placeSplit(); paintOverlay(); drawPanel(); return after("");
   }
-  if (a === "popat") { E.look.split = {...rawSplit(), pop_x: d.v === "c" ? null : 50, pop_y: d.v === "c" ? null : +d.v}; E.lookTouched = true; placeSplit(); paintOverlay(); drawPanel(); return after(""); }
+  if (a === "popwide") {                 // one click: a wide rectangle across the top of the screen
+    E.look.split = {...rawSplit(), pop_shape: "rounded", pop_ratio: "wide", pop_size: 94, pop_x: 50, pop_y: 0};
+    E.lookTouched = true; E.lastKey = ""; placeSplit(); paintOverlay(); drawPanel(); return after("");
+  }
+  if (a === "popat") { E.look.split = {...rawSplit(), pop_x: d.v === "c" ? null : 50, pop_y: d.v === "c" ? null : d.v === "top" ? 0 : +d.v}; E.lookTouched = true; placeSplit(); paintOverlay(); drawPanel(); return after(""); }
   if (a === "pipshape" || a === "pipcol") { E.look.split = {...rawSplit(), [a === "pipshape" ? "pip_shape" : "pip_color"]: d.v}; E.lookTouched = true; placeSplit(); drawPanel(); return after(""); }
   if (a === "gridn") {                  // how many people: boxes placed by hand stay, new ones get a slice
     const n = +d.v, sp = rawSplit(), was = sp.faces; if (n === was.length) return;
@@ -4140,15 +4208,33 @@ dlg.addEventListener("click", async e => {
     const pop = sel => { const el = $e(sel); if (el) { el.classList.remove("ed-popin"); void el.offsetWidth; el.classList.add("ed-popin"); } };
     let got = null;
     try {
+      // how the clip was before, so "Undo AI edit" can put every part of it back
+      E.aiBefore = {look: clone(E.look), layout: E.layout, start: E.start, end: E.end, cuts: clone(E.cuts || []), shots: clone(E.shots || []), tplOn: E.tplOn};
       const req = api(`/api/jobs/${E.jid}/clips/${E.cid}/autoedit`, {method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({start: E.start, end: E.end, look: E.look})}).then(r => (got = r));
+        body: JSON.stringify({start: E.start, end: E.end, look: E.look,
+          templates: TPLS.map(t => ({k: t.k, name: t.name, sub: t.sub || "", layout: t.layout}))})}).then(r => (got = r));
       const thinking = aiThinking(() => got);
       const r = await req; await thinking;
       await aiWait(Math.max(0, 2200 - (Date.now() - t0)));
       histPush?.();
       E.zSel = -1; E.sfxSel = -1; E.lookTouched = true; E.picKey = "";
-      const zs = r.zooms || [], fx = r.sfx || [], total = 2 + zs.length + fx.length + 2;
+      const zs = r.zooms || [], fx = r.sfx || [], total = 5 + zs.length + fx.length + 2;
       let n = 0; const pc = () => 50 + (++n) / total * 50;
+      // the look first: what the video is, the template that suits it (layout, title, colour), then the captions
+      const tpl = TPLS.find(t => t.k === r.template), cap = r.style && PRESETS()[r.style] ? r.style : "";
+      if (r.kind || r.scene) { aiLog.add("kind", [r.kind ? `A ${r.kind}` : "", r.scene ? `on screen: ${r.scene}` : ""].filter(Boolean).join(", "), pc()); await aiWait(500); }
+      if (tpl) {
+        applyTpl(tpl.k, true); pop("#edPhone");
+        aiLog.add("look", `${tpl.name} template${r.template_why ? `: ${r.template_why}` : ""}`, pc());
+        await aiWait(900);
+      }
+      if (cap) {
+        const keep = {y: E.look.y, hook: E.look.hook, stroke: E.look.stroke, stroke_color: E.look.stroke_color};
+        E.look = {...lookFromStyle(cap), ...keepOwn(E.look), ...Object.fromEntries(Object.entries(keep).filter(([, v]) => v !== undefined))};
+        E.lastKey = ""; paintOverlay(); pop("#edCap");
+        aiLog.add("caps", `${PRESETS()[cap].label} captions${r.style_why ? `: ${r.style_why}` : ""}`, pc());
+        await aiWait(700);
+      }
       E.look.zooms = []; E.look.sfx = [];
       // the music first: its bar grows across its row
       if (r.music) {
@@ -4179,16 +4265,24 @@ dlg.addEventListener("click", async e => {
       aiLog.add("safe", safe.moved.length ? `Moved the ${safe.moved.join(" and ")} inside ${safe.name}${safe.name.endsWith("s") ? "'" : "'s"} safe area` : `Hook and captions already inside ${safe.name}${safe.name.endsWith("s") ? "'" : "'s"} safe area`, pc());
       E.zKey = ""; drawPanel(); drawTimeline(); paintOverlay(); after("p"); showAt(E.start);
       const nz = E.look.zooms.length, ns = E.look.sfx.length, song = (E.music || []).find(t => t.id === E.look.music?.id);
-      hands.deliver({Music: song ? `Added ${song.name}` : "", Zooms: nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", Sounds: ns ? `${ns} sound${ns > 1 ? "s" : ""}` : "",
+      hands.deliver({Layout: tpl ? tpl.name : "", "Caption style": cap ? PRESETS()[cap].label : "",
+        Music: song ? `Added ${song.name}` : "", Zooms: nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", Sounds: ns ? `${ns} sound${ns > 1 ? "s" : ""}` : "",
         Cuts: tidy.cuts ? `Cut ${tidy.cuts} pause${tidy.cuts > 1 ? "s" : ""}` : "", Timing: tidy.trimmed > 0.3 ? `Trimmed ${tidy.trimmed.toFixed(1)} s` : "",
         Captions: "Synced", Transcript: "Checked", Review: "Ready",
         "Safe zones": safe.moved.length ? `Moved the ${safe.moved.join(" and ")} in` : `All inside ${safe.name.split(" ")[0]}'s safe area`});
       safeOff();
-      aiLog.done(`${[song ? "music" : "", nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", ns ? `${ns} sound${ns > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ") || "Edit"} added in ${((Date.now() - t0) / 1000).toFixed(1)} s. Change anything you like.`);
+      aiLog.done(`${[tpl ? tpl.name : "", cap ? `${PRESETS()[cap].label} captions` : "", song ? "music" : "", nz ? `${nz} zoom${nz > 1 ? "s" : ""}` : "", ns ? `${ns} sound${ns > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ") || "Edit"} in ${((Date.now() - t0) / 1000).toFixed(1)} s.${r.cached ? " Same clip as before: the saved plan was reused, no AI cost." : ""}`, true);
     } catch (er) { hands.stop(); aiLog.close(); toast(er.message, "bad"); safeOff(); }
     E.aiBusy = false; drawStage(); return;
   }
   if (a === "ailogclose") return aiLog.close();
+  if (a === "aiundo") {
+    const b = E.aiBefore; aiLog.close(); if (!b) return;
+    Object.assign(E, {look: clone(b.look), layout: b.layout, start: b.start, end: b.end, cuts: clone(b.cuts), shots: clone(b.shots), tplOn: b.tplOn});
+    E.aiBefore = null; E.lookTouched = true; E.lastKey = ""; E.zKey = "";
+    setFrame(); drawStage(); drawPanel(); drawTimeline(); paintOverlay(); after("pt"); showAt(E.start);
+    return toast("AI edit undone. The clip is back the way it was.", "ok");
+  }
   if (a === "splitshare") { E.look.split = {...rawSplit(), share: +d.v}; E.lookTouched = true; E.lastKey = ""; paintOverlay(); drawPanel(); return after(""); }
   if (a === "safe") { E.safe = E.safe ? null : (() => { try { return localStorage.getItem("ed_safe") || "instagram"; } catch { return "instagram"; } })(); E.lastKey = ""; $e('[data-ed="safe"]')?.setAttribute("aria-pressed", String(!!E.safe)); return drawStage(); }
   if (a === "safeset") { E.safe = d.v; try { localStorage.setItem("ed_safe", d.v); } catch {} return drawStage(); }
@@ -4251,9 +4345,64 @@ dlg.addEventListener("click", async e => {
   if (a === "keys") { E.keysOpen = !E.keysOpen; return drawKeys(); }
   if (a === "keysclose") { E.keysOpen = false; return drawKeys(); }
   if (a === "tpl") { E.tplOpen = !E.tplOpen; return drawTpl(); }
-  if (a === "tplclose") { E.tplOpen = false; return drawTpl(); }
+  if (a === "tplclose") { E.tplOpen = false; E.tplSave = false; return drawTpl(); }
   if (a === "tplcat") { E.tplCat = d.v; return drawTpl(); }
   if (a === "tplpick") return applyTpl(d.v);
+  if (a === "tplsaveopen") {
+    E.tplOpen = true; E.tplSave = true; E.tplRename = "";
+    drawTpl(); const i = $e("#edTplName"); if (i) i.focus();
+    return;
+  }
+  if (a === "tplsavex" || a === "tplrenamex") { E.tplSave = false; E.tplRename = ""; return drawTpl(); }
+  if (a === "tplsavenew") {
+    const name = $e("#edTplName")?.value.trim();
+    if (!name) return $e("#edTplName")?.focus();
+    if ((E.templates || []).length >= 12) return toast("You have 12 templates. Remove one to save another.", "bad");
+    try {
+      await saveTemplates([...(E.templates || []), {name, layout: E.layout, look: clone(E.look)}], E.templateOn || "");
+      E.tplSave = false; toast(`“${name}” saved. Turn it on here, or under Home, Options, for new clips.`, "ok");
+    } catch (err) { toast(err.message, "bad"); }
+    return drawTpl();
+  }
+  if (a === "tplapply") {
+    const t = (E.templates || []).find(x => x.id === d.id); if (!t) return;
+    E.look = {...HOOK_DEFAULT, ...clone(t.look)}; E.layout = t.layout || "blur"; E.lookTouched = true; E.mineOn = t.id; E.tplOn = "";
+    setFrame(); E.tplOpen = false; drawTpl(); E.tab = "layout"; drawPanel(); drawStage(); after("pt");
+    return toast(`“${t.name}” is on this clip. Render to put it in the video.`, "ok");
+  }
+  if (a === "tplupdate") {
+    const t = (E.templates || []).find(x => x.id === d.id); if (!t) return;
+    const next = E.templates.map(x => x.id === t.id ? {id: t.id, name: t.name, layout: E.layout, look: clone(E.look)} : x);
+    try { await saveTemplates(next, E.templateOn || ""); toast(`“${t.name}” now matches this clip.`, "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return drawTpl();
+  }
+  if (a === "tplrename") { E.tplRename = d.id; E.tplSave = false; drawTpl(); const i = $e("#edTplRename"); if (i) { i.focus(); i.select(); } return; }
+  if (a === "tplrenamedo") {
+    const name = $e("#edTplRename")?.value.trim();
+    if (!name) return $e("#edTplRename")?.focus();
+    const next = (E.templates || []).map(x => x.id === d.id ? {...x, name} : x);
+    try { await saveTemplates(next, E.templateOn || ""); E.tplRename = ""; toast("Name saved.", "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return drawTpl();
+  }
+  if (a === "tpluse") {
+    const t = (E.templates || []).find(x => x.id === d.id); if (!t) return;
+    const active = E.templateOn === t.id ? "" : t.id;
+    try {
+      await saveTemplates(E.templates, active);
+      toast(active ? `New clips use “${t.name}”.` : "New clips use the options you pick.", "ok");
+    } catch (err) { toast(err.message, "bad"); }
+    return drawTpl();
+  }
+  if (a === "tpldel") {
+    const t = (E.templates || []).find(x => x.id === d.id); if (!t) return;
+    if (!confirm(`Remove “${t.name}”? Clips already made stay as they are.`)) return;
+    const next = E.templates.filter(x => x.id !== t.id);
+    try { await saveTemplates(next, E.templateOn === t.id ? "" : (E.templateOn || "")); toast("Template removed.", "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return drawTpl();
+  }
   if (a === "cardset") { E.look.card = {...cardOf(), [d.k]: d.k === "verified" ? d.v === "1" : d.v}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "cardsw") { E.look.card = {...cardOf(), [d.k]: e.target.checked}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
   if (a === "cardcentre") { E.look.card = {...cardOf(), dx: 0, dy: 0}; E.lookTouched = true; E.fgKey = ""; drawPanel(); return after("p"); }
@@ -4399,7 +4548,7 @@ dlg.addEventListener("input", e => {
       return after("");
     }
     if (k === "pop_size" || k === "pop_radius" || k === "pop_border" || k === "pop_out") {
-      const lim = {pop_size: [40, 90], pop_radius: [0, 30], pop_border: [0, 20], pop_out: [0, 45]}[k], v = +el.value;
+      const lim = {pop_size: [40, 96], pop_radius: [0, 30], pop_border: [0, 20], pop_out: [0, 45]}[k], v = +el.value;
       const had = (rawSplit().pop_border ?? 8) > 0;
       E.look.split = {...rawSplit(), [k]: v}; const o = el.parentElement.querySelector("output");
       if (o) o.textContent = k === "pop_size" || k === "pop_out" ? (v || k === "pop_size" ? v + "%" : "None") : k === "pop_border" && !v ? "None" : v;

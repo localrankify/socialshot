@@ -131,7 +131,13 @@ def _ydl(opts):
 
 
 def _video_format(height):
-    return f"bv*[height<={height}][vcodec^=avc1]+ba[ext=m4a]/bv*[height<={height}]+ba/b[height<={height}]/b"
+    return f"bv*[height<={height}]+ba[ext=m4a]/bv*[height<={height}]+ba/b[height<={height}]/b"
+
+
+# The sharpest picture the site has, up to the height asked for: resolution first, then frame rate, then H.264 over
+# other codecs only between equal sizes. (Preferring H.264 outright capped YouTube at 1080p and often 720p, and a
+# clip cropped from that and filled to 1080 x 1920 looked soft.)
+_SHARPEST = ["res", "fps", "vcodec:h264", "acodec:m4a"]
 
 
 def _biggest(job_dir: Path, stem: str) -> Path:
@@ -348,7 +354,7 @@ def download_audio(url: str, job_dir: Path, on_progress=None) -> Path:
 
 def download(url: str, job_dir: Path, height=720) -> Path:
     """The whole video. Used for shorter videos, where this is quicker than fetching pieces."""
-    with _youtube_guard(url), _ydl({"format": _video_format(height), "merge_output_format": "mp4",
+    with _youtube_guard(url), _ydl({"format": _video_format(height), "format_sort": _SHARPEST, "merge_output_format": "mp4",
                                     "outtmpl": str(job_dir / "source.%(ext)s")}) as ydl:
         ydl.download([url])
     return _biggest(job_dir, "source")
@@ -358,7 +364,7 @@ def download_section(url: str, out_dir: Path, stem: str, start: float, end: floa
     """Just one stretch of the video. The cut lands on a keyframe, so find_offset() pins the true start."""
     from yt_dlp.utils import download_range_func
     out_dir.mkdir(parents=True, exist_ok=True)
-    with _youtube_guard(url), _ydl({"format": _video_format(height), "merge_output_format": "mp4",
+    with _youtube_guard(url), _ydl({"format": _video_format(height), "format_sort": _SHARPEST, "merge_output_format": "mp4",
                "outtmpl": str(out_dir / (stem + ".%(ext)s")),
                "download_ranges": download_range_func(None, [(max(0.0, start), end)])}) as ydl:
         ydl.download([url])

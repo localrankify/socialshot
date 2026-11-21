@@ -1243,6 +1243,21 @@ def _cam_box(cam: str) -> list:
     return render._region(box, render.SPLIT_DEFAULT["cam"])
 
 
+@app.get("/api/popfx")
+def pop_fx(kind: str, w: int, h: int, r: int = 0, b: int = 0, c: str = "#FFFFFF", s: float = 0.35):
+    """The pop-out card's moving border effect for the editor's preview: the same loop the finished clip uses, drawn
+    smaller (s), as a see-through WebM. Kept, so each look is made once."""
+    if kind not in ("glow", "fire", "thunder") or not re.fullmatch(r"#[0-9A-Fa-f]{6}", c or ""):
+        raise HTTPException(400, "Unknown effect.")
+    w, h = max(64, min(1100, int(w))), max(64, min(1100, int(h)))
+    g = {"fx": kind, "w": w, "h": h, "r": max(0, min(w // 2, int(r))), "b": max(0, min(40, int(b))), "color": c.upper()}
+    _throttle("popfx:" + ctx.uid(), 120, 600)
+    f = render.pop_fx_file(g, scale=round(max(0.15, min(0.6, float(s))), 2), webm=True)
+    if not f:
+        raise HTTPException(503, "The effect couldn't be made.")
+    return FileResponse(f, media_type="video/webm", headers={"Cache-Control": "private, max-age=86400"})
+
+
 @app.get("/api/jobs/{jid}/clips/{cid}/popface")
 def clip_popface(jid: str, cid: str, cam: str):
     """Where the streamer's face is inside the face cam box, for the pop-out card's top edge (the finished clip
@@ -1340,9 +1355,51 @@ def clip_autoedit(jid: str, cid: str, body: dict = Body(default={})):
     probe["look"] = body.get("look") if isinstance(body.get("look"), dict) else clip.get("look")
     src = Path(clip["src"]) if clip.get("src") else Path(job.get("source_path") or "") if job.get("source_path") else None
     usage.set_context(job.get("creator"), job.get("title") or "")
-    p = autoedit.apply(probe, words, job.get("title") or "", db, src if src and src.is_file() else None)
+    # the editor's templates (key, name, what it is, its layout), so the AI can pick the look that suits the clip
+    tpls = [{"k": str(t.get("k"))[:30], "name": str(t.get("name") or "")[:60], "sub": str(t.get("sub") or "")[:120],
+             "layout": str(t.get("layout") or "")[:20]}
+            for t in (body.get("templates") if isinstance(body.get("templates"), list) else [])[:60] if isinstance(t, dict) and t.get("k")]
+    p = autoedit.apply(probe, words, job.get("title") or "", db, src if src and src.is_file() else None, tpls or None)
     lk = probe["look"] or {}
-    return {"music": lk.get("music"), "zooms": lk.get("zooms"), "sfx": lk.get("sfx"), "by": p["by"], "note": autoedit.describe(p)}
+    return {"music": lk.get("music"), "zooms": lk.get("zooms"), "sfx": lk.get("sfx"), "by": p["by"], "note": autoedit.describe(p),
+            "kind": p.get("kind", ""), "template": p.get("template", ""), "template_why": p.get("template_why", ""),
+            "style": p.get("style", ""), "style_why": p.get("style_why", ""), "scene": autoedit.scene_text(p.get("scene")) if tpls else "",
+            "tokens": p.get("tokens", 0), "cached": bool(p.get("cached"))}
+
+
+@app.post("/api/jobs/{jid}/pause")
+def job_pause(jid: str):
+    """Pause a video being made (or waiting in line); Resume carries on from where it stopped."""
+    job = _job_or_404(jid)
+    try:
+        jobs.halt(job, "pause")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ctx.bump()
+    return jobs.public(job)
+
+
+@app.post("/api/jobs/{jid}/stop")
+def job_stop(jid: str):
+    """Stop a video being made, a paused one, or a search for more clips: it ends with the clips it already has."""
+    job = _job_or_404(jid)
+    try:
+        jobs.halt(job, "stop")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ctx.bump()
+    return jobs.public(job)
+
+
+@app.post("/api/jobs/{jid}/resume")
+def job_resume(jid: str):
+    job = _job_or_404(jid)
+    try:
+        jobs.resume(job)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ctx.bump()
+    return jobs.public(job)
 
 
 @app.post("/api/jobs/{jid}/more")
@@ -1530,12 +1587,52 @@ def _logo_file() -> Path:
     return render.brand_logo_path(ctx.uid())
 
 
-@app.get("/api/brand")
-def brand_get():
+def _brand_read() -> dict:
     try:
         out = json.loads(_brand_file().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        out = {"styles": []}
+        out = {}
+    return out if isinstance(out, dict) else {}
+
+
+def _clean_templates(raw) -> list:
+    """A saved setup: a name, the layout, and the whole look (captions, hook, frame, card, brand). At most 12."""
+    out, seen = [], set()
+    items = raw if isinstance(raw, list) else []
+    for t in items[:12]:
+        if not isinstance(t, dict):
+            continue
+        name = re.sub(r"\s+", " ", str(t.get("name") or "")).strip()[:40]
+        look = render.clean_look(t.get("look") if isinstance(t.get("look"), dict) else None)
+        if not name or not look:
+            continue
+        layout = t.get("layout") if t.get("layout") in render.LAYOUTS else "blur"
+        tid = str(t.get("id") or "")
+        if not re.fullmatch(r"[a-f0-9]{8}", tid) or tid in seen:
+            tid = secrets.token_hex(4)
+            while tid in seen:
+                tid = secrets.token_hex(4)
+        seen.add(tid)
+        out.append({"id": tid, "name": name, "layout": layout, "look": look})
+    return out
+
+
+def _brand_keep(cur: dict) -> dict:
+    """The brand file: caption looks, and templates. `template` is the one new clips use, or "" when none is on."""
+    styles = cur.get("styles") if isinstance(cur.get("styles"), list) else []
+    templates = cur.get("templates") if isinstance(cur.get("templates"), list) else []
+    names = [s.get("name") for s in styles if isinstance(s, dict)]
+    ids = [t.get("id") for t in templates if isinstance(t, dict)]
+    keep = {"styles": styles, "templates": templates}
+    if isinstance(cur.get("default"), str) and (cur["default"] == "" or cur["default"] in names):
+        keep["default"] = cur["default"]
+    keep["template"] = cur["template"] if isinstance(cur.get("template"), str) and cur["template"] in ids else ""
+    return keep
+
+
+@app.get("/api/brand")
+def brand_get():
+    out = _brand_keep(_brand_read())
     f = _logo_file()
     out["logo"] = int(f.stat().st_mtime) if f.is_file() else 0      # 0: no logo; otherwise a version for the page's cache
     return out
@@ -1787,20 +1884,38 @@ def media_del(mid: str):
 
 @app.put("/api/brand")
 def brand_put(body: dict = Body(...)):
-    styles = []
-    for s in (body.get("styles") if isinstance(body.get("styles"), list) else [])[:12]:
-        look = render.clean_look(s.get("look") if isinstance(s, dict) else None)
-        name = re.sub(r"\s+", " ", str(s.get("name", "") if isinstance(s, dict) else "")).strip()[:40]
-        if look and name:
-            styles.append({"name": name, "look": look})
+    """Save caption looks, templates, or which template new clips use. Sending one of these leaves the others as they are."""
+    cur = _brand_read()
+    if "styles" in body:
+        styles = []
+        for s in (body.get("styles") if isinstance(body.get("styles"), list) else [])[:12]:
+            look = render.clean_look(s.get("look") if isinstance(s, dict) else None)
+            name = re.sub(r"\s+", " ", str(s.get("name", "") if isinstance(s, dict) else "")).strip()[:40]
+            if look and name:
+                styles.append({"name": name, "look": look})
+        cur["styles"] = styles
+        names = [s["name"] for s in styles]
+        if "default" in body:          # the caption look new clips start with, when no template is on
+            want = body.get("default")
+            if isinstance(want, str) and (want == "" or want in names):
+                cur["default"] = want
+            else:
+                cur.pop("default", None)
+        elif cur.get("default") not in names:
+            cur.pop("default", None)
+    if "templates" in body:
+        cur["templates"] = _clean_templates(body.get("templates"))
+    if "template" in body or "templates" in body:
+        ids = [t["id"] for t in cur.get("templates") or [] if isinstance(t, dict)]
+        want = body.get("template") if "template" in body else cur.get("template")
+        cur["template"] = want if isinstance(want, str) and want in ids else ""
+    keep = _brand_keep(cur)
     f = _brand_file()
     f.parent.mkdir(parents=True, exist_ok=True)
-    names = [s["name"] for s in styles]
-    want = body.get("default")          # the look new clips start with: a name, "" for none, absent for the first one
-    keep = {"styles": styles}
-    if isinstance(want, str) and (want == "" or want in names):
-        keep["default"] = want
     f.write_text(json.dumps(keep), encoding="utf-8")
+    ctx.bump()
+    logo = _logo_file()
+    keep["logo"] = int(logo.stat().st_mtime) if logo.is_file() else 0
     return keep
 
 

@@ -52,7 +52,7 @@ def resolve(url: str) -> dict:
     """Ask yt-dlp for the stream's playable address. Raises NotLive if the channel is offline."""
     import yt_dlp
     opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "logger": _Quiet(),
-            "format": "b[height<=720]/bv*[height<=720]+ba/b"}
+            "format": "b[height<=1080]/bv*[height<=1080]+ba/b"}      # recorded in HD, so the live clips are sharp
     if media.is_youtube(url) and media.youtube_paused():
         raise NotLive(media.YT_BLOCKED)
     try:
@@ -588,9 +588,9 @@ class Session:
     def _add_clip(self, c):
         self.n += 1
         style = self.settings.get("style") or "auto"
-        c.update(id=f"clip{self.n:03d}", style="gamer" if style == "auto" else style, layout=self.settings["layout"],   # Auto: a stream gets the gaming captions
+        lay, look = jobs.new_clip_setup(self.job.get("user"))
+        c.update(id=f"clip{self.n:03d}", style="gamer" if style == "auto" else style, layout=lay or self.settings["layout"],   # Auto: a stream gets the gaming captions
                  status="queued", version=0, made_at=time.time())
-        look = jobs.brand_look(self.job.get("user"))
         if look and "look" not in c:
             c["look"] = dict(look)
         with self.lock:

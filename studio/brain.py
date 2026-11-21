@@ -205,7 +205,7 @@ def loud_zscore(db):
     return (db - np.median(db)) / (db.std() + 1e-6)
 
 
-def ask_ai(prompt, schema=None, purpose="AI call"):
+def ask_ai(prompt, schema=None, purpose="AI call", light=False):
     """Try each model in order, with a couple of retries for rate limits and overloads.
     Returns (the answer, the model that gave it, tokens used) and notes the tokens in the usage record."""
     if not config.ai_ready():
@@ -214,7 +214,7 @@ def ask_ai(prompt, schema=None, purpose="AI call"):
     for model in ai.models():
         for attempt in range(3):
             try:
-                out, sent, wrote = ai.call(model, prompt, schema or SCHEMA)
+                out, sent, wrote = ai.call(model, prompt, schema or SCHEMA, light)
                 usage.record(sent, wrote, purpose)
                 ai.clear_problem()
                 return out, model, sent + wrote

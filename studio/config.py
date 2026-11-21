@@ -73,6 +73,18 @@ DATABASE_URL = env("DATABASE_URL") or f"sqlite:///{(DATA_DIR / 'peakcut.db').as_
 for d in (USERS_DIR, MODELS_DIR, TMP_DIR, FONTS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
+# Scratch space for the work that runs here (each clip's render folder, and the temp files of ffmpeg and the video
+# downloader) goes on the same drive as the data, not the system's own temp folder: on Windows that is on C:, which
+# can be full while the data drive has room. PEAKCUT_WORK_DIR picks another place. The path is kept short (ffmpeg's
+# caption step can't open paths over 260 characters); a data folder buried too deep keeps the system's temp folder.
+WORK_DIR = Path(env("PEAKCUT_WORK_DIR") or TMP_DIR / "work")
+if len(str(WORK_DIR)) <= 80:
+    import tempfile
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    tempfile.tempdir = str(WORK_DIR)
+    for _k in ("TEMP", "TMP", "TMPDIR"):          # programs started from here (ffmpeg, the downloader) use it too
+        os.environ[_k] = str(WORK_DIR)
+
 
 def user_dir(uid: str) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_]{6,40}", uid or ""):

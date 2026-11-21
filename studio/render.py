@@ -1485,7 +1485,10 @@ SPLIT_DEFAULT = {"game": [0.0, 0.0, 1.0, 1.0], "cam": [0.68, 0.58, 0.30, 0.40], 
                  "pop_bg": "cam", "pop_fill": "#FFFFFF",
                  # how the face sits in the card: "face" (found and centred, a set size, the head line across it) or
                  # "box" (the face cam box as placed)
-                 "pop_fit": "face"}
+                 "pop_fit": "face",
+                 # a moving effect around the border ("none", "glow", "fire", "thunder"), and a rectangle card's shape:
+                 # "tall" (about square) or "wide" (a wide strip, e.g. across the top of the screen)
+                 "pop_fx": "none", "pop_ratio": "tall"}
 GRID_MAX = 4
 POP_AT = (50.0, 57.0)          # where the pop-out card's middle sits until it is dragged (% of the frame)
 
@@ -1540,14 +1543,16 @@ def clean_split(v) -> dict:
             "trio": [_region(r, d) for r, d in zip(trio, SPLIT_DEFAULT["trio"])],
             "faces": faces, "grid_share": int(pct("grid_share", 20, 80) if pct("grid_share", 20, 80) is not None else 50),
             "scenes": clean_scenes(v.get("scenes"), len(faces)),
-            "pop_size": num("pop_size", 40, 90), "pop_x": pct("pop_x", 0, 100), "pop_y": pct("pop_y", 0, 100),
+            "pop_size": num("pop_size", 40, 96), "pop_x": pct("pop_x", 0, 100), "pop_y": pct("pop_y", 0, 100),
             "pop_radius": num("pop_radius", 0, 30), "pop_border": num("pop_border", 0, 20),
             "pop_c1": hexc("pop_c1", SPLIT_DEFAULT["pop_c1"]), "pop_c2": hexc("pop_c2", SPLIT_DEFAULT["pop_c2"]),
             "pop_out": num("pop_out", 0, 45),
             "pop_shape": v.get("pop_shape") if v.get("pop_shape") in ("rounded", "circle", "square") else "rounded",
             "pop_edge": "gradient" if v.get("pop_edge") == "gradient" else "solid",
             "pop_bg": "plain" if v.get("pop_bg") == "plain" else "cam", "pop_fill": hexc("pop_fill", SPLIT_DEFAULT["pop_fill"]),
-            "pop_fit": "box" if v.get("pop_fit") == "box" else "face"}
+            "pop_fit": "box" if v.get("pop_fit") == "box" else "face",
+            "pop_fx": v.get("pop_fx") if v.get("pop_fx") in ("glow", "fire", "thunder") else "none",
+            "pop_ratio": "wide" if v.get("pop_ratio") == "wide" else "tall"}
 
 
 def _even_faces(n):
@@ -1687,6 +1692,8 @@ def pop_line(sp, src_w, src_h) -> float:
 
 POP_FACE = 0.42           # the face's width as a share of the card's width when the face is framed
 POP_ROUND_H = 0.95        # a framed rectangle card's height over its width
+POP_WIDE_H = 0.56         # a wide rectangle card's height over its width
+POP_TOP = 0.025           # the least room above the head at the top of the frame (share of its height)
 
 
 def pop_frame(sp, src_w, src_h, w, h):
@@ -1727,13 +1734,15 @@ def pop_geometry(W, H, split, src_w, src_h) -> dict:
     sp = split or SPLIT_DEFAULT
     pw = int(round(W * sp.get("pop_size", 70) / 100 / 2)) * 2
     cam, shape, out = sp["cam"], sp.get("pop_shape", "rounded"), pop_line(sp, src_w, src_h) * 100
-    framed = pop_frame(sp, src_w, src_h, pw, pw if shape in ("circle", "square") else int(round(pw * POP_ROUND_H / 2)) * 2)
+    wide = shape == "rounded" and sp.get("pop_ratio") == "wide"
+    fixed = pw if shape in ("circle", "square") else int(round(pw * POP_WIDE_H / 2)) * 2 if wide else None
+    framed = pop_frame(sp, src_w, src_h, pw, fixed or int(round(pw * POP_ROUND_H / 2)) * 2)
     crop = cam
     if framed:
         t, pop, crop = framed
         h = t - pop
-    elif shape in ("circle", "square"):
-        h = pw
+    elif fixed:                                # circle, square, wide: the card's own shape, the picture above it
+        h = fixed
         t = int(round(h / max(0.5, 1 - out / 100) / 2)) * 2
         pop = t - h
     else:
@@ -1745,12 +1754,30 @@ def pop_geometry(W, H, split, src_w, src_h) -> dict:
     cx = sp["pop_x"] if sp.get("pop_x") is not None else POP_AT[0]
     cy = sp["pop_y"] if sp.get("pop_y") is not None else POP_AT[1]
     x, y = round(W * cx / 100 - pw / 2), round(H * cy / 100 - h / 2)
-    x, y = max(b, min(W - pw - b, x)), max(pop, b, min(H - h - b, y))  # the card, its edge and the head all on the frame
+    mt = round(H * POP_TOP)
+    x, y = max(b, min(W - pw - b, x)), max(pop + mt, b + mt, min(H - h - b, y))  # the card, its edge and the head on the frame
     r = pw // 2 if shape == "circle" else round(pw * sp.get("pop_radius", 8) / 100)
     c1 = sp.get("pop_c1") or "#FFFFFF"
     c2 = (sp.get("pop_c2") or c1) if sp.get("pop_edge") == "gradient" else c1
     fill = (sp.get("pop_fill") or "#FFFFFF") if sp.get("pop_bg") == "plain" else None
-    return {"x": x, "y": y, "w": pw, "h": h, "t": t, "pop": pop, "b": b, "r": r, "color": c1, "c2": c2, "fill": fill, "crop": crop}
+    fx = sp.get("pop_fx") if sp.get("pop_fx") in ("glow", "fire", "thunder") else None
+    return {"x": x, "y": y, "w": pw, "h": h, "t": t, "pop": pop, "b": b, "r": r, "color": c1, "c2": c2, "fill": fill, "crop": crop,
+            "fx": fx}
+
+
+def pop_fx_file(g: dict, scale: float = 1.0, webm: bool = False):
+    """The pop-out card's moving border effect as a loop file, made once for this card and kept (it depends only on
+    the card's size, corners, edge and colour). None if it couldn't be made."""
+    import hashlib
+    from . import popfx
+    import json
+    key = hashlib.sha1(json.dumps([g["fx"], g["w"], g["h"], g["r"], g["b"], g["color"], round(scale, 3), 1]).encode()).hexdigest()[:16]
+    d = config.TMP_DIR / "popfx"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"{key}.{'webm' if webm else 'mkv'}"
+    if out.is_file() or popfx.write(g["fx"], g["w"], g["h"], g["r"], g["b"], g["color"], out, scale, webm):
+        return out
+    return None
 
 
 def pop_ring(g: dict, out: Path):
@@ -1850,6 +1877,8 @@ def geometry(src_w, src_h, layout, split=None):
     if layout == "pop":                  # the hook up top; the captions under the card, or on its lower part if no room
         g = pop_geometry(W, H, split, src_w, src_h)
         below = g["y"] + g["h"] + g["b"] + round(H * 0.055)
+        if g["y"] - g["pop"] < H * 0.25:   # the card across the top: the hook just under it, the captions lower down
+            return layout, H, below, max(below + round(H * 0.16), round(H * 0.74))
         return layout, H, round(H * 300 / 1920), below if below < H * 0.88 else g["y"] + g["h"] - round(H * 0.07)
     if layout == "pip":                  # like Solo; the captions move up when the small box is at the bottom
         sp = split or SPLIT_DEFAULT
@@ -2237,8 +2266,14 @@ def _filter_in(layout, fg_h, sel="", split=None):
             f = (f"[0:v]fps={fps},{sel}split=2[a][b];" + fill(sp["game"], W, H, "a", "pg") + card
                  + f"[{inp['round']}:v]format=gray,scale={w}:{h}[pm];"
                  + f"[pq][pm]alphamerge=shortest=1[pc];"
-                 + f"[{inp['ring']}:v]fps={fps},format=rgba[pr];[pg][pr]overlay={g['x'] - g['b']}:{g['y'] - g['b']}:shortest=1[pg2];"
-                 + f"[pg2][pc]overlay={g['x']}:{g['y']}:shortest=1")
+                 + f"[{inp['ring']}:v]fps={fps},format=rgba[pr];[pg][pr]overlay={g['x'] - g['b']}:{g['y'] - g['b']}:shortest=1[pg2];")
+            if "fx" in inp:                    # the moving effect round the border, looped, under the card and the head
+                from . import popfx
+                m = popfx.margin(g["w"], g["h"])
+                f += (f"[{inp['fx']}:v]fps={fps},format=rgba[pfx];[pg2][pfx]overlay={g['x'] - m}:{g['y'] - m}:shortest=1[pg2f];"
+                      f"[pg2f][pc]overlay={g['x']}:{g['y']}:shortest=1")
+            else:
+                f += f"[pg2][pc]overlay={g['x']}:{g['y']}:shortest=1"
             if not cut:                       # no cut-out could be made: the card alone
                 return f + ",setsar=1[v0];"
             return (f + "[pg3];[pt]format=yuva420p[po];"
@@ -2308,6 +2343,7 @@ def render_clip(src: Path, out_dir: Path, name: str, clip: dict, words: list, sr
         _frame.wh, _frame.split, _frame.region, _frame.card_geo, _frame.pip_geo = (W, H), None, None, None, None
         _frame.pad, _frame.bg, _frame.inputs, _frame.hook_emoji, _frame.card_blur = 0, None, None, [], False
         _frame.stroke, _frame.vround, _frame.vring_b, _frame.grid_segs, _frame.pop_geo = None, 0, 0, None, None
+        _frame.fx_file = None
 
 
 def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
@@ -2419,6 +2455,11 @@ def _render_clip(src, out_dir, name, clip, words, src_w, src_h, look) -> dict:
             round_mask(g["w"], g["h"], g["r"], work / "round.png")
             pop_ring(g, work / "ring.png")
             stills = ["round", "ring"]
+            if g["fx"]:
+                fxf = pop_fx_file(g)
+                if fxf:
+                    _frame.fx_file = fxf
+                    stills.append("fx")
             if g["pop"] + g["r"] > 0 or g["fill"]:     # the person cut out of the face cam, frame by frame (a video)
                 from . import cutout
                 if cutout.matte(src, start, end - start, g["crop"], g["w"], g["t"], g["pop"] + max(g["r"], g["b"]),
@@ -2515,7 +2556,8 @@ def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layo
     still = lambda f: ["-loop", "1", "-framerate", str(fps), "-i", f]   # noqa: E731 - a picture held as video
     # extra inputs, in order: the layout's stills (card, gradient, rounded-corner shape), the placed pictures, the
     # brand badge, the outro, then the music. `n` is the next input's number.
-    extra = [x for k in stills for x in (["-i", "matte.mkv"] if k == "matte" else still(f"{k}.png"))]
+    extra = [x for k in stills for x in (["-i", "matte.mkv"] if k == "matte" else
+                                         ["-stream_loop", "-1", "-i", str(_frame.fx_file)] if k == "fx" else still(f"{k}.png"))]
     n = 1 + len(stills)
     fc = _filter(layout, fg_h, sel)
     cur = "v0"
@@ -2593,8 +2635,8 @@ def _render_in(work: Path, src: Path, out_dir: Path, name: str, start, end, layo
             "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart", "-pix_fmt"]
     encoders = []
     if _qsv_ok is not False:
-        encoders.append(("qsv", ["nv12", "-c:v", "h264_qsv", "-global_quality", "23", "-preset", "fast"]))
-    encoders.append(("x264", ["yuv420p", "-c:v", "libx264", "-crf", "21", "-preset", "veryfast"]))
+        encoders.append(("qsv", ["nv12", "-c:v", "h264_qsv", "-global_quality", "20", "-preset", "fast"]))
+    encoders.append(("x264", ["yuv420p", "-c:v", "libx264", "-crf", "19", "-preset", "veryfast"]))   # a touch more detail kept
     err = None
     for label, enc in encoders:
         p = subprocess.run(base + enc + [f"{name}.mp4"], cwd=work, capture_output=True, text=True,

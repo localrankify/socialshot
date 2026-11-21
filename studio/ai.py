@@ -245,16 +245,25 @@ def _parse(text):
 
 
 # ---------------------------------------------------------------- one call
-def call(model: str, prompt: str, schema: dict):
-    """Ask one model. Returns (the parsed JSON answer, tokens sent, tokens written back)."""
+def call(model: str, prompt: str, schema: dict, light: bool = False):
+    """Ask one model. Returns (the parsed JSON answer, tokens sent, tokens written back). A light call is for a short,
+    simple answer: the model is asked not to think at length first (thinking is billed as written tokens, and on a
+    small plan it was most of the cost); a model that refuses that setting is asked again without it."""
     how = PROVIDERS[provider()][2]
-    return {"gemini": _gemini, "openai": _openai, "anthropic": _anthropic}[how](model, prompt, schema)
+    if how == "openai":
+        return _openai(model, prompt, schema)
+    return {"gemini": _gemini, "anthropic": _anthropic}[how](model, prompt, schema, light)
 
 
-def _gemini(model, prompt, schema):
+def _gemini(model, prompt, schema, light=False):
     body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.4, "responseMimeType": "application/json", "responseSchema": schema}}
-    r = httpx.post(f"{base_url()}/{model}:generateContent", json=body, headers={"x-goog-api-key": key()}, timeout=120)
+    r = None
+    if light:                                   # no thinking budget; models that must think refuse it, then ask plainly
+        quick = {**body, "generationConfig": {**body["generationConfig"], "thinkingConfig": {"thinkingBudget": 0}}}
+        r = httpx.post(f"{base_url()}/{model}:generateContent", json=quick, headers={"x-goog-api-key": key()}, timeout=120)
+    if r is None or r.status_code == 400:
+        r = httpx.post(f"{base_url()}/{model}:generateContent", json=body, headers={"x-goog-api-key": key()}, timeout=120)
     if r.status_code != 200:
         _fail(r, model)
     data = r.json()
@@ -281,10 +290,17 @@ def _openai(model, prompt, schema):
     return _parse(data["choices"][0]["message"].get("content")), int(u.get("prompt_tokens") or 0), int(u.get("completion_tokens") or 0)
 
 
-def _anthropic(model, prompt, schema):
-    body = {"model": model, "max_tokens": 8192, "messages": [{"role": "user", "content": _wrapped(prompt, schema)}]}
-    r = httpx.post(f"{base_url()}/messages", json=body, timeout=180,
-                   headers={"x-api-key": key(), "anthropic-version": "2023-06-01"})
+def _anthropic(model, prompt, schema, light=False):
+    body = {"model": model, "max_tokens": 3000 if light else 8192, "messages": [{"role": "user", "content": _wrapped(prompt, schema)}]}
+    # A light call: thinking off at low effort; models that keep thinking on refuse "disabled", so low effort alone; a
+    # model with no effort setting refuses that too, and gets the plain request.
+    extras = [{"thinking": {"type": "disabled"}, "output_config": {"effort": "low"}}, {"output_config": {"effort": "low"}}, {}] if light else [{}]
+    r = None
+    for extra in extras:
+        r = httpx.post(f"{base_url()}/messages", json={**body, **extra}, timeout=180,
+                       headers={"x-api-key": key(), "anthropic-version": "2023-06-01"})
+        if r.status_code != 400:
+            break
     if r.status_code != 200:
         _fail(r, model)
     data = r.json()

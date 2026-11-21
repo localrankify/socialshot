@@ -109,7 +109,7 @@ _by_user: dict = {}                       # user -> {job id: job}: listing one p
 _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
 
-DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "auto", "layout": "blur", "quality": 1080,
+DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "auto", "layout": "blur", "quality": 2160,   # 2160: the original, up to 4K
             "range_start": None, "range_end": None, "use_chat": True,
             "end_card": True,     # a two-second "Made with SocialShot" card after every new clip
             "watermark": False,   # a social watermark crediting the source ("Full video on YouTube /channel"); off unless turned on
@@ -250,6 +250,7 @@ def _load_file(f: Path, uid: str):
     job.setdefault("kind", "video")
     job.setdefault("creator", None)
     job.pop("finding", None)            # "Find more clips" stopped by a restart: it can be pressed again
+    job.pop("halting", None)
     if job.get("source_path"):
         job["source_path"] = _remap(job["source_path"], f.parent)
     if job.get("source", {}).get("path"):
@@ -352,6 +353,41 @@ def create(source: dict, options: dict, enqueue=True, creator=None, kind="video"
 def enqueue(job):
     save(job)
     _q.put(("job", job["id"], None), user=job["user"])
+
+
+_halt: dict = {}     # video id -> "pause" or "stop", asked for while it is being made; looked at between parts
+
+
+def halt(job, how):
+    """Pause or stop a video. Waiting in line: at once. Being made: at the next part of the transcript (about a
+    minute), keeping every clip, transcript part and AI answer made so far. Finding more clips: stops after the
+    part it is on. A paused video can be stopped too: it finishes with the clips it has."""
+    st, jid = job.get("status"), job["id"]
+    if st == "done" and job.get("finding"):
+        _halt[jid] = "stop"
+        _set(job, halting="stop")
+    elif st == "queued":
+        if how == "pause":
+            _set(job, status="paused", stage="Paused before it started")
+        else:
+            _set(job, status="done", stage="Stopped before it started", progress=1.0)
+    elif st == "running":
+        _halt[jid] = how
+        _set(job, halting=how)
+    elif st == "paused" and how == "stop":
+        job.pop("resume", None)
+        _set(job, status="done", stage="Stopped by you", progress=1.0)
+    else:
+        raise ValueError("This video isn't being made right now.")
+
+
+def resume(job):
+    """A paused video carries on from where it stopped (its transcript parts, clips and AI answers are kept)."""
+    if job.get("status") != "paused":
+        raise ValueError("This video isn't paused.")
+    job.pop("halting", None)
+    job.update(status="queued", stage="Picking up where it stopped", resume=True)
+    enqueue(job)
 
 
 def submit(fn):
@@ -692,6 +728,24 @@ def brand_look(uid):
     return render.clean_look(pick["look"]) if pick else None
 
 
+def new_clip_setup(uid):
+    """What a new clip is made with. A template turned on in Options wins: its layout and the whole look
+    (captions, hook, frame, card, brand). Otherwise the layout stays the one picked in Options (None here)
+    and the look is the brand look, when one is chosen."""
+    try:
+        b = json.loads((config.user_dir(uid or ctx.uid()) / "brand.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        b = {}
+    tid = b.get("template") if isinstance(b.get("template"), str) else ""
+    raw = next((t for t in b.get("templates") or [] if isinstance(t, dict) and t.get("id") == tid), None) if tid else None
+    if raw:
+        look = render.clean_look(raw.get("look") if isinstance(raw.get("look"), dict) else None)
+        if look:
+            layout = raw.get("layout") if raw.get("layout") in render.LAYOUTS else "blur"
+            return layout, look
+    return None, brand_look(uid)
+
+
 def _next_id(job) -> str:
     nums = [int(m.group(1)) for c in job["clips"] for m in [re.match(r"clip(\d+)$", c.get("id", ""))] if m]
     return f"clip{(max(nums) if nums else 0) + 1:02d}"
@@ -756,6 +810,8 @@ def more_clips(job, n, changes=None):
         x, end = int(float(upto) * 16000), min(len(audio), int(end_s * 16000))
         step = BLOCK * 16000
         while x < end:
+            if _halt.get(job["id"]):
+                break
             y = min(end, x + step)
             _set(job, finding=f"Writing the rest of the transcript (minute {round(x / 16000 / 60)} of {round(end / 16000 / 60)})")
             sh = x / 16000
@@ -765,7 +821,8 @@ def more_clips(job, n, changes=None):
             job["transcribed_to"] = round(y / 16000, 2)
             save(job)
             x = y
-        job.pop("transcribed_to", None)
+        if x >= end:
+            job.pop("transcribed_to", None)
         save(job)
     import numpy as np
     db = np.array(db, dtype=np.float32)
@@ -775,7 +832,7 @@ def more_clips(job, n, changes=None):
     # the parts with the fewest clips are read first, so new clips spread over the whole video
     blocks.sort(key=lambda ab: sum(1 for c in have if ab[0] <= c["start"] < ab[1]))
     for bi, (a, b) in enumerate(blocks):
-        if len(found) >= n:
+        if len(found) >= n or _halt.get(job["id"]):
             break
         bw = [dict(w, s=round(w["s"] - a, 2), e=round(w["e"] - a, 2)) for w in words if a <= w["s"] < b]
         if len(bw) < 8:
@@ -792,12 +849,14 @@ def more_clips(job, n, changes=None):
             c.update(start=s, end=e)
             found.append(c)
     if not found:
+        _halt.pop(job["id"], None)
         job.pop("finding", None)
+        job.pop("halting", None)
         save(job)
         return 0
-    look = brand_look(job.get("user"))
+    lay, look = new_clip_setup(job.get("user"))
     for c in found:
-        c.update(id=_next_id(job), style=_style_for(job, o), layout=o["layout"], status="queued", version=0, made_at=time.time(), more=True)
+        c.update(id=_next_id(job), style=_style_for(job, o), layout=lay or o["layout"], status="queued", version=0, made_at=time.time(), more=True)
         if look:
             c["look"] = dict(look)
         job["clips"].append(c)
@@ -813,7 +872,9 @@ def more_clips(job, n, changes=None):
             _fetch_piece(job, c, audio)
         if c["status"] != "error":
             render_one(job, c, words)
+    _halt.pop(job["id"], None)
     job.pop("finding", None)
+    job.pop("halting", None)
     save(job)
     try:
         from . import notices
@@ -891,7 +952,7 @@ def _fetch_piece(job, clip, full_audio):
     try:
         want = max(0.0, clip["start"] - PAD)
         piece = media.download_section(job["source"]["url"], d / "clips", f"{clip['id']}.src", want,
-                                       min(job["duration"], clip["end"] + PAD), int(o["quality"]))
+                                       min(job["duration"], clip["end"] + PAD), max(1080, int(o["quality"])))
         wav = d / "clips" / f"{clip['id']}.wav"
         media.extract_audio(piece, wav)
         part = media.load_audio(wav)
@@ -928,6 +989,9 @@ def _run_job(job):
     notes = []
     usage.set_context(job["creator"], job["title"] or src.get("name"))
     resuming = bool(job.pop("resume", False)) and (d / "words.json").is_file()
+    job.pop("transcribed_to", None)       # carrying on: the transcript is written to the end again
+    job.pop("halting", None)
+    _halt.pop(job["id"], None)
     if resuming:   # after a restart: keep the transcript parts, clips and AI answers already made, and carry on
         _set(job, status="running", stage="Picking up where it stopped", error=None)
     else:
@@ -1102,6 +1166,10 @@ def _run_job(job):
     for bi, (a, b) in enumerate(blocks):
         if bi < done_blocks:
             continue                      # transcribed and checked by the AI before the restart
+        if _halt.get(job["id"]):             # Pause or Stop pressed: keep what is made, stop here
+            job["transcribed_to"] = round(a / 16000, 2)
+            save(job)
+            break
         if not yt and len(job["clips"]) >= int(o["max_clips"]):
             # Every clip asked for is made: the rest of a long video is not transcribed now (for a 10-hour stream
             # that is most of the wait). "More clips" writes the rest first, when it is wanted.
@@ -1139,10 +1207,10 @@ def _run_job(job):
         model = ai.get("model") or model
         if ai.get("note"):
             notes.append(ai["note"])
-        look = brand_look(job.get("user"))
+        lay, look = new_clip_setup(job.get("user"))
         for c in found:
             c.update(id=f"clip{len(job['clips']) + 1:02d}", start=round(c["start"] + shift, 2),
-                     end=round(c["end"] + shift, 2), style=_style_for(job, o), layout=o["layout"], status="queued", version=0)
+                     end=round(c["end"] + shift, 2), style=_style_for(job, o), layout=lay or o["layout"], status="queued", version=0)
             if look:
                 c["look"] = dict(look)
             job["clips"].append(c)
@@ -1170,7 +1238,14 @@ def _run_job(job):
     clips = job["clips"]
     job["ai"] = {"model": model, "tokens": tokens, "log": notes[-5:],
                  "note": "The AI was unavailable, so clips were picked by loudness only." if clips and not model else ""}
-    stage = "Done" if clips else "Done, but nothing clip-worthy was found"
+    how = _halt.pop(job["id"], None)
+    job.pop("halting", None)
+    if how == "pause":                    # Resume carries on from the next part
+        where = f" at minute {round((job.get('transcribed_to') or 0) / 60)}" if job.get("transcribed_to") else ""
+        _set(job, status="paused", stage=f"Paused{where}", took=round(time.time() - t0))
+        creators.log(job["creator"], f"Video paused{where} with {len(clips)} clips: {job['title']}")
+        return
+    stage = ("Stopped by you" if how == "stop" else "Done") if clips else ("Stopped by you" if how == "stop" else "Done, but nothing clip-worthy was found")
     _set(job, status="done", stage=stage, progress=1.0, took=round(time.time() - t0))
     try:
         from . import notices
@@ -1195,6 +1270,9 @@ def _worker(quick_only=False):
         if not job:
             if kind == "job":
                 _q.done()
+            continue
+        if kind == "job" and job.get("status") != "queued":     # paused or stopped while it waited in line
+            _q.done()
             continue
         token = ctx._uid.set(job["user"])  # everything this job does runs as its owner
         try:

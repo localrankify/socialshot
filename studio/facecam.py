@@ -88,6 +88,42 @@ def find(src, start: float, end: float, aspect: float = 1080 / 960):
     return [round(x / W, 4), round(y / H, 4), round(bw / W, 4), round(bh / H, 4)]
 
 
+def scene(src, start: float, end: float):
+    """What the picture shows during start..end, for the AI editor choosing a layout. Faces are counted only when
+    they stay in about the same place across the clip (a streamer's face cam, a podcast's speakers); faces that
+    come and go (characters in a game or a film) don't count. Returns {"faces": steady faces, "cam": a small steady
+    face off to a side or corner, or None, "big": steady faces filling a good part of the frame, "seen": any face at
+    all}, sizes and places as parts of the frame. None when the frames can't be read."""
+    n, seen, read = 6, [], 0
+    for i in range(n):
+        img = _frame(Path(src), start + (end - start) * (i + 0.5) / n)
+        if img is None:
+            continue
+        read += 1
+        W, H = img.shape[1], img.shape[0]
+        seen += [((x + w / 2) / W, (y + h / 2) / H, w / W, h / H, i) for x, y, w, h in _faces(img)]
+    if not read:
+        return None
+    if not seen:
+        return {"faces": 0, "cam": None, "big": 0, "seen": False}
+
+    def near(a, b):
+        return abs(a[0] - b[0]) < 0.06 and abs(a[1] - b[1]) < 0.08
+    steady, used = [], set()
+    for f in sorted(seen, key=lambda f: -len({g[4] for g in seen if near(f, g)})):
+        if id(f) in used:
+            continue
+        group = [g for g in seen if near(f, g)]
+        used.update(id(g) for g in group)
+        if len({g[4] for g in group}) >= max(2, read // 2):          # in at least half the frames, in the same place
+            steady.append([round(float(sorted(g[k] for g in group)[len(group) // 2]), 3) for k in range(4)])
+    side = lambda f: f[0] < 0.3 or f[0] > 0.7 or f[1] > 0.62 or f[1] < 0.3   # noqa: E731 - off to a side or a corner
+    cams = [f for f in steady if f[2] < 0.14 and side(f)]
+    big = [f for f in steady if f[2] >= 0.14]
+    cam = min(cams, key=lambda f: f[2]) if cams else None
+    return {"faces": len(steady), "cam": dict(zip("xywh", cam)) if cam else None, "big": len(big), "seen": True}
+
+
 def face_point(src, start: float, end: float):
     """Where the main face is during start..end, for a zoom: its middle as (x, y) fractions of the picture, or None.
     Four frames are checked; the biggest face in each counts, and their middles are averaged (faces far from the

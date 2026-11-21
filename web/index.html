@@ -9,7 +9,7 @@
 <link rel="manifest" href="/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Archivo+Black&family=Anton&family=Poppins:wght@800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Archivo+Black&family=Anton&family=Poppins:wght@600;800&family=Russo+One&display=swap" rel="stylesheet">
 <link rel="preload" href="/brand/ApfelGrotezk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face{font-family:"Apfel Grotezk";src:url("/brand/ApfelGrotezk-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
@@ -3691,6 +3691,17 @@ dialog.sd::backdrop{background:rgba(0,0,0,.6)}
 .ed-tpl[aria-pressed=true]{border-color:var(--accent)}
 .ed-tpl-pv{display:grid;place-items:center;height:180px;border-radius:9px;background:#0F0F12}
 .ed-tpl-pv .lp-ph{width:auto;height:100%;max-height:none;max-width:100%}
+.ed-mine{display:grid;gap:8px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#18181B}
+.ed-mine-h b{font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-mine-h p,.ed-mine-empty{margin:2px 0 0;font-size:12px;line-height:1.45;color:#8E8E96}
+.ed-mine-save{display:flex;align-items:center;gap:6px}
+.ed-mine-save input,.ed-mine-row>input{flex:1;min-width:0;height:32px;padding:0 10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#121215;color:#F4F4F5;font-size:13px}
+.ed-mine-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}
+.ed-mine-row>b{flex:1;min-width:100px;font-size:13px;font-weight:600;color:#F4F4F5}
+.ed-mine-acts{display:flex;flex-wrap:wrap;gap:4px}
+.ed-mine-acts button{height:28px;padding:0 8px;border:0;border-radius:6px;background:#232327;color:#D4D4D8;font-size:12px;cursor:pointer}
+.ed-mine-acts button:hover{background:#2E2E34;color:#fff}
+.ed-mine-acts button[aria-pressed=true]{background:var(--accent);color:#fff}
 .ed-tpl b{margin-top:6px;font-size:13px;font-weight:600;color:#F4F4F5}
 .ed-tpl small{font-size:11px;line-height:1.35;color:#8E8E96}
 @media (max-width:560px){.ed-tpl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ed-tpl-pv{height:150px}}
@@ -5154,6 +5165,71 @@ body{background:#0B0B0D}
 .o2-switch i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.4);transition:transform .2s cubic-bezier(.2,.8,.2,1)}
 .o2-switch[aria-checked=true]{background:var(--accent)}
 .o2-switch[aria-checked=true] i{transform:translateX(16px)}
+.tpl-lead{margin:0 0 8px;font-size:12.5px;line-height:1.45;color:#8E8E96}
+.tpl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tpl-grid:has(.tpl-card:only-child){grid-template-columns:1fr}
+.tpl-grid:has(.tpl-card:only-child) .tpl-card{flex-direction:row;align-items:stretch}
+.tpl-grid:has(.tpl-card:only-child) .tpl-stage{width:150px;height:auto;min-height:168px;flex:none}
+.tpl-grid:has(.tpl-card:only-child) .tpl-phone{width:96px}
+.tpl-grid:has(.tpl-card:only-child) .tpl-nm{flex:1;justify-content:center;padding:14px 16px;gap:4px}
+.tpl-grid:has(.tpl-card:only-child) .tpl-nm b{font-size:15px}
+.tpl-phone::after{content:"";position:absolute;left:0;right:0;bottom:0;z-index:1;height:34%;background:linear-gradient(transparent,rgba(0,0,0,.72));pointer-events:none}
+.tpl-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:0;border:0;border-radius:10px;overflow:hidden;background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#C4C4CC;text-align:left;cursor:pointer}
+.tpl-card:hover{background:#18181C}
+.tpl-card[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.tpl-card.empty{cursor:default}
+.tpl-card.empty:hover{background:#121215}
+.tpl-stage{position:relative;display:grid;place-items:center;height:156px;background:#0E0E12}
+.tpl-phone{--still:none;position:relative;width:82px;aspect-ratio:9/16;border-radius:9px;overflow:hidden;background:#16141C;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16),0 10px 18px -12px #000}
+.tpl-phone i{position:absolute;background-image:var(--still),linear-gradient(165deg,#3A2C48,#14121C);background-size:cover;background-position:center}
+.tpl-phone.lay-blur i.a{inset:-10px;filter:blur(5px) brightness(.55)}
+.tpl-phone.lay-blur i.b{left:0;right:0;top:34%;height:32%}
+.tpl-phone.lay-zoom i.a{inset:-18% -8%}
+.tpl-phone.lay-crop i.a,.tpl-phone.lay-card i.a{inset:0}
+.tpl-phone.lay-card{background:#0C0C0E}
+.tpl-phone.lay-card i.a{left:10%;right:10%;top:30%;bottom:22%;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.2)}
+.tpl-phone.lay-split i.a{left:0;right:0;top:0;height:50%;background-position:center 28%}
+.tpl-phone.lay-split i.b{left:0;right:0;bottom:0;height:50%;background-position:center 72%;box-shadow:inset 0 1px 0 rgba(0,0,0,.65)}
+.tpl-phone.lay-pip i.a{inset:0}
+.tpl-phone.lay-pip i.b{width:36%;height:22%;right:7%;bottom:8%;border-radius:3px;background-position:center 18%;box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.tpl-phone.lay-trio i.a,.tpl-phone.lay-trio i.b,.tpl-phone.lay-trio i.c{left:0;right:0;height:33.34%}
+.tpl-phone.lay-trio i.a{top:0;background-position:center 20%}
+.tpl-phone.lay-trio i.b{top:33.33%;background-position:center 50%;box-shadow:inset 0 1px 0 rgba(0,0,0,.55)}
+.tpl-phone.lay-trio i.c{top:66.67%;background-position:center 80%}
+.tpl-phone.lay-grid i{width:50%;height:50%}
+.tpl-phone.lay-grid i.a{left:0;top:0}
+.tpl-phone.lay-grid i.b{right:0;top:0;background-position:80% center}
+.tpl-phone.lay-grid i.c{left:0;bottom:0;background-position:center 80%}
+.tpl-phone.lay-grid i.d{right:0;bottom:0;background-position:80% 80%}
+.tpl-phone.lay-pop i.a{inset:0;filter:brightness(.7)}
+.tpl-phone.lay-pop i.b{width:48%;aspect-ratio:1;height:auto;left:26%;bottom:10%;border-radius:50%;background-position:center 12%;box-shadow:0 0 0 2px rgba(255,255,255,.4)}
+.tpl-hook{position:absolute;z-index:2;left:50%;top:7%;transform:translateX(-50%);max-width:88%;padding:1px 4px;border-radius:3px;font-size:7px;font-weight:700;line-height:1.3;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpl-cap{position:absolute;z-index:2;left:2px;right:2px;bottom:7%;text-align:center;font-size:8.5px;line-height:1;letter-spacing:0;paint-order:stroke fill;white-space:nowrap}
+.tpl-cap b{font-weight:inherit}
+.tpl-live{position:absolute;top:8px;left:8px;z-index:2;height:18px;padding:0 7px;border-radius:999px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;font-style:normal;line-height:18px}
+.tpl-card[aria-pressed=true] .tpl-stage::after{content:"";position:absolute;top:8px;right:8px;z-index:2;width:16px;height:16px;border-radius:50%;
+  background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 7'/%3E%3C/svg%3E") center/10px no-repeat;box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+.tpl-nm{display:flex;flex-direction:column;gap:1px;padding:8px 10px 9px}
+.tpl-nm b{font-size:12.5px;font-weight:600;color:#F4F4F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpl-nm small{font-size:11px;font-weight:500;color:#8E8E96}
+.tpl-one{display:flex;align-items:stretch;border-radius:10px;overflow:hidden;background:#121215;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.tpl-one .tpl-stage{width:168px;flex:none;height:auto;min-height:188px}
+.tpl-one .tpl-phone{width:108px}
+.tpl-side{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:16px}
+.tpl-side>b{font-size:16px;font-weight:600;color:#F4F4F5}
+.tpl-facts{display:flex;align-items:center;gap:8px;font-size:12px;color:#A1A1AA}
+.tpl-facts i{width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.tpl-one .tpl-bar{flex-wrap:wrap;align-items:center;margin:0;padding:0;background:transparent;box-shadow:none}
+.tpl-one .tpl-bar .btn{flex:none}
+.tpl-one .tpl-use{flex-basis:100%;margin-left:0;padding-top:4px}
+.tpl-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;padding:8px;border-radius:10px;background:#121215;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.tpl-bar label{display:flex;align-items:center;gap:8px;flex:1;min-width:140px;height:32px;padding:0 10px;border-radius:8px;background:#0E0E12;color:#8E8E96;font-size:12px}
+.tpl-bar input{flex:1;min-width:0;border:0;background:transparent;color:#F4F4F5;font-size:13px;font-weight:600}
+.tpl-bar .btn{height:32px}
+.tpl-use{display:flex;align-items:center;gap:10px;margin-left:auto}
+.tpl-use b{display:block;font-size:12.5px;font-weight:600;color:#F4F4F5}
+.tpl-use small{display:block;font-size:11px;font-weight:500;color:#8E8E96}
+@media (max-width:720px){.tpl-grid{grid-template-columns:1fr 1fr}}
 @media (max-width:720px){.ox2 .o2-lays{grid-template-columns:repeat(4,minmax(0,1fr))}.ox2 .o2-caps{grid-template-columns:1fr 1fr}.ox2 .o2-steps,.ox2 .o2-two,.ox2 .o2-sws{grid-template-columns:1fr}}
 /* ================= profile picture: the account popup's top row, and the picture dialog */
 #acctpop .acc-me{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left;cursor:pointer}
@@ -5573,6 +5649,10 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
    as a soft dome (the finished clip cuts the person out exactly) */
 .ed-popring{position:absolute;z-index:2;pointer-events:none}
 .ed-popfill{position:absolute;z-index:2;pointer-events:none}
+/* the moving border effect (glow, fire, thunder): a see-through loop under the card */
+.ed-popfx{position:absolute;z-index:2;pointer-events:none;object-fit:fill;max-width:none}
+.ed-popset .ed-popwide{justify-content:center;gap:8px}
+.ed-popset .ed-popwide[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px var(--accent)}
 /* the real cut-out person (a see-through video from the server) over the card, in step with the stream */
 .ed-popcut{position:absolute;z-index:2;pointer-events:none;object-fit:fill;max-width:none}
 /* the head line: its handle beside the card's top edge, and a dashed guide across the card while it is dragged */
@@ -5656,6 +5736,23 @@ img.avatar.me-pic{object-fit:cover;border-radius:50%}
 .composer .addrow .addrow-n{position:absolute;right:12px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:11px;font-weight:600;color:#8E8E96;font-variant-numeric:tabular-nums}
 .composer .addrow .addrow-l{margin:0!important;flex:none!important}
 .ox2 .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))}   /* six styles: two even rows, names in full */
+/* caption choices: a still from a finished clip, the style written on it the way it will look, the name underneath */
+.ox2 .o2-caps .o2-tile{position:relative;flex-direction:column;align-items:stretch;height:auto;padding:0;gap:0;overflow:hidden;border-radius:10px}
+.ox2 .o2-caps .o2-tile .cap-prev{transform:none;width:100%;height:128px;border-radius:0;align-items:flex-end;justify-content:center;padding:0 10px;
+  --still:none;
+  background-color:#070709;
+  background-image:linear-gradient(180deg,transparent 0 64%,#070709 64%),var(--still),linear-gradient(165deg,#3A2C48,#14121C);
+  background-size:cover;background-position:center,center 42%,center}
+.ox2 .o2-caps .cap-prev.shot::before{display:none}
+.ox2 .o2-caps .cap-prev::before{top:18px;width:26px;height:26px;margin-left:-13px;background:linear-gradient(180deg,#F3D2B8,#D7A888);box-shadow:0 20px 0 7px #C49278}
+.ox2 .o2-caps .cp-t{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;height:42px;font-size:18px;line-height:1;letter-spacing:0;z-index:1;text-shadow:none;white-space:nowrap}
+.ox2 .o2-caps .cp-t b{transform:none;margin:0}
+.ox2 .o2-caps .o2-name{display:flex;align-items:center;height:32px;padding:0 10px;font-size:12.5px;font-weight:600;color:#C4C4CC}
+.ox2 .o2-caps .o2-tile:hover .o2-name{color:#fff}
+.ox2 .o2-caps .o2-tile[aria-pressed=true] .o2-name{color:#fff}
+.ox2 .o2-caps .o2-tile[aria-pressed=true]::after{content:"";position:absolute;top:7px;right:7px;z-index:2;width:16px;height:16px;border-radius:50%;
+  background:#7C3AED url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 7'/%3E%3C/svg%3E") center/10px no-repeat;
+  box-shadow:0 0 0 2px rgba(0,0,0,.45)}
 /* an open picker (creator, brand) in the add-a-video box floats over the video cards and filters below it */
 #addform:has(.pick.open),.hero:has(.pick.open){position:relative;z-index:40}
 /* the social watermark's styles, each drawn on this clip; the chosen one ringed in the accent */
@@ -6167,8 +6264,29 @@ dialog.mdlg::backdrop{background:rgba(6,6,8,.62);-webkit-backdrop-filter:blur(3p
 .md-body .o2-steps{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:720px){.md-body .o2-caps{grid-template-columns:repeat(3,minmax(0,1fr))!important}.md-body .o2-lays{grid-template-columns:repeat(5,minmax(0,1fr))!important}.md-body .o2-steps{grid-template-columns:1fr}}
 /* the caption tiles in the More clips window, the same size as in the Home options */
-.md-body .cap-prev{height:42px!important;border-radius:5px}
+.md-body .o2-caps .cap-prev{height:128px!important;border-radius:0}
 .md-body .o2-tile{overflow:hidden}
+/* Pause, Resume and Stop on a video being made */
+.vc-pause,.vc-stop,.vc-resume{display:inline-flex;align-items:center;gap:6px}
+.vc-pause svg,.vc-stop svg,.vc-resume svg{width:13px;height:13px}
+.vc-stop:hover{color:#FCA5A5!important;background:rgba(239,68,68,.1)!important}
+.vc-stop.arm{color:#fff!important;background:#DC2626!important}
+.vc-halting{display:inline-flex;align-items:center;height:30px;padding:0 10px;font-size:12.5px;color:#A1A1AA}
+.vc-state.pause{background:rgba(251,191,36,.1);color:#FCD34D}
+.vc-paused{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);box-shadow:inset 0 0 0 1px rgba(251,191,36,.18);font-size:12.5px;color:#D4D4D8}
+.vc-paused svg{width:15px;height:15px;flex:none;color:#FCD34D}
+.vc-paused b{font-weight:600;color:#FDE68A}
+.vc-paused:last-child{margin-bottom:0}
+/* a long working label never squeezes the video's title: it shortens with "…" (the full text in its tooltip) */
+.vc-state{max-width:260px;overflow:hidden}
+.vc-state>span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vc-main{min-width:140px}
+.vc-head .vc-halting{display:none}     /* the row's badge already says Pausing… or Stopping… */
+/* the AI edit's log, finished: keep or undo, under the list of what changed */
+.ed-aifoot{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02)}
+.ed-aifoot>span{flex:1;font-size:12px;color:#8E8E96}
+.ed-aifoot .ed-btn{display:inline-flex;align-items:center;gap:6px}
+.ed-aifoot .ed-btn svg{width:13px;height:13px}
 </style>
 </head>
 <body>
@@ -6843,8 +6961,8 @@ function drawShell() {  const nav = (v, icon, label, extra = "") => `<button cla
     subHtml = [who && [ic("user"), who], pj.uploader && [ic("radio"), pj.uploader], pj.duration && [ic("clock"), fmt(pj.duration) + " long"],
       pj.clips.length && [ic("scissors"), `${ready}/${pj.clips.length} clips ready`], pj.took && [ic("bolt"), "made in " + fmt(pj.took)],
       pj.chat && [ic("chat"), `${pj.chat.spikes} chat spikes`]].filter(Boolean).map(([i, t]) => `<span class="mp">${i}${esc(t)}</span>`).join("");
-    act = busy ? "" : `${moreBtn(pj)}${ready ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${pj.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
-      <button class="btn sm icon ghost" data-act="deljob" data-j="${pj.id}" title="Delete this video and its clips" aria-label="Delete this video and its clips">${ic("trash")}</button>`;
+    act = haltBtns(pj) + (busy || pj.status === "paused" ? "" : `${moreBtn(pj)}${ready ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${pj.id}" title="Download all clips of this video" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
+      <button class="btn sm icon ghost" data-act="deljob" data-j="${pj.id}" title="Delete this video and its clips" aria-label="Delete this video and its clips">${ic("trash")}</button>`);
   }
   if (S.view === "creators" && S.creators.length) act = `<button class="btn primary" data-act="newcreator">${ic("plus")}Add creator</button>`;
   if (S.view === "schedule") {             // Calendar or Board, in the same tab strip the creator pages use
@@ -7111,7 +7229,7 @@ function moreDialog(j) {
   const o = j.options || {}, n0 = j.clips.length ? 3 : Math.min(6, o.max_clips || 6);
   const sw = (id, label, sub, on) => `<div class="o2-sw"><div><b>${label}</b><small>${sub}</small></div><input type="hidden" id="${id}" value="${on ? 1 : 0}">
       <button type="button" class="o2-switch" role="switch" data-tog="${id}" aria-checked="${!!on}" aria-label="${label}"><i></i></button></div>`;
-  const style = o.style || "auto", lay = o.layout || "blur", q = String(o.quality || 1080);
+  const style = o.style || "auto", lay = o.layout || "blur", q = String(o.quality || 2160);
   const dlg = document.createElement("dialog");
   dlg.className = "mdlg"; dlg.id = "moredlg";
   const left = j.transcribed_to && j.duration ? Math.max(0, Math.round((j.duration - j.transcribed_to) / 60)) : 0;
@@ -7125,11 +7243,11 @@ function moreDialog(j) {
         ${stepper("m_min", "Shortest", o.min_len ?? 15, 5, 120, 5, "s")}
         ${stepper("m_max", "Longest", o.max_len ?? 60, 10, 180, 5, "s")}</div></section>
       <section class="o2-sec"><h5>Captions</h5><input type="hidden" id="m_style" value="${esc(style)}">
-        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="m_style" data-v="${esc(k)}" aria-pressed="${k === style}">${capPrev(k)}<span>${esc(v)}</span></button>`).join("")}</div></section>
+        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="m_style" data-v="${esc(k)}" aria-pressed="${k === style}">${capPrev(k)}<span class="o2-name">${esc(v)}</span></button>`).join("")}</div></section>
       <section class="o2-sec"><h5>Layout</h5><input type="hidden" id="m_layout" value="${esc(lay)}">
         <div class="o2-lays">${Object.entries(S.status.layouts).map(([k, v]) => `<button type="button" class="o2-tile lay" data-seg="m_layout" data-v="${esc(k)}" aria-pressed="${k === lay}" title="${esc(v)}">${LAY_IC[k] || LAY_IC.blur}<span>${esc(LAYOUT_SHORT[k] || k)}</span></button>`).join("")}</div></section>
       <section class="o2-sec"><h5>Quality</h5><input type="hidden" id="m_quality" value="${esc(q)}">
-        <div class="o2-seg o2-seg3">${[["720", "720p", "Fast"], ["1080", "1080p", "Sharp"], ["2160", "4K", "Sharpest"]].map(([v, l, sm]) => `<button type="button" data-seg="m_quality" data-v="${v}" aria-pressed="${q === v}">${l}<small>${sm}</small></button>`).join("")}</div></section>
+        <div class="o2-seg o2-seg3">${[["720", "720p", "Fast"], ["1080", "1080p", "Sharp"], ["2160", "Original", "Up to 4K"]].map(([v, l, sm]) => `<button type="button" data-seg="m_quality" data-v="${v}" aria-pressed="${q === v}">${l}<small>${sm}</small></button>`).join("")}</div></section>
       <section class="o2-sec o2-sws md-sws">
         ${sw("m_ai", "AI editor", "Music, zooms and sounds on every clip", o.ai_edit)}
         ${sw("m_wm", "Source watermark", "“Full video on” + the channel, top corner", o.watermark)}
@@ -7379,17 +7497,18 @@ function drawAdd(variant, keep = "") {
     </div>
     <div class="composer-opts" inert><div class="og ox2">
       <div class="o2-head"><div><b>Options</b><small>Good defaults are set. Change anything, or just make clips.</small></div><button type="button" class="ox-reset" data-act="optreset">Reset</button></div>
+      <section class="o2-sec" id="tplPick"></section>
       <section class="o2-sec"><h5>Clips</h5><div class="o2-steps">
         ${stepper("o_max", "How many", c?.max_clips ?? 6, 1, 20, 1, "")}
         ${stepper("o_min", "Shortest", c?.min_len ?? 15, 5, 120, 5, "s")}
         ${stepper("o_maxlen", "Longest", c?.max_len ?? 60, 10, 180, 5, "s")}</div></section>
       <section class="o2-sec"><h5>Captions</h5><input type="hidden" id="o_style" value="${esc(c?.style ?? "auto")}">
-        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="o_style" data-v="${esc(k)}" aria-pressed="${k === (c?.style ?? "auto")}"${k === "auto" ? ` title="Gamer for gaming videos and streams, Studio for everything else"` : ""}>${capPrev(k)}<span>${esc(v)}</span></button>`).join("")}</div></section>
+        <div class="o2-caps">${Object.entries(S.status.styles).map(([k, v]) => `<button type="button" class="o2-tile" data-seg="o_style" data-v="${esc(k)}" aria-pressed="${k === (c?.style ?? "auto")}"${k === "auto" ? ` title="Gamer for gaming videos and streams, Studio for everything else"` : ""}>${capPrev(k)}<span class="o2-name">${esc(v)}</span></button>`).join("")}</div></section>
       <section class="o2-sec"><h5>Layout</h5><input type="hidden" id="o_layout" value="${esc(c?.layout ?? "blur")}">
         <div class="o2-lays">${Object.entries(S.status.layouts).map(([k, v]) => `<button type="button" class="o2-tile lay" data-seg="o_layout" data-v="${esc(k)}" aria-pressed="${k === (c?.layout ?? "blur")}" title="${esc(v)}">${LAY_IC[k] || LAY_IC.blur}<span>${esc(LAYOUT_SHORT[k] || k)}</span></button>`).join("")}</div></section>
       <section class="o2-sec o2-two">
-        <div><h5>Quality</h5><input type="hidden" id="o_quality" value="1080">
-          <div class="o2-seg o2-seg3"><button type="button" data-seg="o_quality" data-v="720" aria-pressed="false">720p<small>Fast</small></button><button type="button" data-seg="o_quality" data-v="1080" aria-pressed="true">1080p<small>Sharp</small></button><button type="button" data-seg="o_quality" data-v="2160" aria-pressed="false">4K<small>Sharpest</small></button></div></div>
+        <div><h5>Quality</h5><input type="hidden" id="o_quality" value="2160">
+          <div class="o2-seg o2-seg3"><button type="button" data-seg="o_quality" data-v="720" aria-pressed="false">720p<small>Fast</small></button><button type="button" data-seg="o_quality" data-v="1080" aria-pressed="false">1080p<small>Sharp</small></button><button type="button" data-seg="o_quality" data-v="2160" aria-pressed="true" title="The best the video has, up to 4K">Original<small>Up to 4K</small></button></div></div>
         <div><h5>Part of the video</h5><div class="o2-range">
           <label><input id="o_from" type="number" min="0" placeholder="Start" aria-label="From minute"><i>min</i></label>${ic("arrowr")}
           <label><input id="o_to" type="number" min="0" placeholder="End" aria-label="Up to minute"><i>min</i></label></div></div>
@@ -7409,12 +7528,73 @@ function drawAdd(variant, keep = "") {
 /* the brand look new clips start with (videos, more clips and live streams alike): saved in the editor with
    "Save as brand", picked here; the AI editor then adds music, zooms and sounds on top of it */
 async function drawBrandPick() {
-  const w = $("#brandPickW"); if (!w) return;
+  const w = $("#brandPickW");
+  if (!w && !$("#tplPick")) return;
   try { S.brandKit = await api("/api/brand"); } catch { return; }
-  const st = S.brandKit.styles || []; if (!st.length || !$("#brandPickW")) return;
-  const cur = S.brandKit.default === "" ? "none" : (st.find(x => x.name === S.brandKit.default) || st[0]).name;
-  $("#brandPickW").innerHTML = picker("o_brand", "Brand look for new clips", [...st.map(x => ({v: x.name, label: "Brand: " + x.name, icon: "palette"})),
-    {v: "none", label: "No brand look", icon: "palette"}], cur);
+  const st = S.brandKit.styles || [];
+  if ($("#brandPickW") && st.length) {
+    const cur = S.brandKit.default === "" ? "none" : (st.find(x => x.name === S.brandKit.default) || st[0]).name;
+    $("#brandPickW").innerHTML = picker("o_brand", "Brand look for new clips", [...st.map(x => ({v: x.name, label: "Brand: " + x.name, icon: "palette"})),
+      {v: "none", label: "No brand look", icon: "palette"}], cur);
+  }
+  drawTplOpts();
+}
+/* a setup saved from a clip, turned on here so the next videos are made the same way */
+function tplStill() {
+  const j = (S.jobs || []).find(x => x.thumb && x.id);
+  return j ? `/media/${encodeURIComponent(j.id)}/thumb.jpg` : capStill();
+}
+function tplPhone(t) {
+  const lay = ["blur", "zoom", "crop", "split", "card", "pip", "trio", "grid", "pop"].includes(t.layout) ? t.layout : "blur";
+  const parts = {blur: "ab", zoom: "a", crop: "a", split: "ab", card: "a", pip: "ab", trio: "abc", grid: "abcd", pop: "ab"}[lay];
+  const still = tplStill();
+  const look = t.look || {};
+  const fs = S.status.fonts || {};
+  const f = fs[look.font] || {google: look.font || "Poppins", weight: 700};
+  const hook = look.hook === false ? "" : `<b class="tpl-hook" style="background:${esc(look.hook_box || "#FFFFFF")};color:${esc(look.hook_ink || "#14100E")};opacity:${((look.hook_op ?? 100) / 100).toFixed(2)}">Title</b>`;
+  const words = look.upper ? ["CLIP", "THIS"] : ["Clip", "this"];
+  const cap = look.caps === false ? "" : `<span class="tpl-cap" style="font-family:'${esc(f.google)}',sans-serif;font-weight:${look.weight || f.weight};color:${esc(look.base || "#FFFFFF")};-webkit-text-stroke:${capEdge(look)}">${words[0]} <b style="color:${esc(look.active || "#FFE500")}">${words[1]}</b></span>`;
+  return `<span class="tpl-phone lay-${lay}"${still ? ` style="--still:url('${still}')"` : ""}>${[...parts].map(p => `<i class="${p}"></i>`).join("")}${hook}${cap}</span>`;
+}
+function drawTplOpts() {
+  const box = $("#tplPick"); if (!box || !S.brandKit) return;
+  const list = S.brandKit.templates || [];
+  if (!list.length) {
+    box.innerHTML = `<h5>Template</h5><p class="tpl-lead">Save a clip's layout, captions and hook, then turn it on for the next videos.</p>
+      <div class="tpl-grid"><div class="tpl-card empty"><span class="tpl-stage"><span class="tpl-phone lay-blur"><i class="a"></i><i class="b"></i></span></span><span class="tpl-nm"><b>No template yet</b><small>Open a clip, then Save as template</small></span></div></div>`;
+    return;
+  }
+  if (!list.some(t => t.id === S.tplId)) S.tplId = (list.find(t => t.id === S.brandKit.template) || list[0]).id;
+  const cur = list.find(t => t.id === S.tplId) || list[0];
+  const on = S.brandKit.template === cur.id;
+  const look = cur.look || {};
+  const facts = `<span class="tpl-facts"><i style="background:${esc(look.base || "#fff")}"></i><i style="background:${esc(look.active || "#FFE500")}"></i><span>${look.caps === false ? "No captions" : "Caption colours"}</span><span>${esc(LAYOUT_SHORT[cur.layout] || "Blurred")} layout</span></span>`;
+  const bar = `<div class="tpl-bar"><label>Name<input id="tplName" maxlength="40" value="${esc(cur.name)}" aria-label="Template name"></label>
+      <button type="button" class="btn sm" data-act="tplrename">Save name</button>
+      <button type="button" class="btn sm ghost" data-act="tplremove">Remove</button>
+      <div class="tpl-use"><div><b>Use for new clips</b><small>${on ? "On for the next videos" : "Off. The options below are used"}</small></div>
+        <button type="button" class="o2-switch" role="switch" data-act="tpluse" aria-checked="${on}" aria-label="Use this template for new clips"><i></i></button></div></div>`;
+  const head = `<h5>Template</h5><p class="tpl-lead">A setup from a clip. The one marked On is what new clips are made with.</p>`;
+  if (list.length === 1) {
+    const live = on;
+    box.innerHTML = `${head}<div class="tpl-one">
+      <span class="tpl-stage">${tplPhone(cur)}${live ? `<em class="tpl-live">On</em>` : ""}</span>
+      <div class="tpl-side"><b>${esc(cur.name)}</b>${facts}${bar}</div></div>`;
+    return;
+  }
+  const cards = list.map(t => {
+    const live = S.brandKit.template === t.id;
+    return `<button type="button" class="tpl-card" data-act="tplpick" data-id="${esc(t.id)}" aria-pressed="${t.id === cur.id}">
+      <span class="tpl-stage">${tplPhone(t)}${live ? `<em class="tpl-live">On</em>` : ""}</span>
+      <span class="tpl-nm"><b>${esc(t.name)}</b><small>${esc(LAYOUT_SHORT[t.layout] || "Blurred")}</small></span></button>`;
+  }).join("");
+  box.innerHTML = `${head}<div class="tpl-grid">${cards}</div>${bar}`;
+}
+async function saveTpl(body) {
+  const r = await api("/api/brand", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  S.brandKit = {...(S.brandKit || {}), ...r};
+  drawTplOpts();
+  return r;
 }
 document.addEventListener("change", async e => {
   if (e.target.id !== "o_brand" || !S.brandKit) return;
@@ -7435,16 +7615,32 @@ const LAY_IC = {
   trio: `<svg class="lay-ic" viewBox="0 0 14 22" aria-hidden="true"><rect x=".75" y=".75" width="12.5" height="20.5" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="2.5" y="2.5" width="9" height="5" rx="1" fill="currentColor"/><rect x="2.5" y="8.5" width="9" height="5" rx="1" fill="currentColor" fill-opacity=".75"/><rect x="2.5" y="14.5" width="9" height="5" rx="1" fill="currentColor" fill-opacity=".5"/></svg>`,
   pop: `<svg class="lay-ic" viewBox="0 0 14 22" aria-hidden="true"><rect x=".75" y=".75" width="12.5" height="20.5" rx="2.5" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="3" y="11" width="8" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="10.2" r="2.2" fill="currentColor"/><path d="M3.6 18.5c.6-2.4 1.8-3.6 3.4-3.6s2.8 1.2 3.4 3.6" fill="currentColor"/></svg>`,
   grid: `<svg class="lay-ic" viewBox="0 0 14 22" aria-hidden="true"><rect x=".75" y=".75" width="12.5" height="20.5" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"/><rect x="2.5" y="2.5" width="4" height="8" rx="1" fill="currentColor"/><rect x="7.5" y="2.5" width="4" height="8" rx="1" fill="currentColor" fill-opacity=".75"/><rect x="2.5" y="11.5" width="9" height="8" rx="1" fill="currentColor" fill-opacity=".5"/></svg>`};
+function capStill() {
+  for (const j of S.jobs || []) {
+    const c = (j.clips || []).find(x => x.status === "done" && x.cover);
+    if (c && j.id) return `/media/${encodeURIComponent(j.id)}/${encodeURIComponent(c.cover)}?v=${c.version || 0}`;
+  }
+  const j = (S.jobs || []).find(x => x.thumb && x.id);
+  return j ? `/media/${encodeURIComponent(j.id)}/thumb.jpg` : "";
+}
+function capEdge(p) {
+  const line = String(p?.cap_line || "#000000").toUpperCase();
+  if (!p?.outline || line === "#000" || line === "#000000") return "0 transparent";
+  const w = Math.max(0.8, Math.min(1.6, p.outline / 4));
+  return `${w.toFixed(1)}px ${p.cap_line}`;
+}
 function capPrev(k) {
+  const still = typeof tplStill === "function" ? tplStill() : capStill();
+  const frame = ` class="cap-prev${still ? " shot" : ""}"${still ? ` style="--still:url('${still}')"` : ""}`;
   if (k === "auto") {         // Auto: Studio or Gamer, picked from the video, both shown in the tile
     const st = S.status.presets?.studio || {}, gm = S.status.presets?.gamer || {}, fs = S.status.fonts || {};
     const g = f => (fs[f] || {google: f, weight: 600});
-    return `<span class="cap-prev"><span class="cp-t"><span style="font-family:'${g(st.font).google}',sans-serif;font-weight:${g(st.font).weight};color:#fff;-webkit-text-stroke:1.2px #000">Clip</span> <b style="font-family:'${g(gm.font).google}',sans-serif;font-weight:${g(gm.font).weight};color:${gm.active || "#FFE500"};-webkit-text-stroke:2px ${gm.cap_line || "#7C3AED"}">THIS</b></span></span>`;
+    return `<span${frame}><span class="cp-t"><span style="font-family:'${g(st.font).google}',sans-serif;font-weight:${g(st.font).weight};color:#fff;-webkit-text-stroke:${capEdge(st)}">Clip</span> <b style="font-family:'${g(gm.font).google}',sans-serif;font-weight:${g(gm.font).weight};color:${gm.active || "#FFE500"};-webkit-text-stroke:${capEdge(gm)}">THIS</b></span></span>`;
   }
   const p = (S.status.presets || {})[k] || {font: "Poppins", base: "#FFFFFF", active: "#FFE500", upper: true, outline: 7};
   const f = (S.status.fonts || {})[p.font] || {google: "Poppins", weight: 800};
   const t = p.upper ? ["CLIP", "THIS"] : ["Clip", "this"];
-  return `<span class="cap-prev"><span class="cp-t" style="font-family:'${f.google}',sans-serif;font-weight:${f.weight};color:${p.base};-webkit-text-stroke:${Math.max(2, p.outline / 2.4).toFixed(1)}px ${p.cap_line || "#000"}">${t[0]} <b style="color:${p.active}">${t[1]}</b></span></span>`;
+  return `<span${frame}><span class="cp-t" style="font-family:'${f.google}',sans-serif;font-weight:${f.weight};color:${p.base};-webkit-text-stroke:${capEdge(p)}">${t[0]} <b style="color:${p.active}">${t[1]}</b></span></span>`;
 }
 function picker(id, aria, items, val) {
   const cur = items.find(x => String(x.v) === String(val)) || items[0];
@@ -7979,8 +8175,17 @@ function vWhen(j) {
   const t = d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
   return d >= day ? `Today, ${t}` : d >= day - 864e5 ? `Yesterday, ${t}` : d.toLocaleDateString([], {day: "numeric", month: "short"});
 }
+/* Pause, Resume and Stop for a video being made (or a search for more clips). Stop asks twice. */
+function haltBtns(j) {
+  const busy = j.status === "queued" || j.status === "running", paused = j.status === "paused", finding = j.status === "done" && j.finding;
+  if (j.halting) return `<span class="vc-halting">${j.halting === "pause" ? "Pausing…" : "Stopping…"}</span>`;
+  const stop = `<button class="btn sm ghost vc-stop" data-act="jstop" data-j="${j.id}" title="${finding ? "Stop finding more clips" : "Stop and keep the clips made so far"}">${ic("stop")}Stop</button>`;
+  if (busy) return `<button class="btn sm ghost vc-pause" data-act="jpause" data-j="${j.id}" title="Pause. Resume carries on from here">${ic("pause")}Pause</button>${stop}`;
+  if (paused) return `<button class="btn sm primary vc-resume" data-act="jresume" data-j="${j.id}" title="Carry on from where it paused">${ic("play")}Resume</button>${stop}`;
+  return finding ? stop : "";
+}
 function vCardHtml(j) {
-  const busy = j.status === "queued" || j.status === "running";
+  const busy = j.status === "queued" || j.status === "running", paused = j.status === "paused";
   const who = j.creator ? S.creators.find(c => c.id === j.creator)?.name : "";
   const ready = j.clips.filter(c => c.status === "done"), total = ready.length;
   const making = j.clips.filter(c => c.status === "queued" || c.status === "rendering");
@@ -7992,7 +8197,8 @@ function vCardHtml(j) {
                 j.chat && [ic("chat"), `${j.chat.spikes} chat spike${j.chat.spikes === 1 ? "" : "s"}`], [ic("calendar"), vWhen(j)]]
     .filter(x => x && x[1]).map(([i, t]) => `<span>${i}${esc(t)}</span>`).join("");
   const pct = Math.round((j.progress || 0) * 100);
-  const [stCls, stTxt] = j.error ? ["bad", "Didn't finish"] : busy ? ["work", `${j.stage ? esc(j.stage) : "Working"} · ${pct}%`]
+  const [stCls, stTxt] = j.error ? ["bad", "Didn't finish"] : j.halting ? ["work", j.halting === "pause" ? "Pausing…" : "Stopping…"]
+    : paused ? ["pause", esc(j.stage || "Paused")] : busy ? ["work", `${j.stage ? esc(j.stage) : "Working"} · ${pct}%`]
     : j.finding ? ["work", "Finding clips"] : making.length ? ["work", `Making ${making.length} of ${j.clips.length}`]
     : total ? ["ok", `${total} clip${total === 1 ? "" : "s"} ready`] : ["", "No clips yet"];
   // open: the clips, a tile each (ready ones, then the ones still being made), and "all clips" when there are more
@@ -8007,20 +8213,22 @@ function vCardHtml(j) {
     + (total > 3 ? `<a class="vc-all" href="${link}" data-act="openproj" data-j="${j.id}" aria-label="Open the project to see all ${total} clips">
         <span class="vc-peek">${ready.slice(0, 4).map(c => `<i style="background-image:url('/media/${j.id}/${esc(c.cover)}?v=${c.version}')"></i>`).join("")}</span>
         <b>All ${total} clips</b><small>Open project ${ic("arrowr")}</small></a>` : "");
-  const body = busy ? forgeHtml(j)
+  const pausedNote = paused ? `<div class="vc-paused">${ic("pause")}<span><b>${esc(j.stage || "Paused")}</b>${total ? ` · ${total} clip${total === 1 ? "" : "s"} made so far` : ""}. Resume carries on from there; Stop keeps what's made.</span></div>` : "";
+  const body = pausedNote + (busy ? forgeHtml(j)
     : j.error ? `<div class="err">${esc(j.error)}<button class="rep" data-act="report" data-ctx="${esc("Video failed: " + name + " | " + j.error)}">Report this</button></div>`
     : total ? `<div class="vc-strip">${tiles}</div>`
     : j.finding || making.length ? forgeHtml(j, j.finding || `Making ${making.length} clip${making.length === 1 ? "" : "s"}`,
         j.clips.length ? `${total} of ${j.clips.length} clips ready` : "Reading the video for its best moments")
+    : paused ? ""
     : `<div class="pc-find"><b>No clips from this video yet</b><span>${j.kind === "live" ? "The AI reads the whole recording and clips its best moments." : "The AI can read it again and clip its best moments."}</span>
-        ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}${moreBtn(j)}</div>`;
+        ${j.more_error ? `<p class="pc-err">${esc(j.more_error)}</p>` : ""}${moreBtn(j)}</div>`);
   return `<div class="vc-head" data-act="vtoggle" data-j="${j.id}" role="button" tabindex="0" aria-expanded="false" aria-label="Show or hide the clips of ${esc(name)}">
       <span class="vc-chev" aria-hidden="true">${ic("caret")}</span>
       <span class="vc-thumb">${pic}${j.duration ? `<span class="du">${fmt(j.duration)}</span>` : ""}</span>
       <div class="vc-main"><h3 title="${esc(name)}">${esc(name)}</h3><div class="vc-meta">${meta}</div></div>
-      <span class="vc-state ${stCls}">${stCls === "work" ? `<i class="vc-dot"></i>` : ""}${stTxt}</span>
-      <div class="vc-acts">${busy ? "" : `
-        ${total ? moreBtn(j) : ""}
+      <span class="vc-state ${stCls}" title="${stTxt}">${stCls === "work" ? `<i class="vc-dot"></i>` : ""}<span class="t">${stTxt}</span></span>
+      <div class="vc-acts">${haltBtns(j)}${busy ? "" : `
+        ${total && !paused && !j.finding ? moreBtn(j) : ""}
         ${total ? `<button class="btn sm icon ghost" data-act="dlall" data-j="${j.id}" title="Download all clips as a zip" aria-label="Download all clips of this video">${ic("down")}</button>` : ""}
         <button class="btn sm icon ghost" data-act="deljob" data-j="${j.id}" title="Delete" aria-label="Delete this video and its clips">${ic("trash")}</button>
         <label class="selck" title="Select"><input type="checkbox" data-sel="j:${j.id}" ${sel().has("j:" + j.id) ? "checked" : ""} aria-label="Select this video"></label>`}
@@ -8140,7 +8348,7 @@ function emptyState({label, title, text, actions = [], key = ""}) {
 }
 const NEW_CLIP = {label: "New clip", act: "step", data: 'data-to="focusurl"', icon: "plus", primary: true};
 const VFILTERS = [["all", "All"], ["done", "Ready"], ["busy", "In progress"], ["failed", "Needs a look"]];
-const vMatch = (j, f) => f === "all" || (f === "done" && j.status === "done" && !j.error) || (f === "busy" && ["queued", "running", "live"].includes(j.status))
+const vMatch = (j, f) => f === "all" || (f === "done" && j.status === "done" && !j.error) || (f === "busy" && ["queued", "running", "live", "paused"].includes(j.status))
   || (f === "failed" && (j.status === "error" || !!j.error));
 function drawVBar() {          // drawn once per visit, so typing in the search box never loses focus
   const bar = $("#vbar"); if (!bar) return;
@@ -8905,7 +9113,12 @@ function loop() {
 }
 
 /* ============================================================ actions */
-document.addEventListener("submit", e => { if (e.target.id === "addform") { e.preventDefault(); S.addMode === "live" ? startLive().catch(er => toast(er.message, "bad")) : makeClips(); } });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "addform") return;
+  e.preventDefault();
+  if (document.activeElement?.id === "tplName") { document.querySelector('#tplPick [data-act="tplrename"]')?.click(); return; }
+  S.addMode === "live" ? startLive().catch(er => toast(er.message, "bad")) : makeClips();
+});
 
 /* The live tab: record a creator's stream and clip it as it goes. A channel link with no creator picked makes a
    new creator named after the channel; a link the picked creator doesn't have yet is added to them first. */
@@ -9093,6 +9306,31 @@ document.addEventListener("click", async e => {
     if (a === "avpick") { b.classList.add("busy"); try { photoDone(await send("/api/me/photo/avatar", {style: S.avStyle, seed: d.v}), "Avatar set"); } catch (er) { toast(er.message, "bad"); } return; }
     if (a === "photodel") { try { const r = await api("/api/me/photo", {method: "DELETE"}); photoDone(r, "Picture removed"); } catch (er) { toast(er.message, "bad"); } return; }
     if (a === "ckdel") { try { S.cookies = await api("/api/me/cookies", {method: "DELETE"}); toast("Your sign-in file is removed.", "ok"); drawSettings(); } catch (er) { toast(er.message, "bad"); } return; }
+    if (a === "tplpick") { S.tplId = d.id; return drawTplOpts(); }
+    if (a === "tpluse") {
+      const cur = (S.brandKit?.templates || []).find(t => t.id === S.tplId); if (!cur) return;
+      const on = S.brandKit.template === cur.id ? "" : cur.id;
+      try { await saveTpl({template: on}); toast(on ? `New clips use “${cur.name}”.` : "New clips use the options below.", "ok"); }
+      catch (er) { toast(er.message, "bad"); }
+      return;
+    }
+    if (a === "tplrename") {
+      const name = $("#tplName")?.value.trim(); if (!name) return $("#tplName")?.focus();
+      const templates = (S.brandKit?.templates || []).map(t => t.id === S.tplId ? {...t, name} : t);
+      try { await saveTpl({templates, template: S.brandKit.template || ""}); toast("Name saved.", "ok"); }
+      catch (er) { toast(er.message, "bad"); }
+      return;
+    }
+    if (a === "tplremove") {
+      const cur = (S.brandKit?.templates || []).find(t => t.id === S.tplId); if (!cur) return;
+      if (!await ask("Remove this template?", `“${cur.name}” is deleted. Clips already made stay as they are.`, "Remove", true)) return;
+      const templates = S.brandKit.templates.filter(t => t.id !== cur.id);
+      const template = S.brandKit.template === cur.id ? "" : (S.brandKit.template || "");
+      S.tplId = templates[0]?.id || "";
+      try { await saveTpl({templates, template}); toast("Template removed.", "ok"); }
+      catch (er) { toast(er.message, "bad"); }
+      return;
+    }
     if (a === "optreset") {                // the add box's options back to the defaults, kept open
       const u = $("#url")?.value || "", big = $("#addform").classList.contains("big");
       drawAdd(big ? "hero" : "compact", u); $('[data-act="toggleopts"]')?.click(); return toast("Back to the defaults.");
@@ -9115,6 +9353,21 @@ document.addEventListener("click", async e => {
     }
     if (a === "jfold") { const j = jobOf(d.j); if (j) { setVidFold(j.id, !vidFolded(j)); drawJobs(); } return; }
     if (a === "jmore") { const j = jobOf(d.j); if (j) moreDialog(j); return; }
+    if (a === "jpause" || a === "jresume" || a === "jstop") {
+      const j = jobOf(d.j); if (!j) return;
+      if (a === "jstop" && !b.classList.contains("arm")) {    // Stop asks once more
+        b.classList.add("arm"); b.innerHTML = `${ic("stop")}Stop now?`;
+        setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.innerHTML = `${ic("stop")}Stop`; } }, 3000); return;
+      }
+      b.disabled = true;
+      try {
+        Object.assign(j, await send(`/api/jobs/${j.id}/${a.slice(1)}`));
+        toast(a === "jpause" ? "Pausing after the part it's on. Clips made so far are kept." : a === "jresume" ? "Carrying on from where it paused."
+          : j.finding ? "Stopping the search for more clips." : "Stopping. The clips made so far are kept.", "ok");
+        drawShell(); drawJobs();
+      } catch (er) { toast(er.message, "bad"); b.disabled = false; }
+      return;
+    }
     if (a === "vtoggle") {               // the row opens or closes; its own buttons, links and checkbox do their own thing
       if (e.target.closest("label, input")) return;
       const sec = b.closest("section[data-job]"); if (sec) vToggle(sec, !sec.classList.contains("open")); return;
@@ -9293,6 +9546,6 @@ $("#main").addEventListener("scroll", () => $(".topbar").classList.toggle("stuck
   setInterval(async () => { try { S.status = await api("/api/status"); drawShell(); if (S.view === "overview") drawOverview(); checkNew(); } catch {} }, 15000);
 })();
 </script>
-<script src="/assets/editor.js?v=176"></script>
+<script src="/assets/editor.js?v=180"></script>
 </body>
 </html>
