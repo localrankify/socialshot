@@ -968,7 +968,8 @@ def _fetch_piece(job, clip, full_audio):
 
 
 BLOCK = 10 * 60         # long videos are transcribed and clipped one block at a time
-PROGRESSIVE_FROM = 20 * 60
+PROGRESSIVE_FROM = 8 * 60      # longer than this: transcribed and clipped part by part, so clips come sooner
+FIRST_BLOCK = 4 * 60           # the first part is short: the first clips are being made a minute or two in
 
 
 def _covers(words: list, start: float, end: float) -> bool:
@@ -1094,10 +1095,16 @@ def _run_job(job):
             render_one(job, clip, words_now)
 
     cpus = os.cpu_count() or 4
-    renders = ThreadPoolExecutor(2 if cpus < 8 else min(6, cpus // 6))  # more clips made at once on a bigger machine
+    # Clips made at once: a render's drawing step uses only part of the processor, so a few side by side finish
+    # sooner (measured on 12 threads: 3 at once in 44 s, one after another in 69 s).
+    renders = ThreadPoolExecutor(2 if cpus < 8 else min(6, cpus // 4))
     futures = []
-    step = BLOCK * 16000 if span > PROGRESSIVE_FROM else hi - lo
-    blocks = [(x, min(hi, x + step)) for x in range(lo, hi, step)] or [(lo, hi)]
+    # a job picked up again after a restart keeps the parts it was started with (it may predate the short first part)
+    old = resuming and "first_block" not in job
+    step = BLOCK * 16000 if span > (20 * 60 if old else PROGRESSIVE_FROM) else hi - lo
+    first = step if old or span <= PROGRESSIVE_FROM else FIRST_BLOCK * 16000
+    job.setdefault("first_block", 0 if old else FIRST_BLOCK)
+    blocks = [(lo, min(hi, lo + first))] + [(x, min(hi, x + step)) for x in range(lo + first, hi, step)] if hi > lo else [(lo, hi)]
     words, tokens, model = [], 0, None
     done_blocks = 0
     yt = None
@@ -1138,7 +1145,10 @@ def _run_job(job):
             def tp(p, i=i, a_=a_, b_=b_):
                 if now_on[0] == i and p - last[0] > 0.05:      # only the part being shown moves the bar
                     last[0] = p
-                    _set(job, progress=max(job["progress"], 0.14 + 0.78 * ((a_ - lo) + p * (b_ - a_)) / max(1, hi - lo)))
+                    at = ((a_ - lo) + p * (b_ - a_)) / 16000
+                    more = {"stage": f"Writing the transcript (minute {int(at // 60)} of {round(span / 60)})"} \
+                        if len(blocks) > 1 and job.get("stage", "").startswith("Writing") else {}
+                    _set(job, progress=max(job["progress"], 0.14 + 0.78 * at * 16000 / max(1, hi - lo)), **more)
             heard[i] = ahead.submit(ctx.bind(transcribe.transcribe), audio[a_:b_], tp)
 
     def chat_spikes(until):
@@ -1185,8 +1195,8 @@ def _run_job(job):
             _set(job, stage="Writing the transcript" + where)
             now_on[0] = bi
             hear(bi)
-            hear(bi + 1)
-            bw = heard.pop(bi).result()
+            bw = heard.pop(bi).result()      # this part alone first, with the whole processor: its clips come sooner
+            hear(bi + 1)                     # the next part is written while the AI reads this one
         _set(job, progress=max(job["progress"], 0.14 + 0.78 * (b - lo) / max(1, hi - lo)))
         words += [dict(w, s=round(w["s"] + shift, 2), e=round(w["e"] + shift, 2)) for w in bw]
         (d / "words.json").write_text(json.dumps(words), encoding="utf-8")

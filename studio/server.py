@@ -70,7 +70,11 @@ def _startup():
         print("\n  " + _tools.HELP + "\n", flush=True)
     if not transcribe.REMOTE and config.env("PEAKCUT_FETCH_MODEL", "1") != "0":     # the speech model: fetched now, in the background, if it was never downloaded
         from . import fetch_model
-        threading.Thread(target=lambda: _quiet(fetch_model.ensure), daemon=True).start()
+        def ready_model():
+            fetch_model.ensure()
+            if config.env("PEAKCUT_ASR_WARM", "1") != "0":
+                transcribe.warm()          # every copy loaded now, so the first video starts writing at once
+        threading.Thread(target=lambda: _quiet(ready_model), daemon=True).start()
         fetch_model.fetch_hindi_later()     # the Hindi one, for clips heard again (about 290 MB, once)
     jobs.start()
     live.start()

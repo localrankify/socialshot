@@ -110,6 +110,27 @@ def _take_now():
         raise
 
 
+def warm():
+    """Load every copy of the model now, side by side, so the first video doesn't wait for them (about 10 s each on a
+    6-core processor). Copies already made are left as they are."""
+    if REMOTE:                      # the card's machine does the work: nothing to load here
+        return
+    got = []
+
+    def one():
+        rec = _take_now()
+        if rec is not None:
+            got.append(rec)
+
+    ts = [threading.Thread(target=one, daemon=True) for _ in range(COPIES)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    for rec in got:
+        _free.put(rec)
+
+
 def _recognizer():
     """Kept for callers that only need the model loaded (warm-up)."""
     rec = _take()
